@@ -6,9 +6,11 @@ import type { HubModule } from '../types';
 // To add a new module to the Hub:
 // 1. Add an entry below with the right type ('internal' or 'iframe')
 // 2. For 'internal': create a React component in src/pages/
-// 3. For 'iframe': just provide the URL — it loads automatically
+// 3. For 'iframe': just provide the full URL — it loads in an iframe
 // 4. Set 'roles' to control who sees it
 // ============================================================
+
+const GITHUB_PAGES_BASE = 'https://chattingwizard.github.io';
 
 export const modules: HubModule[] = [
   // --- Internal modules (React pages) ---
@@ -51,7 +53,7 @@ export const modules: HubModule[] = [
     name: 'Coaching',
     icon: 'TrendingUp',
     type: 'iframe',
-    path: '/cw-coaching/',
+    path: `${GITHUB_PAGES_BASE}/cw-coaching/`,
     roles: ['owner', 'admin', 'chatter'],
     dividerBefore: true,
   },
@@ -60,7 +62,7 @@ export const modules: HubModule[] = [
     name: 'School',
     icon: 'GraduationCap',
     type: 'iframe',
-    path: '/CW-ChattingSchool/',
+    path: `${GITHUB_PAGES_BASE}/CW-ChattingSchool/`,
     roles: ['owner', 'admin', 'chatter', 'recruit'],
   },
   {
@@ -68,7 +70,7 @@ export const modules: HubModule[] = [
     name: 'Scripts',
     icon: 'FileText',
     type: 'iframe',
-    path: '/CW-ScriptManager/',
+    path: `${GITHUB_PAGES_BASE}/CW-ScriptManager/`,
     roles: ['owner', 'admin'],
     badge: 'Soon',
     disabled: true,

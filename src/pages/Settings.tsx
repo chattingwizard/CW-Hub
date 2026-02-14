@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
-import { Shield, UserPlus, Copy, Check } from 'lucide-react';
+import { Shield, UserPlus, Copy, Check, RefreshCw, Search } from 'lucide-react';
 import type { Profile, UserRole } from '../types';
 
 export default function Settings() {
@@ -11,6 +11,8 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -41,18 +43,21 @@ export default function Settings() {
   };
 
   const handleGenerateInvite = async () => {
+    setGenerating(true);
     try {
       const { data, error } = await supabase.rpc('generate_invite_code');
       if (error) throw error;
       fetchData();
-      // Auto-copy
       if (data) {
         navigator.clipboard.writeText(data);
         setCopiedCode(data);
-        setTimeout(() => setCopiedCode(null), 3000);
+        setStatusMsg('Code generated and copied!');
+        setTimeout(() => { setCopiedCode(null); setStatusMsg(''); }, 3000);
       }
     } catch (err: any) {
       setStatusMsg(`Error: ${err.message}`);
+    } finally {
+      setGenerating(false);
     }
   };
 
@@ -69,18 +74,37 @@ export default function Settings() {
       chatter: 'bg-success/15 text-success border-success/30',
       recruit: 'bg-warning/15 text-warning border-warning/30',
     };
-    return colors[role] ?? 'bg-surface-3 text-text-secondary';
+    return colors[role] ?? 'bg-surface-3 text-text-secondary border-border';
   };
 
+  const filteredUsers = (users as any[]).filter((u: any) => {
+    if (!userSearch) return true;
+    const search = userSearch.toLowerCase();
+    return (
+      u.full_name?.toLowerCase().includes(search) ||
+      u.email?.toLowerCase().includes(search) ||
+      u.role?.toLowerCase().includes(search)
+    );
+  });
+
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-4 lg:p-6 max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <Shield size={24} className="text-cw" />
-          <h1 className="text-2xl font-bold text-white">Settings</h1>
+          <div className="w-10 h-10 rounded-xl bg-cw/10 flex items-center justify-center">
+            <Shield size={20} className="text-cw" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-white">Settings</h1>
+            <p className="text-sm text-text-secondary">Manage users, roles, and invite codes</p>
+          </div>
         </div>
         {statusMsg && (
-          <span className={`text-sm ${statusMsg.startsWith('Error') ? 'text-danger' : 'text-success'}`}>
+          <span className={`text-sm px-3 py-1 rounded-lg ${
+            statusMsg.startsWith('Error')
+              ? 'bg-danger/10 text-danger'
+              : 'bg-success/10 text-success'
+          }`}>
             {statusMsg}
           </span>
         )}
@@ -89,52 +113,75 @@ export default function Settings() {
       {/* Invite Codes Section */}
       <div className="bg-surface-1 border border-border rounded-xl p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Invite Codes</h2>
+          <div>
+            <h2 className="text-lg font-semibold text-white">Invite Codes</h2>
+            <p className="text-xs text-text-muted mt-0.5">Generate codes for new team members to register</p>
+          </div>
           <button
             onClick={handleGenerateInvite}
-            className="flex items-center gap-2 px-4 py-2 bg-cw hover:bg-cw-dark text-white rounded-lg text-sm font-medium"
+            disabled={generating}
+            className="flex items-center gap-2 px-4 py-2 bg-cw hover:bg-cw-dark text-white rounded-lg text-sm font-medium disabled:opacity-50"
           >
-            <UserPlus size={16} />
-            Generate New Code
+            {generating ? (
+              <RefreshCw size={16} className="animate-spin" />
+            ) : (
+              <UserPlus size={16} />
+            )}
+            Generate Code
           </button>
         </div>
 
         <div className="space-y-2 max-h-48 overflow-y-auto">
-          {inviteCodes.map((code) => (
-            <div
-              key={code.code}
-              className="flex items-center justify-between bg-surface-2 rounded-lg px-4 py-2.5"
-            >
-              <code className="text-sm text-cw font-mono">{code.code}</code>
-              <div className="flex items-center gap-3">
-                {code.used_by ? (
-                  <span className="text-xs text-text-muted">Used</span>
-                ) : (
-                  <span className="text-xs text-success">Available</span>
-                )}
+          {inviteCodes.length === 0 ? (
+            <p className="text-sm text-text-muted py-4 text-center">No invite codes generated yet.</p>
+          ) : (
+            inviteCodes.map((code) => (
+              <div
+                key={code.code}
+                className="flex items-center justify-between bg-surface-2 rounded-lg px-4 py-2.5"
+              >
+                <div className="flex items-center gap-3">
+                  <code className="text-sm text-cw font-mono">{code.code}</code>
+                  {code.used_by ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-3 text-text-muted">Used</span>
+                  ) : (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success">Available</span>
+                  )}
+                </div>
                 <button
                   onClick={() => copyCode(code.code)}
-                  className="p-1 rounded hover:bg-surface-3 text-text-secondary hover:text-white"
+                  className="p-1.5 rounded-lg hover:bg-surface-3 text-text-secondary hover:text-white"
+                  title="Copy code"
                 >
                   {copiedCode === code.code ? <Check size={14} className="text-success" /> : <Copy size={14} />}
                 </button>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 
       {/* Users Table */}
       <div className="bg-surface-1 border border-border rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-border">
-          <h2 className="text-lg font-semibold text-white">Team Members</h2>
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between gap-4">
+          <h2 className="text-lg font-semibold text-white shrink-0">Team Members</h2>
+          <div className="relative max-w-xs flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+            <input
+              type="text"
+              value={userSearch}
+              onChange={(e) => setUserSearch(e.target.value)}
+              placeholder="Search users..."
+              className="w-full bg-surface-2 border border-border rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-text-muted focus:outline-none focus:border-cw"
+            />
+          </div>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                {['Name', 'Email', 'Role', 'Team', 'Status', 'Actions'].map((h) => (
-                  <th key={h} className="text-left px-5 py-3 text-text-secondary font-medium">
+                {['Name', 'Email', 'Role', 'Status', 'Actions'].map((h) => (
+                  <th key={h} className="text-left px-5 py-3 text-text-secondary font-medium text-xs uppercase tracking-wider">
                     {h}
                   </th>
                 ))}
@@ -143,43 +190,61 @@ export default function Settings() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-text-secondary">Loading...</td>
+                  <td colSpan={5} className="px-5 py-8 text-center text-text-secondary">
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" />
+                      Loading...
+                    </div>
+                  </td>
+                </tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-5 py-8 text-center text-text-muted">
+                    {userSearch ? 'No users match your search.' : 'No users found.'}
+                  </td>
                 </tr>
               ) : (
-                users.map((user: any) => (
+                filteredUsers.map((user: any) => (
                   <tr key={user.id} className="border-b border-border/50 hover:bg-surface-2/50">
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-cw/15 flex items-center justify-center text-cw text-xs font-medium">
+                        <div className="w-8 h-8 rounded-full bg-cw/15 flex items-center justify-center text-cw text-xs font-medium shrink-0">
                           {(user.full_name || user.email).charAt(0).toUpperCase()}
                         </div>
-                        <span className="text-white">{user.full_name || '—'}</span>
+                        <div>
+                          <span className="text-white">{user.full_name || '—'}</span>
+                          {user.team_name && (
+                            <p className="text-[10px] text-text-muted">{user.team_name}</p>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3 text-text-secondary">{user.email}</td>
+                    <td className="px-5 py-3 text-text-secondary text-xs">{user.email}</td>
                     <td className="px-5 py-3">
                       <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs border ${roleBadge(user.role)}`}>
                         {user.role}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-text-secondary">{user.team_name || '—'}</td>
                     <td className="px-5 py-3">
-                      <span className={`text-xs ${user.is_active ? 'text-success' : 'text-danger'}`}>
-                        {user.is_active ? 'Active' : 'Inactive'}
+                      <span className={`flex items-center gap-1.5 text-xs ${user.is_active !== false ? 'text-success' : 'text-danger'}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${user.is_active !== false ? 'bg-success' : 'bg-danger'}`} />
+                        {user.is_active !== false ? 'Active' : 'Inactive'}
                       </span>
                     </td>
                     <td className="px-5 py-3">
-                      {user.id !== profile?.id && (
+                      {user.id !== profile?.id ? (
                         <select
                           value={user.role}
                           onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
-                          className="bg-surface-2 border border-border rounded-lg px-2 py-1 text-xs text-white"
+                          className="bg-surface-2 border border-border rounded-lg px-2.5 py-1.5 text-xs text-white focus:border-cw focus:outline-none"
                         >
                           <option value="recruit">Recruit</option>
                           <option value="chatter">Chatter</option>
                           <option value="admin">Admin</option>
                           <option value="owner">Owner</option>
                         </select>
+                      ) : (
+                        <span className="text-xs text-text-muted">You</span>
                       )}
                     </td>
                   </tr>

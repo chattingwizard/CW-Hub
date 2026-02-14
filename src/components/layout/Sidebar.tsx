@@ -16,9 +16,11 @@ const iconMap: Record<string, React.ComponentType<any>> = {
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  mobileOpen: boolean;
+  onMobileClose: () => void;
 }
 
-export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const { profile, signOut } = useAuthStore();
   const navigate = useNavigate();
 
@@ -36,14 +38,19 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     return mod.path;
   };
 
-  return (
-    <aside
-      className={`fixed top-0 left-0 h-full bg-surface-1 border-r border-border flex flex-col z-40 transition-all duration-300 ${
-        collapsed ? 'w-16' : 'w-60'
-      }`}
-    >
+  const handleNavClick = (mod: HubModule, e: React.MouseEvent) => {
+    if (mod.disabled) {
+      e.preventDefault();
+      return;
+    }
+    // Close mobile menu on navigation
+    onMobileClose();
+  };
+
+  const sidebarContent = (
+    <>
       {/* Header */}
-      <div className="flex items-center justify-between h-16 px-4 border-b border-border">
+      <div className="flex items-center justify-between h-16 px-4 border-b border-border shrink-0">
         {!collapsed && (
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-cw/20 flex items-center justify-center">
@@ -54,9 +61,16 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
         <button
           onClick={onToggle}
-          className="p-1.5 rounded-lg hover:bg-surface-2 text-text-secondary hover:text-white"
+          className="p-1.5 rounded-lg hover:bg-surface-2 text-text-secondary hover:text-white hidden lg:block"
         >
           {collapsed ? <Menu size={18} /> : <ChevronLeft size={18} />}
+        </button>
+        {/* Mobile close */}
+        <button
+          onClick={onMobileClose}
+          className="p-1.5 rounded-lg hover:bg-surface-2 text-text-secondary hover:text-white lg:hidden"
+        >
+          <ChevronLeft size={18} />
         </button>
       </div>
 
@@ -73,23 +87,23 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
               )}
               <NavLink
                 to={mod.disabled ? '#' : path}
-                onClick={(e) => mod.disabled && e.preventDefault()}
+                onClick={(e) => handleNavClick(mod, e)}
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                     mod.disabled
                       ? 'opacity-40 cursor-not-allowed'
                       : isActive
-                      ? 'bg-cw/15 text-cw'
+                      ? 'bg-cw/15 text-cw font-medium'
                       : 'text-text-secondary hover:bg-surface-2 hover:text-white'
                   }`
                 }
               >
                 <Icon size={18} className="shrink-0" />
-                {!collapsed && (
+                {(!collapsed || mobileOpen) && (
                   <>
                     <span className="flex-1 truncate">{mod.name}</span>
                     {mod.badge && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-3 text-text-muted">
+                      <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-surface-3 text-text-muted font-medium">
                         {mod.badge}
                       </span>
                     )}
@@ -105,14 +119,14 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {/* User section */}
-      <div className="border-t border-border p-3">
+      <div className="border-t border-border p-3 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-cw/20 flex items-center justify-center shrink-0">
             <span className="text-cw text-xs font-medium">
               {profile.full_name?.charAt(0)?.toUpperCase() || profile.email.charAt(0).toUpperCase()}
             </span>
           </div>
-          {!collapsed && (
+          {(!collapsed || mobileOpen) && (
             <div className="flex-1 min-w-0">
               <p className="text-sm text-white truncate">{profile.full_name || profile.email}</p>
               <p className="text-[11px] text-text-muted capitalize">{profile.role}</p>
@@ -127,6 +141,36 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           </button>
         </div>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full bg-surface-1 border-r border-border flex-col z-40 transition-all duration-300 hidden lg:flex ${
+          collapsed ? 'w-16' : 'w-60'
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-40 lg:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+
+      {/* Mobile Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full w-64 bg-surface-1 border-r border-border flex flex-col z-50 transition-transform duration-300 lg:hidden ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

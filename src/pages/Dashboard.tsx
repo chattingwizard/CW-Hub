@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { formatCurrency, formatNumber } from '../lib/utils';
-import { BarChart3, Users, TrendingUp, AlertTriangle, Upload, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { BarChart3, Users, TrendingUp, DollarSign, Upload, X, ChevronLeft, ChevronRight, Download, Filter } from 'lucide-react';
 import Papa from 'papaparse';
 import type { Model, ModelMetric, ModelMetricCSVRow } from '../types';
 
@@ -22,8 +22,10 @@ export default function Dashboard() {
   const [weekOffset, setWeekOffset] = useState(0);
   const [showUpload, setShowUpload] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'subs'>('revenue');
+  const [uploading, setUploading] = useState(false);
 
-  // Current week
   const getWeekStart = (offset: number) => {
     const d = new Date();
     const day = d.getDay();
@@ -79,6 +81,7 @@ export default function Dashboard() {
   const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    setUploading(true);
 
     Papa.parse<ModelMetricCSVRow>(file, {
       header: true,
@@ -88,20 +91,27 @@ export default function Dashboard() {
           const rows = results.data;
           if (!rows.length) throw new Error('CSV is empty');
 
-          // Validate columns
           const required = ['model_name', 'date', 'revenue'];
           const headers = Object.keys(rows[0]!);
           const missing = required.filter((r) => !headers.includes(r));
           if (missing.length) throw new Error(`Missing columns: ${missing.join(', ')}`);
 
-          // Match model names to IDs
           const { data: allModels } = await supabase.from('models').select('id, name');
-          const modelMap = new Map((allModels ?? []).map((m: any) => [m.name.toLowerCase(), m.id]));
+          const modelMap = new Map((allModels ?? []).map((m: any) => [m.name.toLowerCase().trim(), m.id]));
+
+          let matchedCount = 0;
+          let unmatchedNames: string[] = [];
 
           const toInsert = rows
             .map((row) => {
-              const modelId = modelMap.get(row.model_name?.toLowerCase());
-              if (!modelId) return null;
+              const modelId = modelMap.get(row.model_name?.toLowerCase().trim());
+              if (!modelId) {
+                if (row.model_name && !unmatchedNames.includes(row.model_name)) {
+                  unmatchedNames.push(row.model_name);
+                }
+                return null;
+              }
+              matchedCount++;
 
               const date = new Date(row.date + 'T00:00:00');
               const day = date.getDay();
@@ -124,7 +134,7 @@ export default function Dashboard() {
             })
             .filter(Boolean);
 
-          if (!toInsert.length) throw new Error('No valid rows found. Check model names match.');
+          if (!toInsert.length) throw new Error('No valid rows found. Check model names match exactly.');
 
           const { error } = await supabase
             .from('model_metrics')
@@ -132,7 +142,6 @@ export default function Dashboard() {
 
           if (error) throw error;
 
-          // Log the upload
           await supabase.from('csv_uploads').insert({
             uploaded_by: profile!.id,
             file_name: file.name,
@@ -140,26 +149,41 @@ export default function Dashboard() {
             upload_type: 'model_metrics',
           });
 
-          setUploadStatus({ type: 'success', message: `Uploaded ${toInsert.length} rows successfully.` });
+          let msg = `Uploaded ${matchedCount} rows successfully.`;
+          if (unmatchedNames.length > 0) {
+            msg += ` ${unmatchedNames.length} models not found: ${unmatchedNames.slice(0, 3).join(', ')}${unmatchedNames.length > 3 ? '...' : ''}`;
+          }
+
+          setUploadStatus({ type: 'success', message: msg });
           setShowUpload(false);
           fetchData();
         } catch (err: any) {
           setUploadStatus({ type: 'error', message: err.message || 'Upload failed' });
+        } finally {
+          setUploading(false);
         }
       },
       error: (err) => {
         setUploadStatus({ type: 'error', message: err.message });
+        setUploading(false);
       },
     });
 
     e.target.value = '';
   };
 
-  // Build table data: models with their metrics
-  const tableData = models.map((model) => {
-    const metric = metrics.find((m) => m.model_id === model.id);
-    return { model, metric };
-  }).sort((a, b) => (b.metric?.total_revenue ?? 0) - (a.metric?.total_revenue ?? 0));
+  // Build and sort table data
+  const tableData = models
+    .filter((m) => statusFilter === 'all' || m.status === statusFilter)
+    .map((model) => {
+      const metric = metrics.find((m) => m.model_id === model.id);
+      return { model, metric };
+    })
+    .sort((a, b) => {
+      if (sortBy === 'revenue') return (b.metric?.total_revenue ?? 0) - (a.metric?.total_revenue ?? 0);
+      if (sortBy === 'subs') return (b.metric?.new_subs ?? 0) - (a.metric?.new_subs ?? 0);
+      return a.model.name.localeCompare(b.model.name);
+    });
 
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
@@ -168,18 +192,36 @@ export default function Dashboard() {
       Dead: 'bg-danger/15 text-danger border-danger/30',
       'Pending Invoice': 'bg-cw/15 text-cw border-cw/30',
     };
-    return colors[status] ?? 'bg-surface-3 text-text-secondary';
+    return colors[status] ?? 'bg-surface-3 text-text-secondary border-border';
   };
 
+  const handleDownloadTemplate = () => {
+    const csv = 'model_name,date,revenue,new_subs,messages_revenue,tips,refunds\nExample Model,2026-02-14,1500,25,800,200,50';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'cw_hub_metrics_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const statuses = [...new Set(models.map((m) => m.status))];
+
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-white">Model Performance</h1>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Model Performance</h1>
+          <p className="text-sm text-text-secondary mt-1">
+            {models.filter((m) => m.status === 'Live').length} live models &middot; {metrics.length} with data this week
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
           <button
             onClick={() => setShowUpload(true)}
-            className="flex items-center gap-2 px-4 py-2 border border-cw/30 text-cw rounded-lg hover:bg-cw/10 text-sm"
+            className="flex items-center gap-2 px-4 py-2 bg-cw hover:bg-cw-dark text-white rounded-lg text-sm font-medium"
           >
             <Upload size={16} />
             Upload CSV
@@ -210,28 +252,57 @@ export default function Dashboard() {
           }`}
         >
           <span className="text-sm">{uploadStatus.message}</span>
-          <button onClick={() => setUploadStatus(null)}>
+          <button onClick={() => setUploadStatus(null)} className="shrink-0 ml-3">
             <X size={16} />
           </button>
         </div>
       )}
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-6">
         {[
-          { label: 'Total Revenue', value: formatCurrency(agg.totalRevenue), icon: BarChart3, color: 'text-cw' },
-          { label: 'Active Models', value: String(agg.activeModels), icon: Users, color: 'text-success' },
-          { label: 'New Subs', value: formatNumber(agg.totalNewSubs), icon: TrendingUp, color: 'text-cw-light' },
-          { label: 'Total Tips', value: formatCurrency(agg.totalTips), icon: AlertTriangle, color: 'text-warning' },
+          { label: 'Total Revenue', value: formatCurrency(agg.totalRevenue), icon: DollarSign, color: 'text-cw', bgColor: 'bg-cw/10' },
+          { label: 'Active Models', value: String(agg.activeModels), icon: Users, color: 'text-success', bgColor: 'bg-success/10' },
+          { label: 'New Subs', value: formatNumber(agg.totalNewSubs), icon: TrendingUp, color: 'text-cw-light', bgColor: 'bg-cw-light/10' },
+          { label: 'Total Tips', value: formatCurrency(agg.totalTips), icon: BarChart3, color: 'text-warning', bgColor: 'bg-warning/10' },
         ].map((card) => (
-          <div key={card.label} className="bg-surface-1 border border-border rounded-xl p-5">
+          <div key={card.label} className="bg-surface-1 border border-border rounded-xl p-4 lg:p-5">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-sm text-text-secondary">{card.label}</span>
-              <card.icon size={18} className={card.color} />
+              <span className="text-xs lg:text-sm text-text-secondary">{card.label}</span>
+              <div className={`w-8 h-8 rounded-lg ${card.bgColor} flex items-center justify-center`}>
+                <card.icon size={16} className={card.color} />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-white">{loading ? '—' : card.value}</p>
+            <p className="text-xl lg:text-2xl font-bold text-white">{loading ? '—' : card.value}</p>
           </div>
         ))}
+      </div>
+
+      {/* Table controls */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <Filter size={14} className="text-text-muted" />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="bg-surface-1 border border-border rounded-lg px-3 py-1.5 text-sm text-white focus:border-cw focus:outline-none"
+          >
+            <option value="all">All Status</option>
+            {statuses.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="bg-surface-1 border border-border rounded-lg px-3 py-1.5 text-sm text-white focus:border-cw focus:outline-none"
+          >
+            <option value="revenue">Sort by Revenue</option>
+            <option value="name">Sort by Name</option>
+            <option value="subs">Sort by Subs</option>
+          </select>
+        </div>
+        <span className="text-xs text-text-muted">{tableData.length} models</span>
       </div>
 
       {/* Models Table */}
@@ -241,7 +312,7 @@ export default function Dashboard() {
             <thead>
               <tr className="border-b border-border">
                 {['Model Name', 'Status', 'Revenue', 'New Subs', 'Tips', 'Refunds', 'Traffic'].map((h) => (
-                  <th key={h} className="text-left px-5 py-3.5 text-text-secondary font-medium">
+                  <th key={h} className="text-left px-4 lg:px-5 py-3.5 text-text-secondary font-medium text-xs uppercase tracking-wider">
                     {h}
                   </th>
                 ))}
@@ -251,42 +322,54 @@ export default function Dashboard() {
               {loading ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-12 text-center text-text-secondary">
-                    Loading...
+                    <div className="flex items-center justify-center gap-2">
+                      <div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" />
+                      Loading models...
+                    </div>
                   </td>
                 </tr>
               ) : tableData.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-5 py-12 text-center text-text-secondary">
-                    No models found. Sync data from Airtable or upload a CSV.
+                    No models found. Upload a CSV or sync from Airtable.
                   </td>
                 </tr>
               ) : (
-                tableData.map(({ model, metric }) => (
-                  <tr key={model.id} className="border-b border-border/50 hover:bg-surface-2/50">
-                    <td className="px-5 py-3.5">
+                tableData.map(({ model, metric }, idx) => (
+                  <tr key={model.id} className={`border-b border-border/50 hover:bg-surface-2/50 ${idx === 0 && metric ? 'bg-cw/5' : ''}`}>
+                    <td className="px-4 lg:px-5 py-3.5">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-cw/15 flex items-center justify-center text-cw text-xs font-medium shrink-0">
                           {model.name.charAt(0)}
                         </div>
-                        <span className="text-white font-medium">{model.name}</span>
+                        <div>
+                          <span className="text-white font-medium">{model.name}</span>
+                          {model.team_names.length > 0 && (
+                            <p className="text-[10px] text-text-muted">{model.team_names.join(', ')}</p>
+                          )}
+                        </div>
                       </div>
                     </td>
-                    <td className="px-5 py-3.5">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs border ${statusBadge(model.status)}`}>
+                    <td className="px-4 lg:px-5 py-3.5">
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] border ${statusBadge(model.status)}`}>
                         {model.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3.5 text-white">{metric ? formatCurrency(metric.total_revenue) : '—'}</td>
-                    <td className="px-5 py-3.5 text-text-secondary">{metric?.new_subs ?? '—'}</td>
-                    <td className="px-5 py-3.5 text-text-secondary">{metric ? formatCurrency(metric.tips) : '—'}</td>
-                    <td className="px-5 py-3.5 text-text-secondary">{metric ? formatCurrency(metric.refunds) : '—'}</td>
-                    <td className="px-5 py-3.5">
+                    <td className="px-4 lg:px-5 py-3.5 text-white font-medium">{metric ? formatCurrency(metric.total_revenue) : '—'}</td>
+                    <td className="px-4 lg:px-5 py-3.5 text-text-secondary">{metric?.new_subs ?? '—'}</td>
+                    <td className="px-4 lg:px-5 py-3.5 text-text-secondary">{metric ? formatCurrency(metric.tips) : '—'}</td>
+                    <td className="px-4 lg:px-5 py-3.5 text-text-secondary">{metric ? formatCurrency(metric.refunds) : '—'}</td>
+                    <td className="px-4 lg:px-5 py-3.5">
                       <div className="flex flex-wrap gap-1">
-                        {model.traffic_sources.slice(0, 3).map((src) => (
-                          <span key={src} className="text-[11px] px-2 py-0.5 rounded-full bg-cw/10 text-cw border border-cw/20">
-                            {src}
-                          </span>
-                        ))}
+                        {model.traffic_sources.length > 0 ? (
+                          model.traffic_sources.slice(0, 3).map((src) => (
+                            <span key={src} className="text-[10px] px-1.5 py-0.5 rounded-full bg-cw/10 text-cw border border-cw/20">
+                              {src}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-text-muted text-[10px]">—</span>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -299,17 +382,17 @@ export default function Dashboard() {
 
       {/* CSV Upload Modal */}
       {showUpload && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowUpload(false)}>
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => !uploading && setShowUpload(false)}>
           <div className="bg-surface-1 border border-border rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Upload Model Metrics CSV</h2>
-              <button onClick={() => setShowUpload(false)} className="text-text-secondary hover:text-white">
+              <h2 className="text-lg font-bold text-white">Upload Model Metrics</h2>
+              <button onClick={() => !uploading && setShowUpload(false)} className="text-text-secondary hover:text-white">
                 <X size={20} />
               </button>
             </div>
 
             <p className="text-sm text-text-secondary mb-4">
-              Upload a CSV file exported from Infloww with model performance data.
+              Upload a CSV file with model performance data. Model names must match exactly.
             </p>
 
             <div className="bg-surface-2 border border-border rounded-lg p-4 mb-4">
@@ -317,12 +400,33 @@ export default function Dashboard() {
               <code className="text-xs text-cw">model_name, date, revenue</code>
               <p className="text-xs text-text-muted mt-2">Optional columns:</p>
               <code className="text-xs text-text-secondary">new_subs, messages_revenue, tips, refunds</code>
+              <button
+                onClick={handleDownloadTemplate}
+                className="flex items-center gap-1.5 mt-3 text-xs text-cw hover:text-cw-light"
+              >
+                <Download size={12} />
+                Download template CSV
+              </button>
             </div>
 
-            <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-cw/50 hover:bg-cw/5 transition-colors">
-              <Upload size={24} className="text-text-muted mb-2" />
-              <span className="text-sm text-text-secondary">Click to select CSV file</span>
-              <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} />
+            <label className={`flex flex-col items-center justify-center w-full h-32 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+              uploading
+                ? 'border-cw/50 bg-cw/5'
+                : 'border-border hover:border-cw/50 hover:bg-cw/5'
+            }`}>
+              {uploading ? (
+                <>
+                  <div className="w-6 h-6 border-2 border-cw/30 border-t-cw rounded-full animate-spin mb-2" />
+                  <span className="text-sm text-cw">Processing...</span>
+                </>
+              ) : (
+                <>
+                  <Upload size={24} className="text-text-muted mb-2" />
+                  <span className="text-sm text-text-secondary">Click to select CSV file</span>
+                  <span className="text-[10px] text-text-muted mt-1">.csv files only</span>
+                </>
+              )}
+              <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} disabled={uploading} />
             </label>
           </div>
         </div>

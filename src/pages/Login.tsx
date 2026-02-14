@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getDefaultPath } from '../lib/modules';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function Login() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -9,9 +10,10 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
-  const { signIn, signUp, loading, profile } = useAuthStore();
+  const { signIn, signUp, loading } = useAuthStore();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,6 +24,10 @@ export default function Login() {
       if (mode === 'login') {
         await signIn(email, password);
       } else {
+        if (password.length < 6) {
+          setError('Password must be at least 6 characters.');
+          return;
+        }
         await signUp(email, password, fullName, inviteCode);
       }
       // Wait a tick for profile to load
@@ -40,15 +46,35 @@ export default function Login() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-cw/20 mb-4">
-            <span className="text-cw font-bold text-xl">CW</span>
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cw/20 mb-4">
+            <span className="text-cw font-bold text-2xl">CW</span>
           </div>
           <h1 className="text-2xl font-bold text-white">CW Hub</h1>
-          <p className="text-text-secondary text-sm mt-1">Chatting Wizard</p>
+          <p className="text-text-secondary text-sm mt-1">Chatting Wizard Operations Center</p>
         </div>
 
         {/* Card */}
         <div className="bg-surface-1 border border-border rounded-2xl p-8">
+          {/* Tab switcher */}
+          <div className="flex bg-surface-2 rounded-lg p-1 mb-6">
+            <button
+              onClick={() => { setMode('login'); setError(''); }}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                mode === 'login' ? 'bg-surface-3 text-white' : 'text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => { setMode('register'); setError(''); }}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+                mode === 'register' ? 'bg-surface-3 text-white' : 'text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              Register
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'register' && (
               <>
@@ -68,8 +94,8 @@ export default function Login() {
                   <input
                     type="text"
                     value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value)}
-                    className="w-full bg-surface-2 border border-border rounded-lg px-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-cw focus:ring-1 focus:ring-cw"
+                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    className="w-full bg-surface-2 border border-border rounded-lg px-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-cw focus:ring-1 focus:ring-cw font-mono"
                     placeholder="CW-XXXXXXXX"
                     required
                   />
@@ -91,15 +117,24 @@ export default function Login() {
 
             <div>
               <label className="block text-sm text-text-secondary mb-1.5">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-surface-2 border border-border rounded-lg px-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-cw focus:ring-1 focus:ring-cw"
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-surface-2 border border-border rounded-lg px-4 py-2.5 pr-10 text-white placeholder-text-muted focus:outline-none focus:border-cw focus:ring-1 focus:ring-cw"
+                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-secondary"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
 
             {error && (
@@ -111,38 +146,21 @@ export default function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-cw hover:bg-cw-dark text-white font-medium rounded-lg px-4 py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-cw hover:bg-cw-dark text-white font-medium rounded-lg px-4 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <span className="inline-flex items-center gap-2">
-                  <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                  </svg>
-                  Loading...
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {mode === 'login' ? 'Signing in...' : 'Creating account...'}
                 </span>
               ) : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
-
-          <div className="mt-6 text-center">
-            {mode === 'login' ? (
-              <button
-                onClick={() => { setMode('register'); setError(''); }}
-                className="text-sm text-cw hover:text-cw-light"
-              >
-                Don't have an account? <span className="underline">Use your invite code</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => { setMode('login'); setError(''); }}
-                className="text-sm text-cw hover:text-cw-light"
-              >
-                Already have an account? <span className="underline">Sign in</span>
-              </button>
-            )}
-          </div>
         </div>
+
+        <p className="text-center text-text-muted text-xs mt-6">
+          Chatting Wizard &copy; {new Date().getFullYear()}
+        </p>
       </div>
     </div>
   );
