@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import { TEAM_COLORS, SHIFT_LABELS, SHIFTS, formatCurrency } from '../lib/utils';
 import { Users, Monitor, Calendar, Clock, AlertTriangle, TrendingUp, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
+import ModelAvatar from '../components/ModelAvatar';
 import type { Model, Chatter, ModelChatterAssignment, Schedule, ModelMetric } from '../types';
 
 export default function Overview() {
@@ -217,6 +219,56 @@ export default function Overview() {
         </div>
       </div>
 
+      {/* Top Revenue Models (mini chart) */}
+      {metrics.length > 0 && (
+        <div className="bg-surface-1 border border-border rounded-xl p-5 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <TrendingUp size={16} className="text-cw" />
+            <h2 className="text-sm font-semibold text-white">Top Revenue This Week</h2>
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart
+                data={metrics
+                  .filter((m) => m.total_revenue > 0)
+                  .sort((a, b) => b.total_revenue - a.total_revenue)
+                  .slice(0, 8)
+                  .map((m) => {
+                    const model = models.find((mod) => mod.id === m.model_id);
+                    return { name: model?.name?.slice(0, 10) ?? '?', revenue: m.total_revenue };
+                  })}
+                margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
+              >
+                <XAxis dataKey="name" tick={{ fill: '#888', fontSize: 9 }} axisLine={false} tickLine={false} />
+                <Tooltip
+                  contentStyle={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, fontSize: 12 }}
+                  formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']}
+                  cursor={{ fill: 'rgba(29, 155, 240, 0.08)' }}
+                />
+                <Bar dataKey="revenue" fill="#1d9bf0" radius={[3, 3, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="space-y-2">
+              {metrics
+                .filter((m) => m.total_revenue > 0)
+                .sort((a, b) => b.total_revenue - a.total_revenue)
+                .slice(0, 5)
+                .map((m, i) => {
+                  const model = models.find((mod) => mod.id === m.model_id);
+                  return (
+                    <div key={m.id} className="flex items-center gap-3">
+                      <span className="text-[10px] text-text-muted w-4 text-right">{i + 1}</span>
+                      <ModelAvatar name={model?.name ?? '?'} pictureUrl={model?.profile_picture_url} size="xs" />
+                      <span className="text-sm text-white flex-1 truncate">{model?.name}</span>
+                      <span className="text-sm text-cw font-semibold">${m.total_revenue.toLocaleString()}</span>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Models without chatters */}
       {modelsWithNoChatters.length > 0 && (
         <div className="bg-surface-1 border border-danger/30 rounded-xl p-5">
@@ -226,9 +278,10 @@ export default function Overview() {
           </div>
           <div className="flex flex-wrap gap-2">
             {modelsWithNoChatters.map((m) => (
-              <span key={m.id} className="text-xs px-3 py-1.5 rounded-lg bg-danger/10 text-danger border border-danger/20">
-                {m.name}
-              </span>
+              <div key={m.id} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-danger/10 border border-danger/20">
+                <ModelAvatar name={m.name} pictureUrl={m.profile_picture_url} size="xs" />
+                <span className="text-xs text-danger">{m.name}</span>
+              </div>
             ))}
           </div>
           <button onClick={() => navigate('/assignments')} className="mt-3 text-xs text-cw hover:text-cw-light">

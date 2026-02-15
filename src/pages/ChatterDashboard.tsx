@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { getDayName, SHIFT_LABELS } from '../lib/utils';
 import { Clock, Calendar, CheckCircle, AlertCircle, Users as UsersIcon } from 'lucide-react';
+import ModelAvatar from '../components/ModelAvatar';
 import type { Schedule, Model, ChatterHours, Chatter } from '../types';
 
 export default function ChatterDashboard() {
@@ -247,9 +248,7 @@ export default function ChatterDashboard() {
             {models.filter((m) => m.status === 'Live').map((model) => (
               <div key={model.id} className="bg-surface-2 border border-border rounded-lg p-4 hover:border-cw/30 transition-colors">
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-10 h-10 rounded-full bg-cw/15 flex items-center justify-center text-cw font-medium shrink-0">
-                    {model.name.charAt(0)}
-                  </div>
+                  <ModelAvatar name={model.name} pictureUrl={model.profile_picture_url} size="md" />
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-white truncate">{model.name}</p>
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success">Live</span>

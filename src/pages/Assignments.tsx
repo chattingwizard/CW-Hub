@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { TEAM_COLORS } from '../lib/utils';
 import { Plus, X, Search, Users, ChevronRight, Monitor, Clock, Calendar } from 'lucide-react';
+import ModelAvatar from '../components/ModelAvatar';
 import type { Model, Chatter, ModelChatterAssignment, Schedule } from '../types';
 
 export default function Assignments() {
@@ -141,7 +142,7 @@ export default function Assignments() {
 
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Chatters Panel (Left) */}
-        <div className="w-72 shrink-0 flex flex-col bg-surface-1 border border-border rounded-xl overflow-hidden">
+        <div className="w-72 shrink-0 flex-col bg-surface-1 border border-border rounded-xl overflow-hidden hidden lg:flex">
           {/* Search + Filter */}
           <div className="p-3 border-b border-border space-y-2">
             <div className="relative">
@@ -244,6 +245,24 @@ export default function Assignments() {
         {/* Chatter Detail Panel (Right) */}
         {selectedChatter ? (
           <div className="flex-1 flex flex-col min-h-0 gap-4">
+            {/* Mobile chatter selector */}
+            <div className="lg:hidden">
+              <select
+                value={selectedChatter.id}
+                onChange={(e) => {
+                  const c = chatters.find((c) => c.id === e.target.value);
+                  if (c) setSelectedChatter(c);
+                }}
+                className="w-full bg-surface-1 border border-border rounded-xl px-4 py-3 text-white text-sm focus:border-cw focus:outline-none"
+              >
+                {chatters.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.full_name} — {getModelCount(c.id)} models {c.team_name ? `(${c.team_name})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Chatter Header Card */}
             <div className="bg-surface-1 border border-border rounded-xl p-5 shrink-0">
               <div className="flex items-center gap-4">
@@ -323,9 +342,7 @@ export default function Assignments() {
                       key={assignment.id}
                       className="group flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-2 border border-border hover:border-cw/30 transition-colors"
                     >
-                      <div className="w-8 h-8 rounded-full bg-cw/15 flex items-center justify-center text-cw text-xs font-medium shrink-0">
-                        {model!.name.charAt(0)}
-                      </div>
+                      <ModelAvatar name={model!.name} pictureUrl={model!.profile_picture_url} size="sm" />
                       <div className="min-w-0">
                         <p className="text-sm text-white font-medium">{model!.name}</p>
                         <div className="flex items-center gap-2">
@@ -375,9 +392,7 @@ export default function Assignments() {
                       disabled={saving}
                       className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-2 border border-border hover:border-cw/40 hover:bg-cw/5 text-left transition-all group disabled:opacity-50"
                     >
-                      <div className="w-9 h-9 rounded-full bg-cw/10 flex items-center justify-center text-cw text-xs font-medium shrink-0 group-hover:bg-cw/20">
-                        {model.name.charAt(0)}
-                      </div>
+                      <ModelAvatar name={model.name} pictureUrl={model.profile_picture_url} size="md" />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-white truncate">{model.name}</p>
                         <div className="flex items-center gap-2">

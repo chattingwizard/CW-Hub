@@ -7,7 +7,9 @@ import {
   Upload, X, ChevronLeft, ChevronRight, Download, Filter,
   ArrowUpRight, ArrowDownRight, Minus,
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import Papa from 'papaparse';
+import ModelAvatar from '../components/ModelAvatar';
 import type { Model, ModelMetric, ModelMetricCSVRow } from '../types';
 
 interface AggMetrics {
@@ -270,6 +272,55 @@ export default function Dashboard() {
         ))}
       </div>
 
+      {/* Revenue Chart */}
+      {!loading && metrics.length > 0 && (
+        <div className="bg-surface-1 border border-border rounded-xl p-5 mb-6">
+          <h2 className="text-sm font-semibold text-white mb-4">Revenue by Model</h2>
+          <ResponsiveContainer width="100%" height={220}>
+            <BarChart
+              data={tableData
+                .filter(({ metric }) => metric && metric.total_revenue > 0)
+                .slice(0, 15)
+                .map(({ model, metric }) => ({
+                  name: model.name.length > 12 ? model.name.slice(0, 12) + '…' : model.name,
+                  revenue: metric?.total_revenue ?? 0,
+                }))}
+              margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
+            >
+              <XAxis
+                dataKey="name"
+                tick={{ fill: '#888888', fontSize: 10 }}
+                axisLine={{ stroke: '#2a2a2a' }}
+                tickLine={false}
+                angle={-35}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis
+                tick={{ fill: '#555555', fontSize: 10 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`}
+              />
+              <Tooltip
+                contentStyle={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, fontSize: 12 }}
+                labelStyle={{ color: '#ffffff', fontWeight: 600 }}
+                formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
+                cursor={{ fill: 'rgba(29, 155, 240, 0.08)' }}
+              />
+              <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+                {tableData
+                  .filter(({ metric }) => metric && metric.total_revenue > 0)
+                  .slice(0, 15)
+                  .map((_, i) => (
+                    <Cell key={i} fill={i === 0 ? '#1d9bf0' : i < 3 ? '#1680c7' : '#1a5a8a'} />
+                  ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       {/* Table controls */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -310,7 +361,7 @@ export default function Dashboard() {
                   <tr key={model.id} className="border-b border-border/50 hover:bg-surface-2/50">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-cw/15 flex items-center justify-center text-cw text-xs font-medium shrink-0">{model.name.charAt(0)}</div>
+                        <ModelAvatar name={model.name} pictureUrl={model.profile_picture_url} size="sm" />
                         <div>
                           <span className="text-white font-medium">{model.name}</span>
                           {model.team_names.length > 0 && <p className="text-[10px] text-text-muted">{model.team_names.join(', ')}</p>}

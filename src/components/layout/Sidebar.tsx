@@ -148,7 +148,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     <>
       {/* Desktop Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full bg-surface-1 border-r border-border flex-col z-40 transition-all duration-300 hidden lg:flex ${
+        className={`fixed top-0 left-0 h-full bg-surface-1 border-r border-border flex-col z-40 transition-all duration-300 hidden lg:flex shadow-xl shadow-black/20 ${
           collapsed ? 'w-16' : 'w-60'
         }`}
       >
