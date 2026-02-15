@@ -47,7 +47,7 @@ export default function Schedules() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     const [chattersRes, schedulesRes] = await Promise.all([
-      supabase.from('chatters').select('*').eq('status', 'Active').order('full_name'),
+      supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
       supabase.from('schedules').select('*, chatter:chatters(*)').eq('week_start', weekStart),
     ]);
     setChatters((chattersRes.data ?? []) as Chatter[]);

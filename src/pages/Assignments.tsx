@@ -31,7 +31,7 @@ export default function Assignments() {
     setLoading(true);
     const [modelsRes, chattersRes, assignRes, schedRes] = await Promise.all([
       supabase.from('models').select('*').order('name'),
-      supabase.from('chatters').select('*').eq('status', 'Active').order('full_name'),
+      supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
       supabase.from('model_chatter_assignments').select('*').eq('active', true),
       supabase.from('schedules').select('*').eq('week_start', getWeekStart()),
     ]);

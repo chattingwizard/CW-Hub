@@ -28,7 +28,7 @@ export default function Overview() {
     setLoading(true);
     const [modelsRes, chattersRes, assignRes, schedRes, metricsRes] = await Promise.all([
       supabase.from('models').select('*'),
-      supabase.from('chatters').select('*').eq('status', 'Active'),
+      supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
       supabase.from('model_chatter_assignments').select('*').eq('active', true),
       supabase.from('schedules').select('*').eq('week_start', weekStart),
       supabase.from('model_metrics').select('*').eq('week_start', weekStart),

@@ -118,12 +118,13 @@ def sync_models():
 
 
 def sync_chatters():
-    """Sync active chatters from Airtable."""
+    """Sync active chatters from Airtable. Excludes non-chatter roles (Team 0 = management)."""
     print("\n=== Syncing Chatters ===")
+    # Only sync actual chatters (role = Chatter or TL), not management/VA/CEO etc.
     records = fetch_airtable_records(
         TABLE_CHATTERS,
         fields=["Full Name", "⚡️Status", "⚡️Rol", "Favorite Shift"],
-        filter_formula="OR({⚡️Status}='Active',{⚡️Status}='Probation')",
+        filter_formula="AND(OR({⚡️Status}='Active',{⚡️Status}='Probation'),OR({⚡️Rol}='Chatter',{⚡️Rol}='Team Leader'))",
     )
 
     rows = []
@@ -142,7 +143,7 @@ def sync_chatters():
             "synced_at": datetime.now(timezone.utc).isoformat(),
         })
 
-    print(f"  Found {len(rows)} active chatters")
+    print(f"  Found {len(rows)} active chatters (excluding management)")
     upsert_supabase("chatters", rows)
 
 
@@ -151,11 +152,11 @@ def sync_teams():
     print("\n=== Syncing Teams ===")
     records = fetch_airtable_records(TABLE_TEAMS, fields=["Equipo", "Chatter", "Creators"])
 
-    # Build team→chatters and team→models maps
+    # Build team→chatters and team→models maps (skip Team 0 = management)
     for r in records:
         f = r.get("fields", {})
         team_name = f.get("Equipo", "").strip()
-        if not team_name:
+        if not team_name or team_name == "0":
             continue
 
         chatter_ids = f.get("Chatter", [])

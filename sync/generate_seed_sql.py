@@ -109,7 +109,7 @@ def main():
         )
         model_count += 1
 
-    # Chatters
+    # Chatters (exclude Team 0 = management, only include actual chatters)
     sql_lines.append("\n-- === CHATTERS ===")
     chatter_count = 0
     for r in chatters:
@@ -122,6 +122,12 @@ def main():
         role = f.get("⚡️Rol")
         fav_shift = f.get("Favorite Shift")
         team = chatter_team.get(r["id"])
+
+        # Skip Team 0 (management) and non-chatter roles
+        if team == "0":
+            continue
+        if role and role not in ("Chatter", "Team Leader", "TL"):
+            continue
 
         sql_lines.append(
             f"INSERT INTO public.chatters (airtable_id, full_name, status, airtable_role, team_name, favorite_shift) "
