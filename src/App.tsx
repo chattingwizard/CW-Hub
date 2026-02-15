@@ -6,6 +6,7 @@ import { getDefaultPath } from './lib/modules';
 import Shell from './components/layout/Shell';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import Login from './pages/Login';
+import Overview from './pages/Overview';
 import Dashboard from './pages/Dashboard';
 import Schedules from './pages/Schedules';
 import Assignments from './pages/Assignments';
@@ -48,6 +49,14 @@ export default function App() {
           }
         >
           {/* Admin/Owner views */}
+          <Route
+            path="/overview"
+            element={
+              <ProtectedRoute roles={['owner', 'admin']}>
+                <Overview />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/dashboard"
             element={

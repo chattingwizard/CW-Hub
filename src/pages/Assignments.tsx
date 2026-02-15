@@ -2,76 +2,102 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { TEAM_COLORS } from '../lib/utils';
-import { Plus, X, Search, Filter } from 'lucide-react';
-import type { Model, Chatter, ModelChatterAssignment } from '../types';
+import { Plus, X, Search, Users, ChevronRight, Monitor, Clock, Calendar } from 'lucide-react';
+import type { Model, Chatter, ModelChatterAssignment, Schedule } from '../types';
 
 export default function Assignments() {
   const { profile } = useAuthStore();
   const [models, setModels] = useState<Model[]>([]);
   const [chatters, setChatters] = useState<Chatter[]>([]);
   const [assignments, setAssignments] = useState<ModelChatterAssignment[]>([]);
-  const [selectedModel, setSelectedModel] = useState<Model | null>(null);
-  const [search, setSearch] = useState('');
+  const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [selectedChatter, setSelectedChatter] = useState<Chatter | null>(null);
   const [modelSearch, setModelSearch] = useState('');
+  const [chatterSearch, setChatterSearch] = useState('');
   const [teamFilter, setTeamFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('Live');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Current week start
+  const getWeekStart = () => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+    d.setDate(diff);
+    return d.toISOString().split('T')[0]!;
+  };
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [modelsRes, chattersRes, assignRes] = await Promise.all([
+    const [modelsRes, chattersRes, assignRes, schedRes] = await Promise.all([
       supabase.from('models').select('*').order('name'),
       supabase.from('chatters').select('*').eq('status', 'Active').order('full_name'),
       supabase.from('model_chatter_assignments').select('*').eq('active', true),
+      supabase.from('schedules').select('*').eq('week_start', getWeekStart()),
     ]);
     const mods = (modelsRes.data ?? []) as Model[];
-    setChatters((chattersRes.data ?? []) as Chatter[]);
-    setAssignments((assignRes.data ?? []) as ModelChatterAssignment[]);
+    const chats = (chattersRes.data ?? []) as Chatter[];
     setModels(mods);
-    if (!selectedModel && mods.length > 0) {
-      const liveMods = mods.filter((m) => m.status === 'Live');
-      setSelectedModel(liveMods[0] || mods[0] || null);
-    }
+    setChatters(chats);
+    setAssignments((assignRes.data ?? []) as ModelChatterAssignment[]);
+    setSchedules((schedRes.data ?? []) as Schedule[]);
+    if (!selectedChatter && chats.length > 0) setSelectedChatter(chats[0]!);
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const assignedChattersForModel = (modelId: string) =>
-    assignments.filter((a) => a.model_id === modelId).map((a) => ({
-      assignment: a,
-      chatter: chatters.find((c) => c.id === a.chatter_id),
-    }));
+  // Models assigned to selected chatter
+  const assignedModels = selectedChatter
+    ? assignments
+        .filter((a) => a.chatter_id === selectedChatter.id)
+        .map((a) => ({ assignment: a, model: models.find((m) => m.id === a.model_id) }))
+        .filter((a) => a.model)
+    : [];
 
-  const filteredModels = models.filter((m) => {
-    if (statusFilter !== 'all' && m.status !== statusFilter) return false;
-    if (modelSearch && !m.name.toLowerCase().includes(modelSearch.toLowerCase())) return false;
+  // Available models (not yet assigned to this chatter)
+  const availableModels = selectedChatter
+    ? models
+        .filter((m) => m.status === 'Live')
+        .filter((m) => !assignments.some((a) => a.model_id === m.id && a.chatter_id === selectedChatter.id))
+        .filter((m) => !modelSearch || m.name.toLowerCase().includes(modelSearch.toLowerCase()))
+    : [];
+
+  // Filtered chatters
+  const filteredChatters = chatters.filter((c) => {
+    if (teamFilter !== 'all' && c.team_name !== teamFilter) return false;
+    if (chatterSearch && !c.full_name.toLowerCase().includes(chatterSearch.toLowerCase())) return false;
     return true;
   });
 
-  const availableChatters = selectedModel
-    ? chatters.filter(
-        (c) =>
-          !assignments.some((a) => a.model_id === selectedModel.id && a.chatter_id === c.id) &&
-          (teamFilter === 'all' || c.team_name === teamFilter) &&
-          (!search || c.full_name.toLowerCase().includes(search.toLowerCase()))
-      )
+  // Group chatters by team
+  const teams = [...new Set(chatters.map((c) => c.team_name).filter(Boolean))] as string[];
+  const chattersByTeam = teams.reduce((acc, team) => {
+    acc[team] = filteredChatters.filter((c) => c.team_name === team);
+    return acc;
+  }, {} as Record<string, Chatter[]>);
+  const unteamedChatters = filteredChatters.filter((c) => !c.team_name);
+
+  // Chatter schedule for this week
+  const chatterScheduleDays = selectedChatter
+    ? schedules.filter((s) => s.chatter_id === selectedChatter.id)
     : [];
 
-  const handleAssign = async (chatterId: string) => {
-    if (!selectedModel) return;
+  // Counts
+  const getModelCount = (chatterId: string) =>
+    assignments.filter((a) => a.chatter_id === chatterId).length;
+
+  const getChatterCountForModel = (modelId: string) =>
+    assignments.filter((a) => a.model_id === modelId).length;
+
+  const handleAssign = async (modelId: string) => {
+    if (!selectedChatter) return;
     setSaving(true);
     const { data, error } = await supabase
       .from('model_chatter_assignments')
-      .insert({
-        model_id: selectedModel.id,
-        chatter_id: chatterId,
-        assigned_by: profile?.id,
-      })
+      .insert({ model_id: modelId, chatter_id: selectedChatter.id, assigned_by: profile?.id })
       .select()
       .single();
-
     if (!error && data) {
       setAssignments((prev) => [...prev, data as ModelChatterAssignment]);
     }
@@ -85,207 +111,288 @@ export default function Assignments() {
     setSaving(false);
   };
 
-  const teams = [...new Set(chatters.map((c) => c.team_name).filter(Boolean))];
-  const statuses = [...new Set(models.map((m) => m.status))];
-
   const statusBadge = (status: string) => {
-    const colors: Record<string, string> = {
-      Live: 'bg-success/15 text-success border-success/30',
-      'On Hold': 'bg-warning/15 text-warning border-warning/30',
-      Dead: 'bg-danger/15 text-danger border-danger/30',
-      'Pending Invoice': 'bg-cw/15 text-cw border-cw/30',
+    const c: Record<string, string> = {
+      Live: 'bg-success/15 text-success',
+      'On Hold': 'bg-warning/15 text-warning',
+      Dead: 'bg-danger/15 text-danger',
     };
-    return colors[status] ?? 'bg-surface-3 text-text-secondary border-border';
+    return c[status] ?? 'bg-surface-3 text-text-secondary';
   };
 
-  const getChatterTeamColor = (chatter?: Chatter) => {
-    if (!chatter?.team_name) return 'bg-surface-3 text-text-secondary border-border';
-    return TEAM_COLORS[chatter.team_name] ?? 'bg-cw/15 text-cw border-cw/30';
+  const getTeamColor = (team?: string | null) => {
+    if (!team) return '';
+    return TEAM_COLORS[team] ?? '';
   };
+
+  const dayNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   return (
-    <div className="p-4 lg:p-6 max-w-7xl mx-auto">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
+    <div className="p-4 lg:p-6 h-[calc(100vh-56px)] lg:h-screen flex flex-col">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 gap-3 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-white">Model-Chatter Assignments</h1>
-          <p className="text-sm text-text-secondary mt-1">
-            {filteredModels.length} models &middot; {assignments.length} total assignments
+          <h1 className="text-2xl font-bold text-white">Assignments</h1>
+          <p className="text-sm text-text-secondary">
+            {chatters.length} chatters &middot; {models.filter((m) => m.status === 'Live').length} live models &middot; {assignments.length} assignments
           </p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Filter size={14} className="text-text-muted" />
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-surface-1 border border-border rounded-lg px-3 py-2 text-sm text-white focus:border-cw focus:outline-none"
-            >
-              <option value="all">All Status</option>
-              {statuses.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
-          <select
-            value={teamFilter}
-            onChange={(e) => setTeamFilter(e.target.value)}
-            className="bg-surface-1 border border-border rounded-lg px-3 py-2 text-sm text-white focus:border-cw focus:outline-none"
-          >
-            <option value="all">All Teams</option>
-            {teams.map((t) => (
-              <option key={t} value={t!}>{t}</option>
-            ))}
-          </select>
         </div>
       </div>
 
-      <div className="flex flex-col lg:flex-row gap-6">
-        {/* Models List */}
-        <div className="lg:w-72 shrink-0">
-          <div className="bg-surface-1 border border-border rounded-xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-border">
-              <div className="relative">
-                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                <input
-                  type="text"
-                  value={modelSearch}
-                  onChange={(e) => setModelSearch(e.target.value)}
-                  placeholder="Search models..."
-                  className="w-full bg-surface-2 border border-border rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-text-muted focus:outline-none focus:border-cw"
-                />
-              </div>
+      <div className="flex gap-4 flex-1 min-h-0">
+        {/* Chatters Panel (Left) */}
+        <div className="w-72 shrink-0 flex flex-col bg-surface-1 border border-border rounded-xl overflow-hidden">
+          {/* Search + Filter */}
+          <div className="p-3 border-b border-border space-y-2">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+              <input
+                type="text"
+                value={chatterSearch}
+                onChange={(e) => setChatterSearch(e.target.value)}
+                placeholder="Search chatters..."
+                className="w-full bg-surface-2 border border-border rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-text-muted focus:outline-none focus:border-cw"
+              />
             </div>
-            <div className="max-h-[calc(100vh-260px)] overflow-y-auto">
-              {loading ? (
-                <div className="px-4 py-8 text-center text-text-secondary text-sm">Loading...</div>
-              ) : filteredModels.length === 0 ? (
-                <div className="px-4 py-8 text-center text-text-muted text-sm">No models found</div>
+            <select
+              value={teamFilter}
+              onChange={(e) => setTeamFilter(e.target.value)}
+              className="w-full bg-surface-2 border border-border rounded-lg px-3 py-1.5 text-xs text-white focus:border-cw focus:outline-none"
+            >
+              <option value="all">All Teams</option>
+              {teams.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+
+          {/* Chatter List */}
+          <div className="flex-1 overflow-y-auto">
+            {loading ? (
+              <div className="p-4 text-center text-text-muted text-sm">Loading...</div>
+            ) : (
+              <>
+                {Object.entries(chattersByTeam).map(([team, members]) => (
+                  members.length > 0 && (
+                    <div key={team}>
+                      <div className="px-3 py-2 bg-surface-2/50 border-b border-border">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">{team}</span>
+                      </div>
+                      {members.map((chatter) => {
+                        const modelCount = getModelCount(chatter.id);
+                        const isSelected = selectedChatter?.id === chatter.id;
+                        return (
+                          <button
+                            key={chatter.id}
+                            onClick={() => setSelectedChatter(chatter)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-l-2 ${
+                              isSelected
+                                ? 'bg-cw/10 border-l-cw'
+                                : 'border-l-transparent hover:bg-surface-2'
+                            }`}
+                          >
+                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium shrink-0 ${
+                              getTeamColor(chatter.team_name) || 'bg-surface-3 text-text-secondary'
+                            }`}>
+                              {chatter.full_name.charAt(0)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm text-white truncate">{chatter.full_name}</p>
+                              <p className="text-[10px] text-text-muted">
+                                {modelCount} model{modelCount !== 1 ? 's' : ''}
+                              </p>
+                            </div>
+                            {isSelected && <ChevronRight size={14} className="text-cw shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )
+                ))}
+                {unteamedChatters.length > 0 && (
+                  <div>
+                    <div className="px-3 py-2 bg-surface-2/50 border-b border-border">
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-text-muted">No Team</span>
+                    </div>
+                    {unteamedChatters.map((chatter) => {
+                      const modelCount = getModelCount(chatter.id);
+                      const isSelected = selectedChatter?.id === chatter.id;
+                      return (
+                        <button
+                          key={chatter.id}
+                          onClick={() => setSelectedChatter(chatter)}
+                          className={`w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors border-l-2 ${
+                            isSelected ? 'bg-cw/10 border-l-cw' : 'border-l-transparent hover:bg-surface-2'
+                          }`}
+                        >
+                          <div className="w-8 h-8 rounded-full bg-surface-3 flex items-center justify-center text-xs font-medium text-text-secondary shrink-0">
+                            {chatter.full_name.charAt(0)}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm text-white truncate">{chatter.full_name}</p>
+                            <p className="text-[10px] text-text-muted">{modelCount} models</p>
+                          </div>
+                          {isSelected && <ChevronRight size={14} className="text-cw shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Chatter Detail Panel (Right) */}
+        {selectedChatter ? (
+          <div className="flex-1 flex flex-col min-h-0 gap-4">
+            {/* Chatter Header Card */}
+            <div className="bg-surface-1 border border-border rounded-xl p-5 shrink-0">
+              <div className="flex items-center gap-4">
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-lg font-bold shrink-0 ${
+                  getTeamColor(selectedChatter.team_name) || 'bg-cw/15 text-cw'
+                }`}>
+                  {selectedChatter.full_name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-xl font-bold text-white">{selectedChatter.full_name}</h2>
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    {selectedChatter.team_name && (
+                      <span className={`text-xs px-2.5 py-0.5 rounded-full border ${getTeamColor(selectedChatter.team_name)}`}>
+                        {selectedChatter.team_name}
+                      </span>
+                    )}
+                    {selectedChatter.airtable_role && (
+                      <span className="text-xs text-text-muted">{selectedChatter.airtable_role}</span>
+                    )}
+                  </div>
+                </div>
+                {/* Quick stats */}
+                <div className="hidden lg:flex items-center gap-6">
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-cw">{assignedModels.length}</p>
+                    <p className="text-[10px] text-text-muted uppercase tracking-wider">Models</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xl font-bold text-white">{chatterScheduleDays.length}</p>
+                    <p className="text-[10px] text-text-muted uppercase tracking-wider">Shifts/wk</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* This week schedule mini-view */}
+              {chatterScheduleDays.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Calendar size={12} className="text-text-muted" />
+                    <span className="text-[10px] text-text-muted uppercase tracking-wider">This week's schedule</span>
+                  </div>
+                  <div className="flex gap-1.5">
+                    {dayNames.map((day, i) => {
+                      const sched = chatterScheduleDays.find((s) => s.day_of_week === i);
+                      return (
+                        <div
+                          key={i}
+                          className={`flex-1 rounded-lg py-1.5 text-center text-[10px] ${
+                            sched ? 'bg-cw/15 text-cw border border-cw/30' : 'bg-surface-2 text-text-muted border border-border'
+                          }`}
+                          title={sched ? sched.shift : 'Off'}
+                        >
+                          <div className="font-medium">{day}</div>
+                          {sched && <div className="text-[8px] mt-0.5 opacity-70">{sched.shift.split('-')[0]}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Assigned Models */}
+            <div className="bg-surface-1 border border-border rounded-xl p-5 shrink-0">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Monitor size={14} className="text-cw" />
+                  <h3 className="text-sm font-semibold text-white">Assigned Models ({assignedModels.length})</h3>
+                </div>
+              </div>
+              {assignedModels.length === 0 ? (
+                <p className="text-sm text-text-muted py-3 text-center">No models assigned. Add from below.</p>
               ) : (
-                filteredModels.map((model) => {
-                  const assignedCount = assignments.filter((a) => a.model_id === model.id).length;
-                  return (
-                    <button
-                      key={model.id}
-                      onClick={() => setSelectedModel(model)}
-                      className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-surface-2 transition-colors border-l-2 ${
-                        selectedModel?.id === model.id ? 'bg-cw/10 border-l-cw' : 'border-l-transparent'
-                      }`}
+                <div className="flex flex-wrap gap-2">
+                  {assignedModels.map(({ assignment, model }) => (
+                    <div
+                      key={assignment.id}
+                      className="group flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-2 border border-border hover:border-cw/30 transition-colors"
                     >
                       <div className="w-8 h-8 rounded-full bg-cw/15 flex items-center justify-center text-cw text-xs font-medium shrink-0">
+                        {model!.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm text-white font-medium">{model!.name}</p>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${statusBadge(model!.status)}`}>
+                            {model!.status}
+                          </span>
+                          <span className="text-[9px] text-text-muted">{getChatterCountForModel(model!.id)} chatters</span>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleUnassign(assignment.id)}
+                        disabled={saving}
+                        className="ml-1 p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-danger/15 text-text-muted hover:text-danger transition-all disabled:opacity-30"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Available Models to Add */}
+            <div className="bg-surface-1 border border-border rounded-xl flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="p-4 border-b border-border shrink-0">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-sm font-semibold text-white shrink-0">Add Models</h3>
+                  <div className="relative flex-1">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
+                    <input
+                      type="text"
+                      value={modelSearch}
+                      onChange={(e) => setModelSearch(e.target.value)}
+                      placeholder="Search live models..."
+                      className="w-full bg-surface-2 border border-border rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-text-muted focus:outline-none focus:border-cw"
+                    />
+                  </div>
+                  <span className="text-xs text-text-muted shrink-0">{availableModels.length} available</span>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                  {availableModels.map((model) => (
+                    <button
+                      key={model.id}
+                      onClick={() => handleAssign(model.id)}
+                      disabled={saving}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-2 border border-border hover:border-cw/40 hover:bg-cw/5 text-left transition-all group disabled:opacity-50"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-cw/10 flex items-center justify-center text-cw text-xs font-medium shrink-0 group-hover:bg-cw/20">
                         {model.name.charAt(0)}
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm text-white truncate">{model.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full border ${statusBadge(model.status)}`}>
-                            {model.status}
-                          </span>
-                          <span className="text-[10px] text-text-muted">{assignedCount} chatters</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[9px] text-text-muted">{getChatterCountForModel(model.id)} chatters</span>
+                          {model.traffic_sources.length > 0 && (
+                            <span className="text-[9px] text-text-muted truncate">{model.traffic_sources[0]}</span>
+                          )}
                         </div>
                       </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Assignment Panel */}
-        {selectedModel ? (
-          <div className="flex-1">
-            <div className="bg-surface-1 border border-border rounded-xl p-6">
-              {/* Model Header */}
-              <div className="flex items-center gap-4 mb-6 pb-5 border-b border-border">
-                <div className="w-14 h-14 rounded-xl bg-cw/15 flex items-center justify-center text-cw text-xl font-bold shrink-0">
-                  {selectedModel.name.charAt(0)}
-                </div>
-                <div className="flex-1">
-                  <h2 className="text-xl font-bold text-white">{selectedModel.name}</h2>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className={`text-xs px-2.5 py-0.5 rounded-full border ${statusBadge(selectedModel.status)}`}>
-                      {selectedModel.status}
-                    </span>
-                    {selectedModel.traffic_sources.length > 0 && (
-                      <div className="flex gap-1">
-                        {selectedModel.traffic_sources.slice(0, 3).map((src) => (
-                          <span key={src} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-text-muted">
-                            {src}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Assigned Chatters */}
-              <div className="mb-6">
-                <h3 className="text-sm font-semibold text-white mb-3">
-                  Assigned Chatters ({assignedChattersForModel(selectedModel.id).length})
-                </h3>
-                <div className="flex flex-wrap gap-2">
-                  {assignedChattersForModel(selectedModel.id).length === 0 ? (
-                    <p className="text-sm text-text-muted py-2">No chatters assigned yet. Add from the list below.</p>
-                  ) : (
-                    assignedChattersForModel(selectedModel.id).map(({ assignment, chatter }) => (
-                      <div
-                        key={assignment.id}
-                        className={`group flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm border ${getChatterTeamColor(chatter)}`}
-                      >
-                        <span>{chatter?.full_name ?? 'Unknown'}</span>
-                        {chatter?.team_name && (
-                          <span className="text-[10px] opacity-60">({chatter.team_name.replace('Team ', '')})</span>
-                        )}
-                        <button
-                          onClick={() => handleUnassign(assignment.id)}
-                          disabled={saving}
-                          className="opacity-0 group-hover:opacity-100 text-danger hover:text-danger disabled:opacity-30"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-
-              {/* Available Chatters */}
-              <div>
-                <div className="flex items-center gap-3 mb-3">
-                  <h3 className="text-sm font-semibold text-white">Add Chatters</h3>
-                  <div className="relative flex-1 max-w-xs">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-                    <input
-                      type="text"
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search chatters..."
-                      className="w-full bg-surface-2 border border-border rounded-lg pl-8 pr-3 py-2 text-sm text-white placeholder-text-muted focus:outline-none focus:border-cw"
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-60 overflow-y-auto">
-                  {availableChatters.map((chatter) => (
-                    <button
-                      key={chatter.id}
-                      onClick={() => handleAssign(chatter.id)}
-                      disabled={saving}
-                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-surface-2 hover:bg-surface-3 border border-border text-left transition-colors disabled:opacity-50"
-                    >
-                      <div className="w-7 h-7 rounded-full bg-cw/10 flex items-center justify-center text-cw text-[10px] font-medium shrink-0">
-                        {chatter.full_name.charAt(0)}
-                      </div>
-                      <span className="text-sm text-white flex-1 truncate">{chatter.full_name}</span>
-                      {chatter.team_name && (
-                        <span className="text-[10px] text-text-muted shrink-0">{chatter.team_name.replace('Team ', '')}</span>
-                      )}
-                      <Plus size={14} className="text-cw shrink-0" />
+                      <Plus size={16} className="text-cw opacity-0 group-hover:opacity-100 shrink-0" />
                     </button>
                   ))}
-                  {availableChatters.length === 0 && (
-                    <p className="col-span-2 text-sm text-text-muted py-4 text-center">
-                      {search ? 'No chatters match your search.' : 'All chatters are assigned to this model.'}
+                  {availableModels.length === 0 && (
+                    <p className="col-span-full text-sm text-text-muted py-6 text-center">
+                      {modelSearch ? 'No models match your search.' : 'All live models are assigned.'}
                     </p>
                   )}
                 </div>
@@ -294,7 +401,10 @@ export default function Assignments() {
           </div>
         ) : (
           <div className="flex-1 flex items-center justify-center">
-            <p className="text-text-muted">Select a model to manage assignments</p>
+            <div className="text-center">
+              <Users size={40} className="text-text-muted mx-auto mb-3" />
+              <p className="text-text-muted">Select a chatter to manage assignments</p>
+            </div>
           </div>
         )}
       </div>

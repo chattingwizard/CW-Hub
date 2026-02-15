@@ -15,8 +15,16 @@ const GITHUB_PAGES_BASE = 'https://chattingwizard.github.io';
 export const modules: HubModule[] = [
   // --- Internal modules (React pages) ---
   {
+    id: 'overview',
+    name: 'Overview',
+    icon: 'LayoutDashboard',
+    type: 'internal',
+    path: '/overview',
+    roles: ['owner', 'admin'],
+  },
+  {
     id: 'dashboard',
-    name: 'Dashboard',
+    name: 'Model Metrics',
     icon: 'BarChart3',
     type: 'internal',
     path: '/dashboard',
@@ -96,12 +104,12 @@ export function getDefaultPath(role: string): string {
   switch (role) {
     case 'owner':
     case 'admin':
-      return '/dashboard';
+      return '/overview';
     case 'chatter':
       return '/my-dashboard';
     case 'recruit':
-      return '/school';
+      return '/embed/school';
     default:
-      return '/school';
+      return '/embed/school';
   }
 }
