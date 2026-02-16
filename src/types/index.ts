@@ -170,6 +170,7 @@ export const WORKLOAD_WEIGHTS: Record<string, number> = {
 export interface ModelTraffic {
   model_id: string;
   model_name: string;
+  model_status: string;
   page_type: PageType;
   new_fans_avg: number;       // GROSS new fans/day (7-day average or latest)
   active_fans: number;        // Latest day snapshot
@@ -181,7 +182,14 @@ export interface ModelTraffic {
   trend_pct: number;          // % change vs previous 7 days
   level: TrafficLevel;
   team_names: string[];
-  earnings_per_day: number;   // $/day from Creator Report
+  // Financial metrics (daily averages from Creator Reports)
+  earnings_per_day: number;   // Total $/day
+  tips_per_day: number;       // Tips $/day
+  message_earnings_per_day: number;  // Message revenue $/day
+  subscription_earnings_per_day: number; // Subscription revenue $/day
+  earnings_trend_pct: number; // Revenue % change vs previous 7 days
+  renew_pct: number;          // Fan renewal rate %
+  avg_spend_per_spender: number; // Avg $ per spending fan
 }
 
 export interface TeamTraffic {

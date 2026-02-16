@@ -101,14 +101,34 @@ export function useTrafficData(): UseTrafficDataReturn {
 
         const latestStat = modelStats[0];
         const activeFans = latestStat?.active_fans ?? 0;
-        const earningsPerDay = latestStat?.total_earnings ?? 0;
 
+        // Financial averages (from recent 7-day window)
+        const recentEarningsAvg = recent.length > 0
+          ? recent.reduce((sum, s) => sum + s.total_earnings, 0) / recent.length : 0;
+        const previousEarningsAvg = previous.length > 0
+          ? previous.reduce((sum, s) => sum + s.total_earnings, 0) / previous.length : 0;
+        const recentTipsAvg = recent.length > 0
+          ? recent.reduce((sum, s) => sum + s.tips_earnings, 0) / recent.length : 0;
+        const recentMsgAvg = recent.length > 0
+          ? recent.reduce((sum, s) => sum + s.message_earnings, 0) / recent.length : 0;
+        const recentSubAvg = recent.length > 0
+          ? recent.reduce((sum, s) => sum + s.subscription_earnings, 0) / recent.length : 0;
+        const renewPct = latestStat?.renew_pct ?? 0;
+        const avgSpend = latestStat?.avg_spend_per_spender ?? 0;
+
+        // Traffic trend
         let trend: TrafficTrend = 'stable';
         let trendPct = 0;
         if (previousAvg > 0) {
           trendPct = ((recentAvg - previousAvg) / previousAvg) * 100;
           if (trendPct > 10) trend = 'up';
           else if (trendPct < -10) trend = 'down';
+        }
+
+        // Earnings trend
+        let earningsTrendPct = 0;
+        if (previousEarningsAvg > 0) {
+          earningsTrendPct = ((recentEarningsAvg - previousEarningsAvg) / previousEarningsAvg) * 100;
         }
 
         const chatters = chattersPerModel.get(modelId) ?? 0;
@@ -119,6 +139,7 @@ export function useTrafficData(): UseTrafficDataReturn {
         traffics.push({
           model_id: modelId,
           model_name: model.name,
+          model_status: model.status ?? 'Live',
           page_type: pageType,
           new_fans_avg: Math.round(recentAvg * 10) / 10,
           active_fans: activeFans,
@@ -130,7 +151,34 @@ export function useTrafficData(): UseTrafficDataReturn {
           trend_pct: Math.round(trendPct),
           level: 'none',
           team_names: model.team_names ?? [],
-          earnings_per_day: Math.round(earningsPerDay * 100) / 100,
+          earnings_per_day: Math.round(recentEarningsAvg * 100) / 100,
+          tips_per_day: Math.round(recentTipsAvg * 100) / 100,
+          message_earnings_per_day: Math.round(recentMsgAvg * 100) / 100,
+          subscription_earnings_per_day: Math.round(recentSubAvg * 100) / 100,
+          earnings_trend_pct: Math.round(earningsTrendPct),
+          renew_pct: Math.round(renewPct * 10) / 10,
+          avg_spend_per_spender: Math.round(avgSpend * 100) / 100,
+        });
+      }
+
+      // Add models that have NO stats yet (so Dashboard can still list them)
+      const modelsWithStats = new Set(statsByModel.keys());
+      for (const model of models) {
+        if (modelsWithStats.has(model.id)) continue;
+        const chatters = chattersPerModel.get(model.id) ?? 0;
+        traffics.push({
+          model_id: model.id,
+          model_name: model.name,
+          model_status: model.status ?? 'Live',
+          page_type: (model.page_type as PageType) ?? null,
+          new_fans_avg: 0, active_fans: 0,
+          chatters_assigned: chatters, fans_per_chatter: 0,
+          workload: 0, workload_per_chatter: 0,
+          trend: 'stable', trend_pct: 0, level: 'none',
+          team_names: model.team_names ?? [],
+          earnings_per_day: 0, tips_per_day: 0,
+          message_earnings_per_day: 0, subscription_earnings_per_day: 0,
+          earnings_trend_pct: 0, renew_pct: 0, avg_spend_per_spender: 0,
         });
       }
 
