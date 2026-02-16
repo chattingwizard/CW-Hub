@@ -35,7 +35,7 @@ export default function Dashboard() {
   const [showUpload, setShowUpload] = useState(false);
   const [showCreatorUpload, setShowCreatorUpload] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('Live');
   const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'subs'>('revenue');
   const [uploading, setUploading] = useState(false);
   const { modelTraffic, getModelTraffic, globalAvg, refresh: refreshTraffic } = useTrafficData();
