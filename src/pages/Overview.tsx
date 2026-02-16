@@ -5,7 +5,7 @@ import { Users, Monitor, Calendar, Clock, AlertTriangle, TrendingUp, ChevronRigh
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import ModelAvatar from '../components/ModelAvatar';
-import TrafficBadge, { TeamTrafficBar } from '../components/TrafficBadge';
+import TrafficBadge, { TeamTrafficBar, ModelTrafficRow } from '../components/TrafficBadge';
 import { useTrafficData } from '../hooks/useTrafficData';
 import type { Model, Chatter, ModelChatterAssignment, Schedule, ModelMetric } from '../types';
 
@@ -222,25 +222,25 @@ export default function Overview() {
         </div>
       </div>
 
-      {/* Traffic Distribution */}
+      {/* Traffic & Workload Distribution */}
       {modelTraffic.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-          {/* Team Traffic */}
+          {/* Team Workload */}
           <div className="bg-surface-1 border border-border rounded-xl p-5">
-            <div className="flex items-center gap-2 mb-4">
+            <div className="flex items-center gap-2 mb-1">
               <Activity size={16} className="text-cw" />
-              <h2 className="text-sm font-semibold text-white">Traffic by Team</h2>
-              <span className="text-[10px] text-text-muted ml-auto">new fans/day avg</span>
+              <h2 className="text-sm font-semibold text-white">Team Workload</h2>
             </div>
+            <p className="text-[10px] text-text-muted mb-4">
+              Weighted by account type: <span className="text-emerald-400">Free</span>=1.0x <span className="text-purple-400">Mix</span>=0.7x <span className="text-amber-400">Paid</span>=0.4x
+            </p>
             {teamTraffic.length > 0 ? (
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {teamTraffic.map((team) => (
                   <TeamTrafficBar
                     key={team.team_name}
-                    teamName={team.team_name}
-                    totalFans={team.total_new_fans_avg}
-                    chatters={team.chatter_count}
-                    maxFans={teamTraffic[0]!.total_new_fans_avg}
+                    team={team}
+                    maxWorkload={teamTraffic[0]!.total_workload}
                   />
                 ))}
               </div>
@@ -249,26 +249,20 @@ export default function Overview() {
             )}
           </div>
 
-          {/* Top Traffic Models */}
+          {/* Top Workload Models */}
           <div className="bg-surface-1 border border-border rounded-xl p-5">
             <div className="flex items-center gap-2 mb-4">
               <TrendingUp size={16} className="text-orange-400" />
-              <h2 className="text-sm font-semibold text-white">Highest Traffic Models</h2>
+              <h2 className="text-sm font-semibold text-white">Highest Workload Models</h2>
             </div>
-            <div className="space-y-2">
-              {modelTraffic.slice(0, 8).map((t, i) => (
-                <div key={t.model_id} className="flex items-center gap-3">
-                  <span className="text-[10px] text-text-muted w-4 text-right">{i + 1}</span>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-white truncate block">{t.model_name}</span>
-                  </div>
-                  <TrafficBadge
-                    traffic={t}
-                    size="md"
-                    showTrend
-                    maxValue={modelTraffic[0]!.new_fans_avg}
-                  />
-                </div>
+            <div className="space-y-0.5">
+              {modelTraffic.slice(0, 10).map((t, i) => (
+                <ModelTrafficRow
+                  key={t.model_id}
+                  traffic={t}
+                  rank={i + 1}
+                  maxWorkload={modelTraffic[0]!.workload}
+                />
               ))}
             </div>
           </div>

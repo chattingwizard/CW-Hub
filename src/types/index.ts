@@ -155,27 +155,47 @@ export interface ModelDailyStat {
 // Traffic calculations
 export type TrafficLevel = 'high' | 'medium' | 'low' | 'none';
 export type TrafficTrend = 'up' | 'down' | 'stable';
+export type PageType = 'Free Page' | 'Paid Page' | 'Mixed' | null;
+
+// Workload weight per fan by account type:
+// Free = 1.0 (chatter must qualify every fan manually)
+// Mixed = 0.7 (partial filtering)
+// Paid = 0.4 (paywall pre-filters fans)
+export const WORKLOAD_WEIGHTS: Record<string, number> = {
+  'Free Page': 1.0,
+  'Mixed': 0.7,
+  'Paid Page': 0.4,
+};
 
 export interface ModelTraffic {
   model_id: string;
   model_name: string;
-  new_fans_avg: number;       // 7-day average
-  active_fans: number;        // Latest day
+  page_type: PageType;
+  new_fans_avg: number;       // GROSS new fans/day (7-day average or latest)
+  active_fans: number;        // Latest day snapshot
   chatters_assigned: number;
   fans_per_chatter: number;   // new_fans_avg / chatters
+  workload: number;           // Weighted: new_fans_avg * weight for page_type
+  workload_per_chatter: number; // workload / chatters
   trend: TrafficTrend;
   trend_pct: number;          // % change vs previous 7 days
   level: TrafficLevel;
   team_names: string[];
+  earnings_per_day: number;   // $/day from Creator Report
 }
 
 export interface TeamTraffic {
   team_name: string;
   total_new_fans_avg: number;
   total_active_fans: number;
+  total_workload: number;     // Sum of weighted workloads
   chatter_count: number;
   model_count: number;
   fans_per_chatter: number;
+  workload_per_chatter: number; // total_workload / chatters
+  free_count: number;         // Models by type
+  paid_count: number;
+  mixed_count: number;
 }
 
 // Upload types extension

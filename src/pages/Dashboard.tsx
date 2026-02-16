@@ -392,7 +392,7 @@ export default function Dashboard() {
                       <TrafficBadge
                         traffic={getModelTraffic(model.id)}
                         showTrend
-                        maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.new_fans_avg : 1}
+                        maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.workload : 1}
                       />
                     </td>
                   </tr>

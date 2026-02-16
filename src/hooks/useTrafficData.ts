@@ -8,7 +8,9 @@ import type {
   TrafficTrend,
   Model,
   ModelChatterAssignment,
+  PageType,
 } from '../types';
+import { WORKLOAD_WEIGHTS } from '../types';
 
 interface UseTrafficDataReturn {
   modelTraffic: ModelTraffic[];
@@ -18,6 +20,10 @@ interface UseTrafficDataReturn {
   refresh: () => void;
   getModelTraffic: (modelId: string) => ModelTraffic | undefined;
   globalAvg: number;
+}
+
+function getWorkloadWeight(pageType: PageType): number {
+  return WORKLOAD_WEIGHTS[pageType ?? ''] ?? 0.7;
 }
 
 export function useTrafficData(): UseTrafficDataReturn {
@@ -32,7 +38,6 @@ export function useTrafficData(): UseTrafficDataReturn {
     setError(null);
 
     try {
-      // Get last 14 days of data for trend calculation
       const fourteenDaysAgo = new Date();
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
       const dateStr = fourteenDaysAgo.toISOString().split('T')[0];
@@ -43,7 +48,7 @@ export function useTrafficData(): UseTrafficDataReturn {
           .select('*')
           .gte('date', dateStr)
           .order('date', { ascending: false }),
-        supabase.from('models').select('id, name, status, team_names'),
+        supabase.from('models').select('id, name, status, team_names, page_type'),
         supabase
           .from('model_chatter_assignments')
           .select('model_id, chatter_id')
@@ -58,16 +63,13 @@ export function useTrafficData(): UseTrafficDataReturn {
       const models = (modelsRes.data ?? []) as Model[];
       const assignments = (assignRes.data ?? []) as ModelChatterAssignment[];
 
-      // Build model lookup
       const modelMap = new Map(models.map((m) => [m.id, m]));
 
-      // Count chatters per model
       const chattersPerModel = new Map<string, number>();
       for (const a of assignments) {
         chattersPerModel.set(a.model_id, (chattersPerModel.get(a.model_id) ?? 0) + 1);
       }
 
-      // Group stats by model
       const statsByModel = new Map<string, ModelDailyStat[]>();
       for (const s of stats) {
         const arr = statsByModel.get(s.model_id) ?? [];
@@ -75,7 +77,6 @@ export function useTrafficData(): UseTrafficDataReturn {
         statsByModel.set(s.model_id, arr);
       }
 
-      // Calculate traffic for each model
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
       const sevenDayStr = sevenDaysAgo.toISOString().split('T')[0]!;
@@ -86,7 +87,6 @@ export function useTrafficData(): UseTrafficDataReturn {
         const model = modelMap.get(modelId);
         if (!model) continue;
 
-        // Split into recent 7 days and previous 7 days
         const recent = modelStats.filter((s) => s.date >= sevenDayStr);
         const previous = modelStats.filter((s) => s.date < sevenDayStr);
 
@@ -99,11 +99,10 @@ export function useTrafficData(): UseTrafficDataReturn {
             ? previous.reduce((sum, s) => sum + s.new_fans, 0) / previous.length
             : 0;
 
-        // Latest day active fans
-        const latestStat = modelStats[0]; // Already sorted desc
+        const latestStat = modelStats[0];
         const activeFans = latestStat?.active_fans ?? 0;
+        const earningsPerDay = latestStat?.total_earnings ?? 0;
 
-        // Trend
         let trend: TrafficTrend = 'stable';
         let trendPct = 0;
         if (previousAvg > 0) {
@@ -113,39 +112,58 @@ export function useTrafficData(): UseTrafficDataReturn {
         }
 
         const chatters = chattersPerModel.get(modelId) ?? 0;
+        const pageType = (model.page_type as PageType) ?? null;
+        const weight = getWorkloadWeight(pageType);
+        const workload = recentAvg * weight;
 
         traffics.push({
           model_id: modelId,
           model_name: model.name,
+          page_type: pageType,
           new_fans_avg: Math.round(recentAvg * 10) / 10,
           active_fans: activeFans,
           chatters_assigned: chatters,
           fans_per_chatter: chatters > 0 ? Math.round((recentAvg / chatters) * 10) / 10 : recentAvg,
+          workload: Math.round(workload * 10) / 10,
+          workload_per_chatter: chatters > 0 ? Math.round((workload / chatters) * 10) / 10 : workload,
           trend,
           trend_pct: Math.round(trendPct),
-          level: 'none', // Calculated below
+          level: 'none',
           team_names: model.team_names ?? [],
+          earnings_per_day: Math.round(earningsPerDay * 100) / 100,
         });
       }
 
-      // Calculate global average and assign levels
-      const avgValues = traffics.filter((t) => t.new_fans_avg > 0);
+      // Classify levels based on workload (not raw fans)
+      const avgValues = traffics.filter((t) => t.workload > 0);
       const avg =
         avgValues.length > 0
-          ? avgValues.reduce((sum, t) => sum + t.new_fans_avg, 0) / avgValues.length
+          ? avgValues.reduce((sum, t) => sum + t.workload, 0) / avgValues.length
           : 0;
       setGlobalAvg(Math.round(avg * 10) / 10);
 
       for (const t of traffics) {
-        t.level = classifyTraffic(t.new_fans_avg, avg);
+        t.level = classifyTraffic(t.workload, avg);
       }
 
-      // Sort by traffic descending
-      traffics.sort((a, b) => b.new_fans_avg - a.new_fans_avg);
+      // Sort by workload descending (effective load, not raw fans)
+      traffics.sort((a, b) => b.workload - a.workload);
       setModelTraffic(traffics);
 
-      // Calculate team traffic
-      const teamMap = new Map<string, { fans: number; active: number; chatters: Set<string>; models: Set<string> }>();
+      // Team traffic with type breakdown
+      const teamMap = new Map<
+        string,
+        {
+          fans: number;
+          active: number;
+          workload: number;
+          chatters: Set<string>;
+          models: Set<string>;
+          free: number;
+          paid: number;
+          mixed: number;
+        }
+      >();
 
       for (const t of traffics) {
         for (const teamName of t.team_names) {
@@ -153,17 +171,24 @@ export function useTrafficData(): UseTrafficDataReturn {
           const team = teamMap.get(teamName) ?? {
             fans: 0,
             active: 0,
+            workload: 0,
             chatters: new Set<string>(),
             models: new Set<string>(),
+            free: 0,
+            paid: 0,
+            mixed: 0,
           };
           team.fans += t.new_fans_avg;
           team.active += t.active_fans;
+          team.workload += t.workload;
           team.models.add(t.model_id);
+          if (t.page_type === 'Free Page') team.free++;
+          else if (t.page_type === 'Paid Page') team.paid++;
+          else team.mixed++;
           teamMap.set(teamName, team);
         }
       }
 
-      // Add chatter counts from assignments
       for (const a of assignments) {
         const model = modelMap.get(a.model_id);
         if (!model) continue;
@@ -179,15 +204,23 @@ export function useTrafficData(): UseTrafficDataReturn {
           team_name: name,
           total_new_fans_avg: Math.round(data.fans * 10) / 10,
           total_active_fans: data.active,
+          total_workload: Math.round(data.workload * 10) / 10,
           chatter_count: data.chatters.size,
           model_count: data.models.size,
           fans_per_chatter:
             data.chatters.size > 0
               ? Math.round((data.fans / data.chatters.size) * 10) / 10
               : data.fans,
+          workload_per_chatter:
+            data.chatters.size > 0
+              ? Math.round((data.workload / data.chatters.size) * 10) / 10
+              : data.workload,
+          free_count: data.free,
+          paid_count: data.paid,
+          mixed_count: data.mixed,
         });
       }
-      teams.sort((a, b) => b.total_new_fans_avg - a.total_new_fans_avg);
+      teams.sort((a, b) => b.total_workload - a.total_workload);
       setTeamTraffic(teams);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load traffic data');

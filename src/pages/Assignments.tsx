@@ -4,7 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import { TEAM_COLORS } from '../lib/utils';
 import { Plus, X, Search, Users, ChevronRight, Monitor, Clock, Calendar, Activity } from 'lucide-react';
 import ModelAvatar from '../components/ModelAvatar';
-import TrafficBadge, { TeamTrafficBar } from '../components/TrafficBadge';
+import TrafficBadge, { TeamTrafficBar, PageTypeBadge } from '../components/TrafficBadge';
 import { useTrafficData } from '../hooks/useTrafficData';
 import type { Model, Chatter, ModelChatterAssignment, Schedule } from '../types';
 
@@ -143,14 +143,14 @@ export default function Assignments() {
         </div>
       </div>
 
-      {/* Team Traffic Comparison */}
+      {/* Team Traffic / Workload Comparison */}
       {teamTraffic.length > 0 && (
         <div className="bg-surface-1 border border-border rounded-xl p-4 mb-4 shrink-0">
           <div className="flex items-center gap-2 mb-3">
             <Activity size={14} className="text-cw" />
-            <h3 className="text-xs font-semibold text-white uppercase tracking-wider">Team Traffic Balance</h3>
+            <h3 className="text-xs font-semibold text-white uppercase tracking-wider">Team Workload Balance</h3>
             {(() => {
-              const values = teamTraffic.map((t) => t.fans_per_chatter).filter((v) => v > 0);
+              const values = teamTraffic.map((t) => t.workload_per_chatter).filter((v) => v > 0);
               if (values.length < 2) return null;
               const maxVal = Math.max(...values);
               const minVal = Math.min(...values);
@@ -161,15 +161,14 @@ export default function Assignments() {
                 return <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning ml-2">Imbalance ({ratio.toFixed(1)}x)</span>;
               return <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success ml-2">Balanced</span>;
             })()}
+            <span className="text-[9px] text-text-muted ml-auto">weighted: <span className="text-emerald-400">F</span>=1.0x <span className="text-purple-400">M</span>=0.7x <span className="text-amber-400">P</span>=0.4x</span>
           </div>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {teamTraffic.map((team) => (
               <TeamTrafficBar
                 key={team.team_name}
-                teamName={team.team_name}
-                totalFans={team.total_new_fans_avg}
-                chatters={team.chatter_count}
-                maxFans={teamTraffic[0]!.total_new_fans_avg}
+                team={team}
+                maxWorkload={teamTraffic[0]!.total_workload}
               />
             ))}
           </div>
@@ -321,7 +320,7 @@ export default function Assignments() {
                   </div>
                 </div>
                 {/* Quick stats */}
-                <div className="hidden lg:flex items-center gap-6">
+                <div className="hidden lg:flex items-center gap-5">
                   <div className="text-center">
                     <p className="text-xl font-bold text-cw">{assignedModels.length}</p>
                     <p className="text-[10px] text-text-muted uppercase tracking-wider">Models</p>
@@ -330,6 +329,25 @@ export default function Assignments() {
                     <p className="text-xl font-bold text-white">{chatterScheduleDays.length}</p>
                     <p className="text-[10px] text-text-muted uppercase tracking-wider">Shifts/wk</p>
                   </div>
+                  {(() => {
+                    const totalWl = assignedModels.reduce((sum, { model }) => {
+                      const t = getModelTraffic(model!.id);
+                      return sum + (t?.workload_per_chatter ?? 0);
+                    }, 0);
+                    const freeCount = assignedModels.filter(({ model }) => model!.page_type === 'Free Page').length;
+                    const paidCount = assignedModels.filter(({ model }) => model!.page_type === 'Paid Page').length;
+                    return (
+                      <div className="text-center pl-4 border-l border-border">
+                        <p className="text-xl font-bold text-orange-400">{Math.round(totalWl)}</p>
+                        <p className="text-[10px] text-text-muted uppercase tracking-wider">Workload</p>
+                        <div className="flex gap-1 justify-center mt-0.5">
+                          {freeCount > 0 && <span className="text-[8px] text-emerald-400">{freeCount}F</span>}
+                          {paidCount > 0 && <span className="text-[8px] text-amber-400">{paidCount}P</span>}
+                          {assignedModels.length - freeCount - paidCount > 0 && <span className="text-[8px] text-purple-400">{assignedModels.length - freeCount - paidCount}M</span>}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
 
@@ -373,36 +391,43 @@ export default function Assignments() {
                 <p className="text-sm text-text-muted py-3 text-center">No models assigned. Add from below.</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
-                  {assignedModels.map(({ assignment, model }) => (
-                    <div
-                      key={assignment.id}
-                      className="group flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-2 border border-border hover:border-cw/30 transition-colors"
-                    >
-                      <ModelAvatar name={model!.name} pictureUrl={model!.profile_picture_url} size="sm" />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-white font-medium">{model!.name}</p>
-                        <div className="flex items-center gap-2">
-                          <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${statusBadge(model!.status)}`}>
-                            {model!.status}
-                          </span>
-                          <span className="text-[9px] text-text-muted">{getChatterCountForModel(model!.id)} chatters</span>
-                        </div>
-                      </div>
-                      <TrafficBadge
-                        traffic={getModelTraffic(model!.id)}
-                        size="sm"
-                        showTrend
-                        maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.new_fans_avg : 1}
-                      />
-                      <button
-                        onClick={() => handleUnassign(assignment.id)}
-                        disabled={saving}
-                        className="ml-1 p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-danger/15 text-text-muted hover:text-danger transition-all disabled:opacity-30"
+                  {assignedModels.map(({ assignment, model }) => {
+                    const t = getModelTraffic(model!.id);
+                    return (
+                      <div
+                        key={assignment.id}
+                        className="group flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-2 border border-border hover:border-cw/30 transition-colors"
                       >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ))}
+                        <ModelAvatar name={model!.name} pictureUrl={model!.profile_picture_url} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm text-white font-medium">{model!.name}</p>
+                            <PageTypeBadge pageType={model!.page_type as 'Free Page' | 'Paid Page' | 'Mixed' | null} size="sm" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-text-muted">{getChatterCountForModel(model!.id)} chatters</span>
+                            {t && (
+                              <span className="text-[9px] text-text-muted">{Math.round(t.new_fans_avg)} fans/d</span>
+                            )}
+                          </div>
+                        </div>
+                        <TrafficBadge
+                          traffic={t}
+                          size="sm"
+                          showTrend
+                          showType={false}
+                          maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.workload : 1}
+                        />
+                        <button
+                          onClick={() => handleUnassign(assignment.id)}
+                          disabled={saving}
+                          className="ml-1 p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-danger/15 text-text-muted hover:text-danger transition-all disabled:opacity-30"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -427,28 +452,30 @@ export default function Assignments() {
               </div>
               <div className="flex-1 overflow-y-auto p-3">
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
-                  {availableModels.map((model) => (
-                    <button
-                      key={model.id}
-                      onClick={() => handleAssign(model.id)}
-                      disabled={saving}
-                      className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-2 border border-border hover:border-cw/40 hover:bg-cw/5 text-left transition-all group disabled:opacity-50"
-                    >
-                      <ModelAvatar name={model.name} pictureUrl={model.profile_picture_url} size="md" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white truncate">{model.name}</p>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[9px] text-text-muted">{getChatterCountForModel(model.id)} chatters</span>
-                          <TrafficBadge
-                            traffic={getModelTraffic(model.id)}
-                            size="sm"
-                            maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.new_fans_avg : 1}
-                          />
+                  {availableModels.map((model) => {
+                    const t = getModelTraffic(model.id);
+                    return (
+                      <button
+                        key={model.id}
+                        onClick={() => handleAssign(model.id)}
+                        disabled={saving}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-surface-2 border border-border hover:border-cw/40 hover:bg-cw/5 text-left transition-all group disabled:opacity-50"
+                      >
+                        <ModelAvatar name={model.name} pictureUrl={model.profile_picture_url} size="md" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-sm text-white truncate">{model.name}</p>
+                            <PageTypeBadge pageType={model.page_type as 'Free Page' | 'Paid Page' | 'Mixed' | null} size="sm" />
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] text-text-muted">{getChatterCountForModel(model.id)} chatters</span>
+                            {t && <span className="text-[9px] text-text-muted">{Math.round(t.new_fans_avg)} fans/d</span>}
+                          </div>
                         </div>
-                      </div>
-                      <Plus size={16} className="text-cw opacity-0 group-hover:opacity-100 shrink-0" />
-                    </button>
-                  ))}
+                        <Plus size={16} className="text-cw opacity-0 group-hover:opacity-100 shrink-0" />
+                      </button>
+                    );
+                  })}
                   {availableModels.length === 0 && (
                     <p className="col-span-full text-sm text-text-muted py-6 text-center">
                       {modelSearch ? 'No models match your search.' : 'All live models are assigned.'}
