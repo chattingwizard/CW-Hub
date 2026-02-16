@@ -2,8 +2,10 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { TEAM_COLORS } from '../lib/utils';
-import { Plus, X, Search, Users, ChevronRight, Monitor, Clock, Calendar } from 'lucide-react';
+import { Plus, X, Search, Users, ChevronRight, Monitor, Clock, Calendar, Activity } from 'lucide-react';
 import ModelAvatar from '../components/ModelAvatar';
+import TrafficBadge, { TeamTrafficBar } from '../components/TrafficBadge';
+import { useTrafficData } from '../hooks/useTrafficData';
 import type { Model, Chatter, ModelChatterAssignment, Schedule } from '../types';
 
 export default function Assignments() {
@@ -18,6 +20,7 @@ export default function Assignments() {
   const [teamFilter, setTeamFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const { modelTraffic, teamTraffic, getModelTraffic, globalAvg } = useTrafficData();
 
   // Current week start
   const getWeekStart = () => {
@@ -139,6 +142,39 @@ export default function Assignments() {
           </p>
         </div>
       </div>
+
+      {/* Team Traffic Comparison */}
+      {teamTraffic.length > 0 && (
+        <div className="bg-surface-1 border border-border rounded-xl p-4 mb-4 shrink-0">
+          <div className="flex items-center gap-2 mb-3">
+            <Activity size={14} className="text-cw" />
+            <h3 className="text-xs font-semibold text-white uppercase tracking-wider">Team Traffic Balance</h3>
+            {(() => {
+              const values = teamTraffic.map((t) => t.fans_per_chatter).filter((v) => v > 0);
+              if (values.length < 2) return null;
+              const maxVal = Math.max(...values);
+              const minVal = Math.min(...values);
+              const ratio = minVal > 0 ? maxVal / minVal : 0;
+              if (ratio > 3)
+                return <span className="text-[10px] px-2 py-0.5 rounded-full bg-danger/15 text-danger ml-2">Critical imbalance ({ratio.toFixed(1)}x)</span>;
+              if (ratio > 2)
+                return <span className="text-[10px] px-2 py-0.5 rounded-full bg-warning/15 text-warning ml-2">Imbalance ({ratio.toFixed(1)}x)</span>;
+              return <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success ml-2">Balanced</span>;
+            })()}
+          </div>
+          <div className="space-y-2">
+            {teamTraffic.map((team) => (
+              <TeamTrafficBar
+                key={team.team_name}
+                teamName={team.team_name}
+                totalFans={team.total_new_fans_avg}
+                chatters={team.chatter_count}
+                maxFans={teamTraffic[0]!.total_new_fans_avg}
+              />
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="flex gap-4 flex-1 min-h-0">
         {/* Chatters Panel (Left) */}
@@ -343,7 +379,7 @@ export default function Assignments() {
                       className="group flex items-center gap-2.5 px-3 py-2 rounded-xl bg-surface-2 border border-border hover:border-cw/30 transition-colors"
                     >
                       <ModelAvatar name={model!.name} pictureUrl={model!.profile_picture_url} size="sm" />
-                      <div className="min-w-0">
+                      <div className="min-w-0 flex-1">
                         <p className="text-sm text-white font-medium">{model!.name}</p>
                         <div className="flex items-center gap-2">
                           <span className={`text-[9px] px-1.5 py-0.5 rounded-full ${statusBadge(model!.status)}`}>
@@ -352,6 +388,12 @@ export default function Assignments() {
                           <span className="text-[9px] text-text-muted">{getChatterCountForModel(model!.id)} chatters</span>
                         </div>
                       </div>
+                      <TrafficBadge
+                        traffic={getModelTraffic(model!.id)}
+                        size="sm"
+                        showTrend
+                        maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.new_fans_avg : 1}
+                      />
                       <button
                         onClick={() => handleUnassign(assignment.id)}
                         disabled={saving}
@@ -397,9 +439,11 @@ export default function Assignments() {
                         <p className="text-sm text-white truncate">{model.name}</p>
                         <div className="flex items-center gap-2">
                           <span className="text-[9px] text-text-muted">{getChatterCountForModel(model.id)} chatters</span>
-                          {model.traffic_sources.length > 0 && (
-                            <span className="text-[9px] text-text-muted truncate">{model.traffic_sources[0]}</span>
-                          )}
+                          <TrafficBadge
+                            traffic={getModelTraffic(model.id)}
+                            size="sm"
+                            maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.new_fans_avg : 1}
+                          />
                         </div>
                       </div>
                       <Plus size={16} className="text-cw opacity-0 group-hover:opacity-100 shrink-0" />

@@ -128,3 +128,55 @@ export interface ModelMetricCSVRow {
   tips: string;
   refunds: string;
 }
+
+// Model Daily Stats (from Creator Reports)
+export interface ModelDailyStat {
+  id: string;
+  model_id: string;
+  date: string;
+  new_fans: number;
+  active_fans: number;
+  fans_renew_on: number;
+  renew_pct: number;
+  expired_change: number;
+  total_earnings: number;
+  message_earnings: number;
+  subscription_earnings: number;
+  tips_earnings: number;
+  avg_spend_per_spender: number;
+  avg_sub_length_days: number;
+  of_ranking: string | null;
+  following: number;
+  synced_at: string;
+  // Joined
+  model?: Model;
+}
+
+// Traffic calculations
+export type TrafficLevel = 'high' | 'medium' | 'low' | 'none';
+export type TrafficTrend = 'up' | 'down' | 'stable';
+
+export interface ModelTraffic {
+  model_id: string;
+  model_name: string;
+  new_fans_avg: number;       // 7-day average
+  active_fans: number;        // Latest day
+  chatters_assigned: number;
+  fans_per_chatter: number;   // new_fans_avg / chatters
+  trend: TrafficTrend;
+  trend_pct: number;          // % change vs previous 7 days
+  level: TrafficLevel;
+  team_names: string[];
+}
+
+export interface TeamTraffic {
+  team_name: string;
+  total_new_fans_avg: number;
+  total_active_fans: number;
+  chatter_count: number;
+  model_count: number;
+  fans_per_chatter: number;
+}
+
+// Upload types extension
+export type UploadType = 'model_metrics' | 'chatter_hours' | 'creator_report';

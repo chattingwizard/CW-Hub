@@ -10,6 +10,9 @@ import {
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import Papa from 'papaparse';
 import ModelAvatar from '../components/ModelAvatar';
+import TrafficBadge from '../components/TrafficBadge';
+import CreatorReportUpload from '../components/CreatorReportUpload';
+import { useTrafficData } from '../hooks/useTrafficData';
 import type { Model, ModelMetric, ModelMetricCSVRow } from '../types';
 
 interface AggMetrics {
@@ -30,10 +33,12 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [weekOffset, setWeekOffset] = useState(0);
   const [showUpload, setShowUpload] = useState(false);
+  const [showCreatorUpload, setShowCreatorUpload] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'subs'>('revenue');
   const [uploading, setUploading] = useState(false);
+  const { modelTraffic, getModelTraffic, globalAvg, refresh: refreshTraffic } = useTrafficData();
 
   const getWeekStart = (offset: number) => {
     const d = new Date();
@@ -238,8 +243,11 @@ export default function Dashboard() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-4 py-2 bg-cw hover:bg-cw-dark text-white rounded-lg text-sm font-medium">
+          <button onClick={() => setShowUpload(true)} className="flex items-center gap-2 px-4 py-2 bg-surface-1 border border-border hover:border-cw/50 text-white rounded-lg text-sm font-medium">
             <Upload size={16} /> Upload CSV
+          </button>
+          <button onClick={() => setShowCreatorUpload(true)} className="flex items-center gap-2 px-4 py-2 bg-cw hover:bg-cw-dark text-white rounded-lg text-sm font-medium">
+            <Upload size={16} /> Creator Report
           </button>
           <div className="flex items-center gap-2 bg-surface-1 border border-border rounded-lg px-3 py-1.5">
             <button onClick={() => setWeekOffset((w) => w - 1)} className="p-0.5 hover:text-cw text-text-secondary"><ChevronLeft size={16} /></button>
@@ -381,11 +389,11 @@ export default function Dashboard() {
                     <td className="px-4 py-3 text-text-secondary">{metric ? formatCurrency(metric.tips) : '—'}</td>
                     <td className="px-4 py-3 text-text-secondary">{metric ? formatCurrency(metric.refunds) : '—'}</td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {model.traffic_sources.length > 0 ? model.traffic_sources.slice(0, 2).map((src) => (
-                          <span key={src} className="text-[10px] px-1.5 py-0.5 rounded-full bg-cw/10 text-cw border border-cw/20">{src}</span>
-                        )) : <span className="text-text-muted text-[10px]">—</span>}
-                      </div>
+                      <TrafficBadge
+                        traffic={getModelTraffic(model.id)}
+                        showTrend
+                        maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.new_fans_avg : 1}
+                      />
                     </td>
                   </tr>
                 ))
@@ -419,6 +427,22 @@ export default function Dashboard() {
               )}
               <input type="file" accept=".csv" className="hidden" onChange={handleCSVUpload} disabled={uploading} />
             </label>
+          </div>
+        </div>
+      )}
+
+      {/* Creator Report Upload Modal */}
+      {showCreatorUpload && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4" onClick={() => setShowCreatorUpload(false)}>
+          <div className="bg-surface-1 border border-border rounded-2xl p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white">Upload Creator Report</h2>
+              <button onClick={() => setShowCreatorUpload(false)} className="text-text-secondary hover:text-white"><X size={20} /></button>
+            </div>
+            <p className="text-sm text-text-secondary mb-4">
+              Upload the daily Creator Report from Infloww. Creator names must match model names in the system.
+            </p>
+            <CreatorReportUpload onUploadComplete={() => { refreshTraffic(); setShowCreatorUpload(false); }} />
           </div>
         </div>
       )}
