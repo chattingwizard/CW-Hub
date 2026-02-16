@@ -26,6 +26,29 @@ function getWorkloadWeight(pageType: PageType): number {
   return WORKLOAD_WEIGHTS[pageType ?? ''] ?? 0.7;
 }
 
+// ── Statistical helpers ──────────────────────────────────────
+// Median: ignores extreme spikes (e.g., Putri going from 100 to 5000 for 2 days)
+// With 1 value: returns that value. With multiple: returns the middle value.
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1]! + sorted[mid]!) / 2
+    : sorted[mid]!;
+}
+
+// Percentile: returns the value at a given percentile (0-100)
+function percentile(values: number[], p: number): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const idx = (p / 100) * (sorted.length - 1);
+  const lower = Math.floor(idx);
+  const upper = Math.ceil(idx);
+  if (lower === upper) return sorted[lower]!;
+  return sorted[lower]! + (sorted[upper]! - sorted[lower]!) * (idx - lower);
+}
+
 export function useTrafficData(): UseTrafficDataReturn {
   const [modelTraffic, setModelTraffic] = useState<ModelTraffic[]>([]);
   const [teamTraffic, setTeamTraffic] = useState<TeamTraffic[]>([]);
@@ -90,79 +113,71 @@ export function useTrafficData(): UseTrafficDataReturn {
         const recent = modelStats.filter((s) => s.date >= sevenDayStr);
         const previous = modelStats.filter((s) => s.date < sevenDayStr);
 
-        const recentAvg =
-          recent.length > 0
-            ? recent.reduce((sum, s) => sum + s.new_fans, 0) / recent.length
-            : 0;
-        const previousAvg =
-          previous.length > 0
-            ? previous.reduce((sum, s) => sum + s.new_fans, 0) / previous.length
-            : 0;
+        // ── MEDIAN instead of MEAN ──
+        // Median resists spikes: [100, 100, 5000, 100, 100] → median=100 (mean=1080)
+        // With 1 data point: median = that value (can't improve further)
+        const recentFansMedian = median(recent.map((s) => s.new_fans));
+        const previousFansMedian = median(previous.map((s) => s.new_fans));
 
         const latestStat = modelStats[0];
         const activeFans = latestStat?.active_fans ?? 0;
 
-        // Financial averages (from recent 7-day window)
-        const recentEarningsAvg = recent.length > 0
-          ? recent.reduce((sum, s) => sum + s.total_earnings, 0) / recent.length : 0;
-        const previousEarningsAvg = previous.length > 0
-          ? previous.reduce((sum, s) => sum + s.total_earnings, 0) / previous.length : 0;
-        const recentTipsAvg = recent.length > 0
-          ? recent.reduce((sum, s) => sum + s.tips_earnings, 0) / recent.length : 0;
-        const recentMsgAvg = recent.length > 0
-          ? recent.reduce((sum, s) => sum + s.message_earnings, 0) / recent.length : 0;
-        const recentSubAvg = recent.length > 0
-          ? recent.reduce((sum, s) => sum + s.subscription_earnings, 0) / recent.length : 0;
+        // Financial medians (from recent 7-day window)
+        const recentEarningsMedian = median(recent.map((s) => s.total_earnings));
+        const previousEarningsMedian = median(previous.map((s) => s.total_earnings));
+        const recentTipsMedian = median(recent.map((s) => s.tips_earnings));
+        const recentMsgMedian = median(recent.map((s) => s.message_earnings));
+        const recentSubMedian = median(recent.map((s) => s.subscription_earnings));
         const renewPct = latestStat?.renew_pct ?? 0;
         const avgSpend = latestStat?.avg_spend_per_spender ?? 0;
 
-        // Traffic trend
+        // Traffic trend (comparing medians)
         let trend: TrafficTrend = 'stable';
         let trendPct = 0;
-        if (previousAvg > 0) {
-          trendPct = ((recentAvg - previousAvg) / previousAvg) * 100;
+        if (previousFansMedian > 0) {
+          trendPct = ((recentFansMedian - previousFansMedian) / previousFansMedian) * 100;
           if (trendPct > 10) trend = 'up';
           else if (trendPct < -10) trend = 'down';
         }
 
         // Earnings trend
         let earningsTrendPct = 0;
-        if (previousEarningsAvg > 0) {
-          earningsTrendPct = ((recentEarningsAvg - previousEarningsAvg) / previousEarningsAvg) * 100;
+        if (previousEarningsMedian > 0) {
+          earningsTrendPct = ((recentEarningsMedian - previousEarningsMedian) / previousEarningsMedian) * 100;
         }
 
         const chatters = chattersPerModel.get(modelId) ?? 0;
         const pageType = (model.page_type as PageType) ?? null;
         const weight = getWorkloadWeight(pageType);
-        const workload = recentAvg * weight;
+        const workload = recentFansMedian * weight;
 
         traffics.push({
           model_id: modelId,
           model_name: model.name,
           model_status: model.status ?? 'Live',
           page_type: pageType,
-          new_fans_avg: Math.round(recentAvg * 10) / 10,
+          new_fans_avg: Math.round(recentFansMedian * 10) / 10,
           active_fans: activeFans,
           chatters_assigned: chatters,
-          fans_per_chatter: chatters > 0 ? Math.round((recentAvg / chatters) * 10) / 10 : recentAvg,
+          fans_per_chatter: chatters > 0 ? Math.round((recentFansMedian / chatters) * 10) / 10 : recentFansMedian,
           workload: Math.round(workload * 10) / 10,
-          workload_pct: 0, // Will be normalized below
+          workload_pct: 0, // Normalized below
           workload_per_chatter: chatters > 0 ? Math.round((workload / chatters) * 10) / 10 : workload,
           trend,
           trend_pct: Math.round(trendPct),
           level: 'none',
           team_names: model.team_names ?? [],
-          earnings_per_day: Math.round(recentEarningsAvg * 100) / 100,
-          tips_per_day: Math.round(recentTipsAvg * 100) / 100,
-          message_earnings_per_day: Math.round(recentMsgAvg * 100) / 100,
-          subscription_earnings_per_day: Math.round(recentSubAvg * 100) / 100,
+          earnings_per_day: Math.round(recentEarningsMedian * 100) / 100,
+          tips_per_day: Math.round(recentTipsMedian * 100) / 100,
+          message_earnings_per_day: Math.round(recentMsgMedian * 100) / 100,
+          subscription_earnings_per_day: Math.round(recentSubMedian * 100) / 100,
           earnings_trend_pct: Math.round(earningsTrendPct),
           renew_pct: Math.round(renewPct * 10) / 10,
           avg_spend_per_spender: Math.round(avgSpend * 100) / 100,
         });
       }
 
-      // Add models that have NO stats yet (so Dashboard can still list them)
+      // Add models with NO stats
       const modelsWithStats = new Set(statsByModel.keys());
       for (const model of models) {
         if (modelsWithStats.has(model.id)) continue;
@@ -183,16 +198,19 @@ export function useTrafficData(): UseTrafficDataReturn {
         });
       }
 
-      // ── Normalize workload to 0-100% scale ──
-      // The model with the highest raw workload = 100%
-      // This means: 100% = full capacity of one chatter
-      // A chatter should handle ~100% total across all assigned models
-      const maxWorkload = Math.max(...traffics.map((t) => t.workload), 0.01);
+      // ── Normalize workload to 0-100% using P90 reference ──
+      // P90 = 100%: the 90th percentile model represents a full chatter load
+      // Models above P90 get >100% (they need special attention or multiple chatters)
+      // This prevents one extreme outlier from compressing the entire scale
+      const workloads = traffics.map((t) => t.workload).filter((w) => w > 0);
+      const p90 = workloads.length > 0 ? percentile(workloads, 90) : 0.01;
+      const referenceWorkload = Math.max(p90, 0.01);
+
       for (const t of traffics) {
-        t.workload_pct = Math.round((t.workload / maxWorkload) * 100);
+        t.workload_pct = Math.round((t.workload / referenceWorkload) * 100);
       }
 
-      // Classify levels based on workload_pct
+      // Classify levels
       for (const t of traffics) {
         if (t.workload_pct <= 0) t.level = 'none';
         else if (t.workload_pct >= 70) t.level = 'high';
@@ -200,19 +218,18 @@ export function useTrafficData(): UseTrafficDataReturn {
         else t.level = 'low';
       }
 
-      // Global average (for reference)
+      // Global average
       const avgValues = traffics.filter((t) => t.workload > 0);
-      const avg =
-        avgValues.length > 0
-          ? avgValues.reduce((sum, t) => sum + t.workload_pct, 0) / avgValues.length
-          : 0;
+      const avg = avgValues.length > 0
+        ? avgValues.reduce((sum, t) => sum + t.workload_pct, 0) / avgValues.length
+        : 0;
       setGlobalAvg(Math.round(avg));
 
       // Sort by workload_pct descending
       traffics.sort((a, b) => b.workload_pct - a.workload_pct);
       setModelTraffic(traffics);
 
-      // ── Team traffic with workload_pct ──
+      // ── Team traffic ──
       const teamMap = new Map<
         string,
         {
