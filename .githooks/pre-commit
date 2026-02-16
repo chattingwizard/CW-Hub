@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# Pre-commit hook: scan for secrets before allowing commit
+# Blocks commits that contain passwords, tokens, API keys, etc.
+#
+
+echo "Scanning for secrets..."
+
+# Patterns that should NEVER appear in committed code
+PATTERNS=(
+  "xoxp-[0-9]"
+  "xoxb-[0-9]"
+  "xoxs-[0-9]"
+  "sk-[a-zA-Z0-9]{20,}"
+  "password.*=.*['\"][^'\"]{6,}"
+  "PASSWORD.*=.*['\"][^'\"]{6,}"
+  "service_role.*eyJ"
+  "SUPABASE_SERVICE"
+  "secret_key.*=.*['\"]"
+  "api_key.*=.*['\"]"
+  "apikey.*=.*['\"][^'\"]{20,}"
+  "token.*=.*['\"]xox"
+  "ntn_[a-zA-Z0-9]"
+  "ghp_[a-zA-Z0-9]"
+  "gho_[a-zA-Z0-9]"
+)
+
+FOUND=0
+
+for pattern in "${PATTERNS[@]}"; do
+  # Only check staged files, excluding the hook itself and gitignore
+  MATCHES=$(git diff --cached --diff-filter=ACMR -- . ':!.githooks' ':!.gitignore' -U0 | grep -iE "$pattern" | grep "^+" | grep -v "^+++" || true)
+  if [ -n "$MATCHES" ]; then
+    echo ""
+    echo "BLOCKED: Potential secret detected!"
+    echo "Pattern: $pattern"
+    echo "Matches:"
+    echo "$MATCHES"
+    echo ""
+    FOUND=1
+  fi
+done
+
+# Check for common secret file patterns
+FILES=$(git diff --cached --name-only --diff-filter=ACMR)
+for file in $FILES; do
+  case "$file" in
+    *.key|*.pem|*.p12|*.pfx|*.secret|*.credentials)
+      echo "BLOCKED: Sensitive file type: $file"
+      FOUND=1
+      ;;
+    .env|.env.*|*.env)
+      echo "BLOCKED: Environment file: $file"
+      FOUND=1
+      ;;
+    tools/*)
+      echo "BLOCKED: tools/ directory should not be committed: $file"
+      FOUND=1
+      ;;
+  esac
+done
+
+if [ "$FOUND" -eq 1 ]; then
+  echo ""
+  echo "Commit REJECTED. Remove secrets before committing."
+  echo "If this is a false positive, use: git commit --no-verify"
+  exit 1
+fi
+
+echo "No secrets found. Commit allowed."
+exit 0

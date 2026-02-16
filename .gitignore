@@ -1,11 +1,42 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+.vite/
+.cache/
+
+# Environment files (NEVER commit)
 .env
-.env.local
-*.log
-.DS_Store
+.env.*
+*.env
+
+# Secrets and keys (NEVER commit)
+*.key
+*.pem
+*.p12
+*.pfx
+*.secret
+*.credentials
+*.token
+
+# Local tools (contain credentials)
+tools/
+
+# Supabase local
 supabase/.temp/
+
+# Generated data
 sync/seed_data.sql
 
-# Local tools (contain credentials, NEVER commit)
-tools/
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# IDE
+.idea/
+*.swp
+*.swo
