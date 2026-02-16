@@ -13,7 +13,7 @@ interface UploadResult {
 // Column mapping from Infloww Creator Report to our schema
 const COLUMN_MAP: Record<string, string> = {
   'creator': 'creator_name',
-  'new fans': 'new_fans',
+  'new fans': 'new_fans_net',
   'active fans': 'active_fans',
   'fans with renew on': 'fans_renew_on',
   'renew on %': 'renew_pct',
@@ -27,6 +27,7 @@ const COLUMN_MAP: Record<string, string> = {
   'of ranking': 'of_ranking',
   'following': 'following',
   'date/time africa/monrovia': 'date_range',
+  'new subscriptions net': 'new_subs_earnings',
 };
 
 function parseMoneyValue(val: unknown): number {
@@ -96,7 +97,8 @@ export default function CreatorReportUpload({ onUploadComplete }: { onUploadComp
       // Validate required columns
       const mappedCols = new Set(headerMap.values());
       if (!mappedCols.has('creator_name')) throw new Error('Missing "Creator" column');
-      if (!mappedCols.has('new_fans')) throw new Error('Missing "New fans" column');
+      if (!mappedCols.has('new_fans_net')) throw new Error('Missing "New fans" column');
+      if (!mappedCols.has('expired_change')) throw new Error('Missing "Change in expired fan count" column');
 
       // Get model list for matching
       const { data: allModels } = await supabase.from('models').select('id, name');
@@ -146,15 +148,20 @@ export default function CreatorReportUpload({ onUploadComplete }: { onUploadComp
         const rowDate = parseDate(mapped.date_range) ?? dateStr;
         if (!rowDate) continue;
 
+        // GROSS new fans = net new + expired (actual new subscribers, always >= 0)
+        const netNew = parseInt(String(mapped.new_fans_net ?? 0)) || 0;
+        const expired = parseInt(String(mapped.expired_change ?? 0)) || 0;
+        const grossNew = Math.max(0, netNew + expired);
+
         const d = rangeDays;
         rows.push({
           model_id: modelId,
           date: rowDate,
-          new_fans: Math.round((parseInt(String(mapped.new_fans ?? 0)) || 0) / d),
+          new_fans: Math.round(grossNew / d),
           active_fans: parseInt(String(mapped.active_fans ?? 0)) || 0, // snapshot, not cumulative
           fans_renew_on: parseInt(String(mapped.fans_renew_on ?? 0)) || 0, // snapshot
           renew_pct: parsePercentage(mapped.renew_pct), // percentage
-          expired_change: Math.round((parseInt(String(mapped.expired_change ?? 0)) || 0) / d),
+          expired_change: Math.round(expired / d),
           total_earnings: Math.round((parseMoneyValue(mapped.total_earnings) / d) * 100) / 100,
           message_earnings: Math.round((parseMoneyValue(mapped.message_earnings) / d) * 100) / 100,
           subscription_earnings: Math.round((parseMoneyValue(mapped.subscription_earnings) / d) * 100) / 100,
