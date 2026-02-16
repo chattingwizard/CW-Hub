@@ -104,52 +104,65 @@ export default function CreatorReportUpload({ onUploadComplete }: { onUploadComp
         (allModels ?? []).map((m: { id: string; name: string }) => [m.name.toLowerCase().trim(), m.id]),
       );
 
-      // Parse rows
+      // Detect date range to determine if we need to divide values
       const unmatchedNames: string[] = [];
       const rows: Array<Record<string, unknown>> = [];
       let dateStr: string | null = null;
+      let rangeDays = 1;
+
+      // Check first row for date range
+      const firstMapped: Record<string, unknown> = {};
+      for (const [originalKey, mappedKey] of headerMap) {
+        firstMapped[mappedKey] = rawData[0]![originalKey];
+      }
+      if (firstMapped.date_range) {
+        const dateVal = String(firstMapped.date_range);
+        const allDates = dateVal.match(/\d{4}-\d{2}-\d{2}/g);
+        if (allDates && allDates.length >= 2 && allDates[0] !== allDates[1]) {
+          const d1 = new Date(allDates[0]! + 'T00:00:00');
+          const d2 = new Date(allDates[1]! + 'T00:00:00');
+          rangeDays = Math.max(1, Math.round((d2.getTime() - d1.getTime()) / 86400000) + 1);
+        }
+      }
 
       for (const raw of rawData) {
-        // Get mapped values
         const mapped: Record<string, unknown> = {};
         for (const [originalKey, mappedKey] of headerMap) {
           mapped[mappedKey] = raw[originalKey];
         }
 
-        // Get creator name
         const creatorName = String(mapped.creator_name ?? '').trim();
         if (!creatorName) continue;
 
-        // Match to model
         const modelId = modelLookup.get(creatorName.toLowerCase());
         if (!modelId) {
           if (!unmatchedNames.includes(creatorName)) unmatchedNames.push(creatorName);
           continue;
         }
 
-        // Parse date (from first row)
         if (!dateStr) {
           dateStr = parseDate(mapped.date_range);
         }
         const rowDate = parseDate(mapped.date_range) ?? dateStr;
         if (!rowDate) continue;
 
+        const d = rangeDays;
         rows.push({
           model_id: modelId,
           date: rowDate,
-          new_fans: parseInt(String(mapped.new_fans ?? 0)) || 0,
-          active_fans: parseInt(String(mapped.active_fans ?? 0)) || 0,
-          fans_renew_on: parseInt(String(mapped.fans_renew_on ?? 0)) || 0,
-          renew_pct: parsePercentage(mapped.renew_pct),
-          expired_change: parseInt(String(mapped.expired_change ?? 0)) || 0,
-          total_earnings: parseMoneyValue(mapped.total_earnings),
-          message_earnings: parseMoneyValue(mapped.message_earnings),
-          subscription_earnings: parseMoneyValue(mapped.subscription_earnings),
-          tips_earnings: parseMoneyValue(mapped.tips_earnings),
-          avg_spend_per_spender: parseMoneyValue(mapped.avg_spend_per_spender),
-          avg_sub_length_days: parseDays(mapped.avg_sub_length),
+          new_fans: Math.round((parseInt(String(mapped.new_fans ?? 0)) || 0) / d),
+          active_fans: parseInt(String(mapped.active_fans ?? 0)) || 0, // snapshot, not cumulative
+          fans_renew_on: parseInt(String(mapped.fans_renew_on ?? 0)) || 0, // snapshot
+          renew_pct: parsePercentage(mapped.renew_pct), // percentage
+          expired_change: Math.round((parseInt(String(mapped.expired_change ?? 0)) || 0) / d),
+          total_earnings: Math.round((parseMoneyValue(mapped.total_earnings) / d) * 100) / 100,
+          message_earnings: Math.round((parseMoneyValue(mapped.message_earnings) / d) * 100) / 100,
+          subscription_earnings: Math.round((parseMoneyValue(mapped.subscription_earnings) / d) * 100) / 100,
+          tips_earnings: Math.round((parseMoneyValue(mapped.tips_earnings) / d) * 100) / 100,
+          avg_spend_per_spender: parseMoneyValue(mapped.avg_spend_per_spender), // already an average
+          avg_sub_length_days: parseDays(mapped.avg_sub_length), // already an average
           of_ranking: mapped.of_ranking ? String(mapped.of_ranking) : null,
-          following: parseInt(String(mapped.following ?? 0)) || 0,
+          following: parseInt(String(mapped.following ?? 0)) || 0, // snapshot
         });
       }
 
@@ -175,6 +188,7 @@ export default function CreatorReportUpload({ onUploadComplete }: { onUploadComp
 
       const details: string[] = [];
       details.push(`Date: ${dateStr}`);
+      if (rangeDays > 1) details.push(`${rangeDays}-day range detected — values divided to daily averages`);
       details.push(`${rows.length} models uploaded`);
       if (unmatchedNames.length > 0) {
         details.push(`${unmatchedNames.length} unmatched: ${unmatchedNames.join(', ')}`);
