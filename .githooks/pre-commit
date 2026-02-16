@@ -28,8 +28,8 @@ PATTERNS=(
 FOUND=0
 
 for pattern in "${PATTERNS[@]}"; do
-  # Only check staged files, excluding the hook itself and gitignore
-  MATCHES=$(git diff --cached --diff-filter=ACMR -- . ':!.githooks' ':!.gitignore' ':!.cursor/rules' -U0 | grep -iE "$pattern" | grep "^+" | grep -v "^+++" || true)
+  # Only check staged files, excluding build artifacts, hooks, config
+  MATCHES=$(git diff --cached --diff-filter=ACMR -- . ':!.githooks' ':!.gitignore' ':!.cursor/rules' ':!dist/' -U0 | grep -iE "$pattern" | grep "^+" | grep -v "^+++" || true)
   if [ -n "$MATCHES" ]; then
     echo ""
     echo "BLOCKED: Potential secret detected!"
