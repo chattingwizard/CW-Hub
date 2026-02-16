@@ -5,9 +5,9 @@ import { Users, Monitor, Calendar, Clock, AlertTriangle, TrendingUp, ChevronRigh
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import ModelAvatar from '../components/ModelAvatar';
-import TrafficBadge, { TeamTrafficBar, ModelTrafficRow } from '../components/TrafficBadge';
+import { TeamTrafficBar, ModelTrafficRow, PageTypeBadge } from '../components/TrafficBadge';
 import { useTrafficData } from '../hooks/useTrafficData';
-import type { Model, Chatter, ModelChatterAssignment, Schedule, ModelMetric } from '../types';
+import type { Model, Chatter, ModelChatterAssignment, Schedule } from '../types';
 
 export default function Overview() {
   const navigate = useNavigate();
@@ -15,7 +15,6 @@ export default function Overview() {
   const [chatters, setChatters] = useState<Chatter[]>([]);
   const [assignments, setAssignments] = useState<ModelChatterAssignment[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
-  const [metrics, setMetrics] = useState<ModelMetric[]>([]);
   const [loading, setLoading] = useState(true);
   const { modelTraffic, teamTraffic, getModelTraffic, globalAvg } = useTrafficData();
 
@@ -31,18 +30,16 @@ export default function Overview() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [modelsRes, chattersRes, assignRes, schedRes, metricsRes] = await Promise.all([
+    const [modelsRes, chattersRes, assignRes, schedRes] = await Promise.all([
       supabase.from('models').select('*'),
       supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
       supabase.from('model_chatter_assignments').select('*').eq('active', true),
       supabase.from('schedules').select('*').eq('week_start', weekStart),
-      supabase.from('model_metrics').select('*').eq('week_start', weekStart),
     ]);
     setModels((modelsRes.data ?? []) as Model[]);
     setChatters((chattersRes.data ?? []) as Chatter[]);
     setAssignments((assignRes.data ?? []) as ModelChatterAssignment[]);
     setSchedules((schedRes.data ?? []) as Schedule[]);
-    setMetrics((metricsRes.data ?? []) as ModelMetric[]);
     setLoading(false);
   }, [weekStart]);
 
@@ -51,7 +48,7 @@ export default function Overview() {
   // Calculations
   const liveModels = models.filter((m) => m.status === 'Live');
   const activeChatters = chatters.length;
-  const totalRevenue = metrics.reduce((s, m) => s + (m.total_revenue || 0), 0);
+  const totalRevenuePerDay = modelTraffic.filter((t) => t.model_status === 'Live').reduce((s, t) => s + t.earnings_per_day, 0);
 
   // Team breakdown
   const teams = [...new Set(chatters.map((c) => c.team_name).filter(Boolean))] as string[];
@@ -155,11 +152,11 @@ export default function Overview() {
         </div>
         <div className="bg-surface-1 border border-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-text-secondary">Week Revenue</span>
+            <span className="text-xs text-text-secondary">Revenue / day</span>
             <div className="w-8 h-8 rounded-lg bg-cw/10 flex items-center justify-center"><TrendingUp size={16} className="text-cw" /></div>
           </div>
-          <p className="text-2xl font-bold text-white">{totalRevenue > 0 ? formatCurrency(totalRevenue) : '—'}</p>
-          <p className="text-[10px] text-text-muted mt-1">{metrics.length} models reporting</p>
+          <p className="text-2xl font-bold text-white">{totalRevenuePerDay > 0 ? formatCurrency(totalRevenuePerDay) : '—'}</p>
+          <p className="text-[10px] text-text-muted mt-1">{modelTraffic.filter((t) => t.earnings_per_day > 0).length} models reporting</p>
         </div>
         <div className="bg-surface-1 border border-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
@@ -240,7 +237,7 @@ export default function Overview() {
                   <TeamTrafficBar
                     key={team.team_name}
                     team={team}
-                    maxWorkload={teamTraffic[0]!.total_workload}
+                    maxWorkloadPct={teamTraffic[0]!.total_workload_pct}
                   />
                 ))}
               </div>
@@ -257,63 +254,51 @@ export default function Overview() {
             </div>
             <div className="space-y-0.5">
               {modelTraffic.slice(0, 10).map((t, i) => (
-                <ModelTrafficRow
-                  key={t.model_id}
-                  traffic={t}
-                  rank={i + 1}
-                  maxWorkload={modelTraffic[0]!.workload}
-                />
+                <ModelTrafficRow key={t.model_id} traffic={t} rank={i + 1} />
               ))}
             </div>
           </div>
         </div>
       )}
 
-      {/* Top Revenue Models (mini chart) */}
-      {metrics.length > 0 && (
+      {/* Top Revenue Models (from Creator Reports) */}
+      {modelTraffic.some((t) => t.earnings_per_day > 0) && (
         <div className="bg-surface-1 border border-border rounded-xl p-5 mb-6">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp size={16} className="text-cw" />
-            <h2 className="text-sm font-semibold text-white">Top Revenue This Week</h2>
+            <h2 className="text-sm font-semibold text-white">Top Revenue / day</h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <ResponsiveContainer width="100%" height={160}>
               <BarChart
-                data={metrics
-                  .filter((m) => m.total_revenue > 0)
-                  .sort((a, b) => b.total_revenue - a.total_revenue)
+                data={modelTraffic
+                  .filter((t) => t.earnings_per_day > 0)
                   .slice(0, 8)
-                  .map((m) => {
-                    const model = models.find((mod) => mod.id === m.model_id);
-                    return { name: model?.name?.slice(0, 10) ?? '?', revenue: m.total_revenue };
-                  })}
+                  .map((t) => ({ name: t.model_name.slice(0, 10), revenue: Math.round(t.earnings_per_day) }))}
                 margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
               >
                 <XAxis dataKey="name" tick={{ fill: '#888', fontSize: 9 }} axisLine={false} tickLine={false} />
                 <Tooltip
                   contentStyle={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']}
+                  formatter={(v: number) => [`$${v.toLocaleString()}/day`, 'Revenue']}
                   cursor={{ fill: 'rgba(29, 155, 240, 0.08)' }}
                 />
                 <Bar dataKey="revenue" fill="#1d9bf0" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
             <div className="space-y-2">
-              {metrics
-                .filter((m) => m.total_revenue > 0)
-                .sort((a, b) => b.total_revenue - a.total_revenue)
+              {modelTraffic
+                .filter((t) => t.earnings_per_day > 0)
+                .sort((a, b) => b.earnings_per_day - a.earnings_per_day)
                 .slice(0, 5)
-                .map((m, i) => {
-                  const model = models.find((mod) => mod.id === m.model_id);
-                  return (
-                    <div key={m.id} className="flex items-center gap-3">
-                      <span className="text-[10px] text-text-muted w-4 text-right">{i + 1}</span>
-                      <ModelAvatar name={model?.name ?? '?'} pictureUrl={model?.profile_picture_url} size="xs" />
-                      <span className="text-sm text-white flex-1 truncate">{model?.name}</span>
-                      <span className="text-sm text-cw font-semibold">${m.total_revenue.toLocaleString()}</span>
-                    </div>
-                  );
-                })}
+                .map((t, i) => (
+                  <div key={t.model_id} className="flex items-center gap-3">
+                    <span className="text-[10px] text-text-muted w-4 text-right">{i + 1}</span>
+                    <PageTypeBadge pageType={t.page_type} size="sm" />
+                    <span className="text-sm text-white flex-1 truncate">{t.model_name}</span>
+                    <span className="text-sm text-cw font-semibold">${Math.round(t.earnings_per_day).toLocaleString()}/d</span>
+                  </div>
+                ))}
             </div>
           </div>
         </div>

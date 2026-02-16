@@ -146,6 +146,7 @@ export function useTrafficData(): UseTrafficDataReturn {
           chatters_assigned: chatters,
           fans_per_chatter: chatters > 0 ? Math.round((recentAvg / chatters) * 10) / 10 : recentAvg,
           workload: Math.round(workload * 10) / 10,
+          workload_pct: 0, // Will be normalized below
           workload_per_chatter: chatters > 0 ? Math.round((workload / chatters) * 10) / 10 : workload,
           trend,
           trend_pct: Math.round(trendPct),
@@ -173,7 +174,7 @@ export function useTrafficData(): UseTrafficDataReturn {
           page_type: (model.page_type as PageType) ?? null,
           new_fans_avg: 0, active_fans: 0,
           chatters_assigned: chatters, fans_per_chatter: 0,
-          workload: 0, workload_per_chatter: 0,
+          workload: 0, workload_pct: 0, workload_per_chatter: 0,
           trend: 'stable', trend_pct: 0, level: 'none',
           team_names: model.team_names ?? [],
           earnings_per_day: 0, tips_per_day: 0,
@@ -182,29 +183,43 @@ export function useTrafficData(): UseTrafficDataReturn {
         });
       }
 
-      // Classify levels based on workload (not raw fans)
+      // ── Normalize workload to 0-100% scale ──
+      // The model with the highest raw workload = 100%
+      // This means: 100% = full capacity of one chatter
+      // A chatter should handle ~100% total across all assigned models
+      const maxWorkload = Math.max(...traffics.map((t) => t.workload), 0.01);
+      for (const t of traffics) {
+        t.workload_pct = Math.round((t.workload / maxWorkload) * 100);
+      }
+
+      // Classify levels based on workload_pct
+      for (const t of traffics) {
+        if (t.workload_pct <= 0) t.level = 'none';
+        else if (t.workload_pct >= 70) t.level = 'high';
+        else if (t.workload_pct >= 30) t.level = 'medium';
+        else t.level = 'low';
+      }
+
+      // Global average (for reference)
       const avgValues = traffics.filter((t) => t.workload > 0);
       const avg =
         avgValues.length > 0
-          ? avgValues.reduce((sum, t) => sum + t.workload, 0) / avgValues.length
+          ? avgValues.reduce((sum, t) => sum + t.workload_pct, 0) / avgValues.length
           : 0;
-      setGlobalAvg(Math.round(avg * 10) / 10);
+      setGlobalAvg(Math.round(avg));
 
-      for (const t of traffics) {
-        t.level = classifyTraffic(t.workload, avg);
-      }
-
-      // Sort by workload descending (effective load, not raw fans)
-      traffics.sort((a, b) => b.workload - a.workload);
+      // Sort by workload_pct descending
+      traffics.sort((a, b) => b.workload_pct - a.workload_pct);
       setModelTraffic(traffics);
 
-      // Team traffic with type breakdown
+      // ── Team traffic with workload_pct ──
       const teamMap = new Map<
         string,
         {
           fans: number;
           active: number;
           workload: number;
+          workloadPct: number;
           chatters: Set<string>;
           models: Set<string>;
           free: number;
@@ -217,18 +232,14 @@ export function useTrafficData(): UseTrafficDataReturn {
         for (const teamName of t.team_names) {
           if (!teamName || teamName === '0') continue;
           const team = teamMap.get(teamName) ?? {
-            fans: 0,
-            active: 0,
-            workload: 0,
-            chatters: new Set<string>(),
-            models: new Set<string>(),
-            free: 0,
-            paid: 0,
-            mixed: 0,
+            fans: 0, active: 0, workload: 0, workloadPct: 0,
+            chatters: new Set<string>(), models: new Set<string>(),
+            free: 0, paid: 0, mixed: 0,
           };
           team.fans += t.new_fans_avg;
           team.active += t.active_fans;
           team.workload += t.workload;
+          team.workloadPct += t.workload_pct;
           team.models.add(t.model_id);
           if (t.page_type === 'Free Page') team.free++;
           else if (t.page_type === 'Paid Page') team.paid++;
@@ -248,27 +259,24 @@ export function useTrafficData(): UseTrafficDataReturn {
 
       const teams: TeamTraffic[] = [];
       for (const [name, data] of teamMap) {
+        const chatterCount = data.chatters.size || 1;
         teams.push({
           team_name: name,
           total_new_fans_avg: Math.round(data.fans * 10) / 10,
           total_active_fans: data.active,
           total_workload: Math.round(data.workload * 10) / 10,
+          total_workload_pct: Math.round(data.workloadPct),
           chatter_count: data.chatters.size,
           model_count: data.models.size,
-          fans_per_chatter:
-            data.chatters.size > 0
-              ? Math.round((data.fans / data.chatters.size) * 10) / 10
-              : data.fans,
-          workload_per_chatter:
-            data.chatters.size > 0
-              ? Math.round((data.workload / data.chatters.size) * 10) / 10
-              : data.workload,
+          fans_per_chatter: Math.round((data.fans / chatterCount) * 10) / 10,
+          workload_per_chatter: Math.round((data.workload / chatterCount) * 10) / 10,
+          workload_pct_per_chatter: Math.round(data.workloadPct / chatterCount),
           free_count: data.free,
           paid_count: data.paid,
           mixed_count: data.mixed,
         });
       }
-      teams.sort((a, b) => b.total_workload - a.total_workload);
+      teams.sort((a, b) => b.total_workload_pct - a.total_workload_pct);
       setTeamTraffic(teams);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load traffic data');
@@ -287,12 +295,4 @@ export function useTrafficData(): UseTrafficDataReturn {
   );
 
   return { modelTraffic, teamTraffic, loading, error, refresh: fetchData, getModelTraffic, globalAvg };
-}
-
-function classifyTraffic(value: number, average: number): TrafficLevel {
-  if (value <= 0 || average <= 0) return 'none';
-  const ratio = value / average;
-  if (ratio > 1.5) return 'high';
-  if (ratio < 0.75) return 'low';
-  return 'medium';
 }

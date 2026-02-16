@@ -26,7 +26,29 @@ export function PageTypeBadge({ pageType, size = 'sm' }: { pageType: PageType; s
   );
 }
 
-// ─── Traffic Level Styles ────────────────────────────────────
+// ─── Workload % color helpers ────────────────────────────────
+function getWorkloadColor(pct: number): string {
+  if (pct >= 70) return 'text-orange-400';
+  if (pct >= 30) return 'text-cw';
+  if (pct > 0)  return 'text-slate-400';
+  return 'text-text-muted';
+}
+
+function getWorkloadBarColor(pct: number): string {
+  if (pct >= 70) return 'bg-orange-500';
+  if (pct >= 30) return 'bg-cw';
+  if (pct > 0)  return 'bg-slate-500';
+  return 'bg-surface-2';
+}
+
+function getCapacityColor(pct: number): { text: string; bg: string } {
+  if (pct >= 110) return { text: 'text-danger', bg: 'bg-danger/15' };
+  if (pct >= 85)  return { text: 'text-success', bg: 'bg-success/15' };
+  if (pct >= 60)  return { text: 'text-warning', bg: 'bg-warning/15' };
+  return { text: 'text-slate-400', bg: 'bg-slate-500/15' };
+}
+
+// ─── Traffic Level Styles (kept for backward compat) ─────────
 const LEVEL_STYLES: Record<TrafficLevel, { bg: string; text: string; bar: string }> = {
   high:   { bg: 'bg-orange-500/15', text: 'text-orange-400', bar: 'bg-orange-500' },
   medium: { bg: 'bg-cw/15',         text: 'text-cw',         bar: 'bg-cw' },
@@ -34,7 +56,7 @@ const LEVEL_STYLES: Record<TrafficLevel, { bg: string; text: string; bar: string
   none:   { bg: 'bg-surface-2',     text: 'text-text-muted', bar: 'bg-surface-2' },
 };
 
-// ─── TrafficBadge — per-model indicator ──────────────────────
+// ─── TrafficBadge — per-model indicator with % ───────────────
 interface TrafficBadgeProps {
   traffic: ModelTraffic | undefined;
   size?: 'sm' | 'md';
@@ -50,9 +72,8 @@ export default function TrafficBadge({
   showBar = true,
   showTrend = false,
   showType = true,
-  maxValue,
 }: TrafficBadgeProps) {
-  if (!traffic || traffic.level === 'none') {
+  if (!traffic || traffic.workload_pct <= 0) {
     return (
       <span className="text-[10px] text-text-muted bg-surface-2 px-1.5 py-0.5 rounded">
         No data
@@ -60,10 +81,9 @@ export default function TrafficBadge({
     );
   }
 
-  const style = LEVEL_STYLES[traffic.level];
-  const barWidth = maxValue && maxValue > 0
-    ? Math.min(100, Math.max(5, (traffic.workload / maxValue) * 100))
-    : 50;
+  const pct = traffic.workload_pct;
+  const barColor = getWorkloadBarColor(pct);
+  const textColor = getWorkloadColor(pct);
 
   const TrendIcon =
     traffic.trend === 'up' ? TrendingUp : traffic.trend === 'down' ? TrendingDown : Minus;
@@ -74,16 +94,16 @@ export default function TrafficBadge({
     return (
       <div
         className="inline-flex items-center gap-1 group relative"
-        title={`${traffic.new_fans_avg} fans/day (${traffic.page_type ?? 'Unknown'}) | Workload: ${traffic.workload} | ${traffic.chatters_assigned} chatters | ${traffic.active_fans.toLocaleString()} active`}
+        title={`${pct}% workload (${traffic.new_fans_avg} fans/day × ${traffic.page_type ?? 'Unknown'} weight) | ${traffic.chatters_assigned} chatters | ${traffic.active_fans.toLocaleString()} active fans`}
       >
         {showType && <PageTypeBadge pageType={traffic.page_type} size="sm" />}
         {showBar && (
-          <div className="w-8 h-1.5 bg-surface-2 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${barWidth}%` }} />
+          <div className="w-10 h-1.5 bg-surface-2 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, pct)}%` }} />
           </div>
         )}
-        <span className={`text-[10px] font-medium ${style.text}`}>
-          {Math.round(traffic.new_fans_avg)}
+        <span className={`text-[10px] font-semibold ${textColor}`}>
+          {pct}%
         </span>
         {showTrend && traffic.trend !== 'stable' && (
           <TrendIcon className={`w-2.5 h-2.5 ${trendColor}`} />
@@ -95,17 +115,17 @@ export default function TrafficBadge({
   // Medium size — more detail
   return (
     <div
-      className={`inline-flex items-center gap-2 px-2 py-1 rounded-md ${style.bg}`}
-      title={`${traffic.new_fans_avg} fans/day (${traffic.page_type ?? 'Unknown'}) | Workload: ${traffic.workload} | ${traffic.chatters_assigned} chatters | $${traffic.earnings_per_day}/day`}
+      className={`inline-flex items-center gap-2 px-2 py-1 rounded-md ${LEVEL_STYLES[traffic.level].bg}`}
+      title={`${pct}% workload | ${traffic.new_fans_avg} fans/day (${traffic.page_type ?? 'Unknown'}) | $${traffic.earnings_per_day}/day`}
     >
       {showType && <PageTypeBadge pageType={traffic.page_type} size="md" />}
       {showBar && (
         <div className="w-12 h-2 bg-black/20 rounded-full overflow-hidden">
-          <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${barWidth}%` }} />
+          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, pct)}%` }} />
         </div>
       )}
-      <span className={`text-xs font-semibold ${style.text}`}>
-        {Math.round(traffic.new_fans_avg)}/d
+      <span className={`text-xs font-bold ${textColor}`}>
+        {pct}%
       </span>
       {showTrend && (
         <div className={`flex items-center gap-0.5 ${trendColor}`}>
@@ -119,18 +139,27 @@ export default function TrafficBadge({
   );
 }
 
-// ─── TeamTrafficBar — team workload comparison ───────────────
+// ─── WorkloadPctBadge — standalone % badge with color ────────
+export function WorkloadPctBadge({ pct, label }: { pct: number; label?: string }) {
+  const cap = getCapacityColor(pct);
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full ${cap.bg} ${cap.text}`}>
+      {pct}%{label && <span className="font-normal text-[10px] opacity-75">{label}</span>}
+    </span>
+  );
+}
+
+// ─── TeamTrafficBar — team workload with % ───────────────────
 export function TeamTrafficBar({
   team,
-  maxWorkload,
+  maxWorkloadPct,
 }: {
   team: TeamTraffic;
-  maxWorkload: number;
+  maxWorkloadPct?: number;
 }) {
-  const barWidth = maxWorkload > 0 ? Math.min(100, (team.total_workload / maxWorkload) * 100) : 0;
-  const freeRatio = team.model_count > 0 ? team.free_count / team.model_count : 0;
-  const paidRatio = team.model_count > 0 ? team.paid_count / team.model_count : 0;
-  const mixedRatio = team.model_count > 0 ? team.mixed_count / team.model_count : 0;
+  const barMax = maxWorkloadPct ?? team.total_workload_pct;
+  const barWidth = barMax > 0 ? Math.min(100, (team.total_workload_pct / barMax) * 100) : 0;
+  const capacityColor = getCapacityColor(team.workload_pct_per_chatter);
 
   return (
     <div className="space-y-1">
@@ -140,20 +169,20 @@ export function TeamTrafficBar({
           <span className="text-[10px] text-text-muted">
             <Users size={10} className="inline mr-0.5 -mt-0.5" />{team.chatter_count}
           </span>
-          <span className="text-xs font-semibold text-white">{Math.round(team.total_workload)}</span>
-          <span className="text-[10px] text-text-muted">
-            ({Math.round(team.workload_per_chatter)}/chatter)
+          <span className={`text-xs font-bold ${capacityColor.text}`}>
+            {team.workload_pct_per_chatter}%
           </span>
+          <span className="text-[10px] text-text-muted">/chatter</span>
         </div>
       </div>
       {/* Workload bar */}
-      <div className="h-3 bg-surface-2 rounded-full overflow-hidden flex">
+      <div className="h-3 bg-surface-2 rounded-full overflow-hidden relative">
         <div
-          className="h-full bg-cw transition-all duration-500 rounded-l-full"
+          className={`h-full transition-all duration-500 rounded-l-full ${getWorkloadBarColor(team.workload_pct_per_chatter)}`}
           style={{ width: `${barWidth}%` }}
         />
       </div>
-      {/* Type composition dots */}
+      {/* Type composition + total */}
       <div className="flex items-center gap-2">
         <span className="text-[9px] text-text-muted">{team.model_count} models:</span>
         <div className="flex gap-1">
@@ -168,25 +197,25 @@ export function TeamTrafficBar({
           )}
         </div>
         <span className="text-[9px] text-text-muted ml-auto">
-          {Math.round(team.total_new_fans_avg)} fans/d raw
+          Team total: {team.total_workload_pct}%
         </span>
       </div>
     </div>
   );
 }
 
-// ─── ModelTrafficRow — detailed row for ranking tables ───────
+// ─── ModelTrafficRow — detailed row for ranking tables ────────
 export function ModelTrafficRow({
   traffic,
   rank,
-  maxWorkload,
 }: {
   traffic: ModelTraffic;
   rank: number;
-  maxWorkload: number;
+  maxWorkload?: number;
 }) {
-  const style = LEVEL_STYLES[traffic.level];
-  const barWidth = maxWorkload > 0 ? Math.min(100, (traffic.workload / maxWorkload) * 100) : 0;
+  const pct = traffic.workload_pct;
+  const barColor = getWorkloadBarColor(pct);
+  const textColor = getWorkloadColor(pct);
 
   return (
     <div className="flex items-center gap-3 py-1.5">
@@ -196,15 +225,13 @@ export function ModelTrafficRow({
         <span className="text-sm text-white truncate block">{traffic.model_name}</span>
       </div>
       <div className="w-20 h-2 bg-surface-2 rounded-full overflow-hidden shrink-0">
-        <div className={`h-full rounded-full ${style.bar}`} style={{ width: `${barWidth}%` }} />
+        <div className={`h-full rounded-full ${barColor}`} style={{ width: `${Math.min(100, pct)}%` }} />
       </div>
-      <div className="text-right min-w-[80px] shrink-0">
-        <span className={`text-xs font-semibold ${style.text}`}>{Math.round(traffic.new_fans_avg)}</span>
-        <span className="text-[10px] text-text-muted ml-0.5">fans/d</span>
+      <div className="text-right min-w-[50px] shrink-0">
+        <span className={`text-xs font-bold ${textColor}`}>{pct}%</span>
       </div>
-      <div className="text-right min-w-[55px] shrink-0">
-        <span className="text-[10px] text-text-muted">wl </span>
-        <span className={`text-[11px] font-semibold ${style.text}`}>{Math.round(traffic.workload)}</span>
+      <div className="text-right min-w-[60px] shrink-0">
+        <span className="text-[10px] text-text-muted">{Math.round(traffic.new_fans_avg)} fans/d</span>
       </div>
     </div>
   );

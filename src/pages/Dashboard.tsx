@@ -15,7 +15,7 @@ import { useTrafficData } from '../hooks/useTrafficData';
 export default function Dashboard() {
   const [showCreatorUpload, setShowCreatorUpload] = useState(false);
   const [statusFilter, setStatusFilter] = useState('Live');
-  const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'fans' | 'workload'>('revenue');
+  const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'fans' | 'workload'>('workload');
   const { modelTraffic, loading, refresh: refreshTraffic } = useTrafficData();
 
   // Filter and sort
@@ -24,7 +24,7 @@ export default function Dashboard() {
     .sort((a, b) => {
       if (sortBy === 'revenue') return b.earnings_per_day - a.earnings_per_day;
       if (sortBy === 'fans') return b.new_fans_avg - a.new_fans_avg;
-      if (sortBy === 'workload') return b.workload - a.workload;
+      if (sortBy === 'workload') return b.workload_pct - a.workload_pct;
       return a.model_name.localeCompare(b.model_name);
     });
 
@@ -224,11 +224,7 @@ export default function Dashboard() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <TrafficBadge
-                        traffic={t}
-                        showTrend
-                        maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.workload : 1}
-                      />
+                      <TrafficBadge traffic={t} showTrend />
                     </td>
                   </tr>
                 ))

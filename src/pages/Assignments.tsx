@@ -4,7 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import { TEAM_COLORS } from '../lib/utils';
 import { Plus, X, Search, Users, ChevronRight, Monitor, Clock, Calendar, Activity } from 'lucide-react';
 import ModelAvatar from '../components/ModelAvatar';
-import TrafficBadge, { TeamTrafficBar, PageTypeBadge } from '../components/TrafficBadge';
+import TrafficBadge, { TeamTrafficBar, PageTypeBadge, WorkloadPctBadge } from '../components/TrafficBadge';
 import { useTrafficData } from '../hooks/useTrafficData';
 import type { Model, Chatter, ModelChatterAssignment, Schedule } from '../types';
 
@@ -87,9 +87,17 @@ export default function Assignments() {
     ? schedules.filter((s) => s.chatter_id === selectedChatter.id)
     : [];
 
-  // Counts
+  // Counts and workload
   const getModelCount = (chatterId: string) =>
     assignments.filter((a) => a.chatter_id === chatterId).length;
+
+  const getChatterWorkloadPct = (chatterId: string) =>
+    assignments
+      .filter((a) => a.chatter_id === chatterId)
+      .reduce((sum, a) => {
+        const t = getModelTraffic(a.model_id);
+        return sum + (t?.workload_pct ?? 0);
+      }, 0);
 
   const getChatterCountForModel = (modelId: string) =>
     assignments.filter((a) => a.model_id === modelId).length;
@@ -168,7 +176,7 @@ export default function Assignments() {
               <TeamTrafficBar
                 key={team.team_name}
                 team={team}
-                maxWorkload={teamTraffic[0]!.total_workload}
+                maxWorkloadPct={teamTraffic[0]!.total_workload_pct}
               />
             ))}
           </div>
@@ -214,7 +222,9 @@ export default function Assignments() {
                       </div>
                       {members.map((chatter) => {
                         const modelCount = getModelCount(chatter.id);
+                        const wlPct = getChatterWorkloadPct(chatter.id);
                         const isSelected = selectedChatter?.id === chatter.id;
+                        const capColor = wlPct >= 110 ? 'text-danger' : wlPct >= 85 ? 'text-success' : wlPct >= 60 ? 'text-warning' : 'text-text-muted';
                         return (
                           <button
                             key={chatter.id}
@@ -236,6 +246,9 @@ export default function Assignments() {
                                 {modelCount} model{modelCount !== 1 ? 's' : ''}
                               </p>
                             </div>
+                            <span className={`text-[11px] font-bold shrink-0 ${capColor}`} title={`${wlPct}% workload capacity`}>
+                              {wlPct > 0 ? `${wlPct}%` : '—'}
+                            </span>
                             {isSelected && <ChevronRight size={14} className="text-cw shrink-0" />}
                           </button>
                         );
@@ -250,7 +263,9 @@ export default function Assignments() {
                     </div>
                     {unteamedChatters.map((chatter) => {
                       const modelCount = getModelCount(chatter.id);
+                      const wlPct = getChatterWorkloadPct(chatter.id);
                       const isSelected = selectedChatter?.id === chatter.id;
+                      const capColor = wlPct >= 110 ? 'text-danger' : wlPct >= 85 ? 'text-success' : wlPct >= 60 ? 'text-warning' : 'text-text-muted';
                       return (
                         <button
                           key={chatter.id}
@@ -266,6 +281,9 @@ export default function Assignments() {
                             <p className="text-sm text-white truncate">{chatter.full_name}</p>
                             <p className="text-[10px] text-text-muted">{modelCount} models</p>
                           </div>
+                          <span className={`text-[11px] font-bold shrink-0 ${capColor}`}>
+                            {wlPct > 0 ? `${wlPct}%` : '—'}
+                          </span>
                           {isSelected && <ChevronRight size={14} className="text-cw shrink-0" />}
                         </button>
                       );
@@ -330,21 +348,14 @@ export default function Assignments() {
                     <p className="text-[10px] text-text-muted uppercase tracking-wider">Shifts/wk</p>
                   </div>
                   {(() => {
-                    const totalWl = assignedModels.reduce((sum, { model }) => {
+                    const totalPct = assignedModels.reduce((sum, { model }) => {
                       const t = getModelTraffic(model!.id);
-                      return sum + (t?.workload_per_chatter ?? 0);
+                      return sum + (t?.workload_pct ?? 0);
                     }, 0);
-                    const freeCount = assignedModels.filter(({ model }) => model!.page_type === 'Free Page').length;
-                    const paidCount = assignedModels.filter(({ model }) => model!.page_type === 'Paid Page').length;
                     return (
                       <div className="text-center pl-4 border-l border-border">
-                        <p className="text-xl font-bold text-orange-400">{Math.round(totalWl)}</p>
-                        <p className="text-[10px] text-text-muted uppercase tracking-wider">Workload</p>
-                        <div className="flex gap-1 justify-center mt-0.5">
-                          {freeCount > 0 && <span className="text-[8px] text-emerald-400">{freeCount}F</span>}
-                          {paidCount > 0 && <span className="text-[8px] text-amber-400">{paidCount}P</span>}
-                          {assignedModels.length - freeCount - paidCount > 0 && <span className="text-[8px] text-purple-400">{assignedModels.length - freeCount - paidCount}M</span>}
-                        </div>
+                        <WorkloadPctBadge pct={totalPct} />
+                        <p className="text-[10px] text-text-muted uppercase tracking-wider mt-1">Capacity</p>
                       </div>
                     );
                   })()}
@@ -411,13 +422,7 @@ export default function Assignments() {
                             )}
                           </div>
                         </div>
-                        <TrafficBadge
-                          traffic={t}
-                          size="sm"
-                          showTrend
-                          showType={false}
-                          maxValue={modelTraffic.length > 0 ? modelTraffic[0]!.workload : 1}
-                        />
+                        <TrafficBadge traffic={t} size="sm" showTrend showType={false} />
                         <button
                           onClick={() => handleUnassign(assignment.id)}
                           disabled={saving}

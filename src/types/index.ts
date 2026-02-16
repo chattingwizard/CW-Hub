@@ -176,8 +176,9 @@ export interface ModelTraffic {
   active_fans: number;        // Latest day snapshot
   chatters_assigned: number;
   fans_per_chatter: number;   // new_fans_avg / chatters
-  workload: number;           // Weighted: new_fans_avg * weight for page_type
-  workload_per_chatter: number; // workload / chatters
+  workload: number;           // Raw weighted: new_fans_avg * weight for page_type
+  workload_pct: number;       // 0-100 normalized: 100% = max workload model (one chatter fully occupied)
+  workload_per_chatter: number; // workload / chatters (raw)
   trend: TrafficTrend;
   trend_pct: number;          // % change vs previous 7 days
   level: TrafficLevel;
@@ -196,11 +197,13 @@ export interface TeamTraffic {
   team_name: string;
   total_new_fans_avg: number;
   total_active_fans: number;
-  total_workload: number;     // Sum of weighted workloads
+  total_workload: number;     // Sum of raw weighted workloads
+  total_workload_pct: number; // Sum of model workload_pct values
   chatter_count: number;
   model_count: number;
   fans_per_chatter: number;
-  workload_per_chatter: number; // total_workload / chatters
+  workload_per_chatter: number; // total_workload / chatters (raw)
+  workload_pct_per_chatter: number; // total_workload_pct / chatters — target ~100%
   free_count: number;         // Models by type
   paid_count: number;
   mixed_count: number;
