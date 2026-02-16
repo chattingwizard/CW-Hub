@@ -46,9 +46,11 @@ function parseDays(val: unknown): number {
 function parseDate(val: unknown): string | null {
   if (!val) return null;
   const str = String(val);
-  // Format: "2026-02-15 - 2026-02-15" — take first date
-  const match = str.match(/(\d{4}-\d{2}-\d{2})/);
-  return match ? match[1]! : null;
+  // Format: "2026-01-17 - 2026-02-15" — take the END date (most recent)
+  const matches = str.match(/\d{4}-\d{2}-\d{2}/g);
+  if (matches && matches.length >= 2) return matches[1]!;
+  if (matches && matches.length === 1) return matches[0]!;
+  return null;
 }
 
 function parsePercentage(val: unknown): number {
