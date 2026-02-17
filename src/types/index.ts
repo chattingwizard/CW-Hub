@@ -209,5 +209,37 @@ export interface TeamTraffic {
   mixed_count: number;
 }
 
+// Chatter Daily Stats (from Inflow Employee Reports)
+export interface ChatterDailyStat {
+  id: number;
+  date: string;
+  employee_name: string;
+  team: string;
+  creators: string;
+  sales: number;
+  ppv_sales: number;
+  tips: number;
+  dm_sales: number;
+  mass_msg_sales: number;
+  of_mass_msg_sales: number;
+  messages_sent: number;
+  ppvs_sent: number;
+  ppvs_unlocked: number;
+  character_count: number;
+  golden_ratio: number;
+  unlock_rate: number;
+  fan_cvr: number;
+  fans_chatted: number;
+  fans_who_spent: number;
+  avg_earnings_per_spender: number;
+  response_time_scheduled: string | null;
+  response_time_clocked: string | null;
+  scheduled_hours: number;
+  clocked_hours: number;
+  sales_per_hour: number;
+  messages_per_hour: number;
+  fans_per_hour: number;
+}
+
 // Upload types extension
 export type UploadType = 'model_metrics' | 'chatter_hours' | 'creator_report';

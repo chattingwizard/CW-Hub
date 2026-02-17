@@ -5,12 +5,14 @@ import type { HubModule } from '../../types';
 import {
   BarChart3, Calendar, Users, LayoutDashboard,
   TrendingUp, GraduationCap, FileText, Settings,
+  Activity,
   LogOut, ChevronLeft, Menu, ExternalLink,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<any>> = {
   BarChart3, Calendar, Users, LayoutDashboard,
   TrendingUp, GraduationCap, FileText, Settings,
+  Activity,
 };
 
 interface SidebarProps {

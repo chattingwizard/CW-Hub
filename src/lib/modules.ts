@@ -47,6 +47,14 @@ export const modules: HubModule[] = [
     roles: ['owner', 'admin'],
   },
   {
+    id: 'chatter-performance',
+    name: 'Chatter Performance',
+    icon: 'Activity',
+    type: 'internal',
+    path: '/chatter-performance',
+    roles: ['owner', 'admin'],
+  },
+  {
     id: 'my-dashboard',
     name: 'My Dashboard',
     icon: 'LayoutDashboard',

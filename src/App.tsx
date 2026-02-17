@@ -10,6 +10,7 @@ import Overview from './pages/Overview';
 import Dashboard from './pages/Dashboard';
 import Schedules from './pages/Schedules';
 import Assignments from './pages/Assignments';
+import ChatterPerformance from './pages/ChatterPerformance';
 import ChatterDashboard from './pages/ChatterDashboard';
 import Settings from './pages/Settings';
 import EmbeddedModule from './pages/EmbeddedModule';
@@ -78,6 +79,14 @@ export default function App() {
             element={
               <ProtectedRoute roles={['owner', 'admin']}>
                 <Assignments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chatter-performance"
+            element={
+              <ProtectedRoute roles={['owner', 'admin']}>
+                <ChatterPerformance />
               </ProtectedRoute>
             }
           />
