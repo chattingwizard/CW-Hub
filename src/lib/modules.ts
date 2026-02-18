@@ -61,6 +61,7 @@ export const modules: HubModule[] = [
     type: 'internal',
     path: '/coaching-queue',
     roles: ['owner', 'admin'],
+    dividerBefore: true,
   },
   {
     id: 'coaching-overview',
@@ -68,7 +69,7 @@ export const modules: HubModule[] = [
     icon: 'Shield',
     type: 'internal',
     path: '/coaching-overview',
-    roles: ['owner', 'admin'],
+    roles: ['owner'],
   },
   {
     id: 'my-dashboard',
@@ -80,15 +81,6 @@ export const modules: HubModule[] = [
   },
 
   // --- Embedded modules (iframes) ---
-  {
-    id: 'coaching',
-    name: 'Coaching',
-    icon: 'TrendingUp',
-    type: 'iframe',
-    path: `${GITHUB_PAGES_BASE}/cw-coaching/`,
-    roles: ['owner', 'admin', 'chatter'],
-    dividerBefore: true,
-  },
   {
     id: 'school',
     name: 'School',
