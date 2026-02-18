@@ -55,6 +55,22 @@ export const modules: HubModule[] = [
     roles: ['owner', 'admin'],
   },
   {
+    id: 'coaching-queue',
+    name: 'Coaching Queue',
+    icon: 'ClipboardCheck',
+    type: 'internal',
+    path: '/coaching-queue',
+    roles: ['owner', 'admin'],
+  },
+  {
+    id: 'coaching-overview',
+    name: 'Coaching Overview',
+    icon: 'Shield',
+    type: 'internal',
+    path: '/coaching-overview',
+    roles: ['owner', 'admin'],
+  },
+  {
     id: 'my-dashboard',
     name: 'My Dashboard',
     icon: 'LayoutDashboard',

@@ -243,3 +243,66 @@ export interface ChatterDailyStat {
 
 // Upload types extension
 export type UploadType = 'model_metrics' | 'chatter_hours' | 'creator_report';
+
+// ── Coaching System ──────────────────────────────────────────
+
+export type CoachingStatus = 'pending' | 'completed' | 'skipped';
+
+export interface CoachingRedFlag {
+  kpi: string;
+  value: number | string;
+  threshold: number;
+}
+
+export interface CoachingTalkingPoint {
+  kpi: string;
+  target: string;
+  actions: string[];
+}
+
+export interface CoachingGoalProgress {
+  kpi: string;
+  current: number;
+  target: number;
+  baseline: number | null;
+  status: 'reached' | 'improving' | 'declined' | 'unknown';
+}
+
+export interface CoachingTask {
+  id: number;
+  date: string;
+  chatter_name: string;
+  team_tl: string;
+  priority: number;
+  perf_score: number | null;
+  days_since_coaching: number;
+  red_flags: CoachingRedFlag[];
+  talking_points: CoachingTalkingPoint[];
+  kpis: Record<string, number | string>;
+  perf_source: string;
+  active_goal: { kpi: string; target: number; baseline: number | null; date: string } | null;
+  goal_progress: CoachingGoalProgress | null;
+  prev_score: number | null;
+  trend_arrow: string;
+  trend_delta: number;
+  recent_reports: { date: string; resolution: string }[];
+  status: CoachingStatus;
+  completed_at: string | null;
+  completed_by: string | null;
+}
+
+export interface CoachingLog {
+  id: number;
+  task_id: number | null;
+  date: string;
+  chatter_name: string;
+  team_tl: string;
+  completed_by: string | null;
+  focus_kpi: string | null;
+  target_value: number | null;
+  baseline_value: number | null;
+  notes: string | null;
+  perf_score: number | null;
+  kpis: Record<string, number | string>;
+  created_at: string;
+}

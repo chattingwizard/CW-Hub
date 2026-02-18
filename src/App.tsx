@@ -11,6 +11,8 @@ import Dashboard from './pages/Dashboard';
 import Schedules from './pages/Schedules';
 import Assignments from './pages/Assignments';
 import ChatterPerformance from './pages/ChatterPerformance';
+import CoachingQueue from './pages/CoachingQueue';
+import CoachingOverview from './pages/CoachingOverview';
 import ChatterDashboard from './pages/ChatterDashboard';
 import Settings from './pages/Settings';
 import EmbeddedModule from './pages/EmbeddedModule';
@@ -87,6 +89,22 @@ export default function App() {
             element={
               <ProtectedRoute roles={['owner', 'admin']}>
                 <ChatterPerformance />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coaching-queue"
+            element={
+              <ProtectedRoute roles={['owner', 'admin']}>
+                <CoachingQueue />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/coaching-overview"
+            element={
+              <ProtectedRoute roles={['owner', 'admin']}>
+                <CoachingOverview />
               </ProtectedRoute>
             }
           />
