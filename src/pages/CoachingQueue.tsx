@@ -71,7 +71,7 @@ function GoalStatus({ progress }: { progress: CoachingGoalProgress | null }) {
     declined: { label: 'Declined', color: 'text-danger' },
     unknown: { label: 'Unknown', color: 'text-text-muted' },
   };
-  const s = statusMap[progress.status] || statusMap.unknown;
+  const s = statusMap[progress.status] ?? { label: 'Unknown', color: 'text-text-muted' };
   return (
     <div className="flex items-center gap-2 text-xs">
       <Target size={12} className={s.color} />
@@ -168,7 +168,7 @@ export default function CoachingQueue() {
     if (!profile) return;
     const name = profile.full_name?.toLowerCase() || '';
     const match = TL_OPTIONS.find((tl) => name.includes(tl.key));
-    setSelectedTl(match?.key || TL_OPTIONS[0].key);
+    setSelectedTl(match?.key ?? TL_OPTIONS[0]?.key ?? 'huckle');
   }, [profile]);
 
   const fetchTasks = async () => {
@@ -181,15 +181,18 @@ export default function CoachingQueue() {
       .order('priority', { ascending: false });
 
     if (!error && data) {
-      setTasks(data.map((row: Record<string, unknown>) => ({
-        ...row,
-        red_flags: parseJsonField<CoachingRedFlag[]>(row.red_flags, []),
-        talking_points: parseJsonField<CoachingTalkingPoint[]>(row.talking_points, []),
-        kpis: parseJsonField<Record<string, number | string>>(row.kpis, {}),
-        active_goal: parseJsonField(row.active_goal, null),
-        goal_progress: parseJsonField<CoachingGoalProgress | null>(row.goal_progress, null),
-        recent_reports: parseJsonField(row.recent_reports, []),
-      })) as CoachingTask[]);
+      setTasks(data.map((row) => {
+        const r = row as Record<string, unknown>;
+        return {
+          ...r,
+          red_flags: parseJsonField<CoachingRedFlag[]>(r.red_flags, []),
+          talking_points: parseJsonField<CoachingTalkingPoint[]>(r.talking_points, []),
+          kpis: parseJsonField<Record<string, number | string>>(r.kpis, {}),
+          active_goal: parseJsonField(r.active_goal, null),
+          goal_progress: parseJsonField<CoachingGoalProgress | null>(r.goal_progress, null),
+          recent_reports: parseJsonField(r.recent_reports, []),
+        } as unknown as CoachingTask;
+      }));
     }
     setLoading(false);
   };
@@ -441,12 +444,13 @@ export default function CoachingQueue() {
                     {Object.keys(task.kpis).length > 0 && (
                       <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
                         {Object.entries(task.kpis).map(([key, val]) => {
-                          const isRed = task.red_flags.some((f) => f.kpi.toLowerCase().includes(key.split('_')[0]));
+                          const keyBase = key.split('_')[0] ?? key;
+                          const isRed = task.red_flags.some((f) => f.kpi.toLowerCase().includes(keyBase));
                           return (
                             <div key={key} className={`px-2 py-1.5 rounded-lg text-center ${isRed ? 'bg-danger/10 border border-danger/30' : 'bg-surface-2'}`}>
                               <p className="text-[10px] text-text-muted uppercase">{KPI_LABELS[key] || key}</p>
                               <p className={`text-sm font-medium ${isRed ? 'text-danger' : 'text-white'}`}>
-                                {KPI_FORMATS[key] ? KPI_FORMATS[key](val) : String(val)}
+                                {key in KPI_FORMATS ? KPI_FORMATS[key]!(val) : String(val)}
                               </p>
                             </div>
                           );

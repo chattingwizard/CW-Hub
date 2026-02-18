@@ -198,15 +198,18 @@ export default function CoachingOverview() {
     ]);
 
     if (tasksRes.data) {
-      setTasks(tasksRes.data.map((row: Record<string, unknown>) => ({
-        ...row,
-        red_flags: parseJson(row.red_flags, []),
-        talking_points: parseJson(row.talking_points, []),
-        kpis: parseJson(row.kpis, {}),
-        active_goal: parseJson(row.active_goal, null),
-        goal_progress: parseJson(row.goal_progress, null),
-        recent_reports: parseJson(row.recent_reports, []),
-      })) as CoachingTask[]);
+      setTasks(tasksRes.data.map((row) => {
+        const r = row as Record<string, unknown>;
+        return {
+          ...r,
+          red_flags: parseJson(r.red_flags, []),
+          talking_points: parseJson(r.talking_points, []),
+          kpis: parseJson(r.kpis, {}),
+          active_goal: parseJson(r.active_goal, null),
+          goal_progress: parseJson(r.goal_progress, null),
+          recent_reports: parseJson(r.recent_reports, []),
+        } as unknown as CoachingTask;
+      }));
     }
     if (logsRes.data) setLogs(logsRes.data as CoachingLog[]);
     setLoading(false);
