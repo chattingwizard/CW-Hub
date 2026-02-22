@@ -1,11 +1,16 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
-import { Shield, UserPlus, Copy, Check, RefreshCw, Search } from 'lucide-react';
+import { Shield, UserPlus, Copy, Check, RefreshCw, Search, Users, ShieldCheck } from 'lucide-react';
 import type { Profile, UserRole } from '../types';
+
+const DocPermissions = lazy(() => import('./DocPermissions'));
+
+type SettingsTab = 'users' | 'doc-permissions';
 
 export default function Settings() {
   const { profile } = useAuthStore();
+  const [tab, setTab] = useState<SettingsTab>('users');
   const [users, setUsers] = useState<Profile[]>([]);
   const [inviteCodes, setInviteCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +76,11 @@ export default function Settings() {
     const colors: Record<string, string> = {
       owner: 'bg-cw/15 text-cw border-cw/30',
       admin: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+      chatter_manager: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+      team_leader: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+      script_manager: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
+      personal_assistant: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
+      va: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
       chatter: 'bg-success/15 text-success border-success/30',
       recruit: 'bg-warning/15 text-warning border-warning/30',
     };
@@ -96,7 +106,7 @@ export default function Settings() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-white">Settings</h1>
-            <p className="text-sm text-text-secondary">Manage users, roles, and invite codes</p>
+            <p className="text-sm text-text-secondary">Manage users, roles, and permissions</p>
           </div>
         </div>
         {statusMsg && (
@@ -110,6 +120,32 @@ export default function Settings() {
         )}
       </div>
 
+      {/* Tabs */}
+      <div className="flex gap-1 bg-surface-2 rounded-xl p-1 mb-6 w-fit">
+        <button
+          onClick={() => setTab('users')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            tab === 'users' ? 'bg-surface-3 text-white shadow-sm' : 'text-text-muted hover:text-white'
+          }`}
+        >
+          <Users size={15} /> Users & Invites
+        </button>
+        <button
+          onClick={() => setTab('doc-permissions')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            tab === 'doc-permissions' ? 'bg-surface-3 text-white shadow-sm' : 'text-text-muted hover:text-white'
+          }`}
+        >
+          <ShieldCheck size={15} /> Doc Permissions
+        </button>
+      </div>
+
+      {tab === 'doc-permissions' ? (
+        <Suspense fallback={<div className="flex items-center justify-center py-12"><div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" /></div>}>
+          <DocPermissions />
+        </Suspense>
+      ) : (
+      <>
       {/* Invite Codes Section */}
       <div className="bg-surface-1 border border-border rounded-xl p-6 mb-6">
         <div className="flex items-center justify-between mb-4">
@@ -240,6 +276,11 @@ export default function Settings() {
                         >
                           <option value="recruit">Recruit</option>
                           <option value="chatter">Chatter</option>
+                          <option value="va">VA</option>
+                          <option value="personal_assistant">Personal Assistant</option>
+                          <option value="script_manager">Script Manager</option>
+                          <option value="team_leader">Team Leader</option>
+                          <option value="chatter_manager">Chatter Manager</option>
                           <option value="admin">Admin</option>
                           <option value="owner">Owner</option>
                         </select>
@@ -254,6 +295,8 @@ export default function Settings() {
           </table>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 }

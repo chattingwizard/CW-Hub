@@ -1,26 +1,29 @@
-import type { HubModule } from '../types';
-
-// ============================================================
-// Module Registry — Add new modules here
-// ============================================================
-// To add a new module to the Hub:
-// 1. Add an entry below with the right type ('internal' or 'iframe')
-// 2. For 'internal': create a React component in src/pages/
-// 3. For 'iframe': just provide the full URL — it loads in an iframe
-// 4. Set 'roles' to control who sees it
-// ============================================================
+import type { HubModule, UserRole } from '../types';
+import { getDefaultPath as getRoleDefaultPath } from './roles';
 
 const GITHUB_PAGES_BASE = 'https://chattingwizard.github.io';
 
 export const modules: HubModule[] = [
-  // --- Internal modules (React pages) ---
+  // ── Main ───────────────────────────────────────────────────
   {
     id: 'overview',
     name: 'Overview',
     icon: 'LayoutDashboard',
     type: 'internal',
     path: '/overview',
-    roles: ['owner', 'admin'],
+    roles: ['owner', 'admin', 'chatter_manager'],
+    section: 'main',
+  },
+  {
+    id: 'live-monitor',
+    name: 'Live Monitor',
+    icon: 'Radio',
+    type: 'internal',
+    path: '/live-monitor',
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    section: 'main',
+    badge: 'Soon',
+    disabled: true,
   },
   {
     id: 'dashboard',
@@ -28,23 +31,8 @@ export const modules: HubModule[] = [
     icon: 'BarChart3',
     type: 'internal',
     path: '/dashboard',
-    roles: ['owner', 'admin'],
-  },
-  {
-    id: 'schedules',
-    name: 'Schedules',
-    icon: 'Calendar',
-    type: 'internal',
-    path: '/schedules',
-    roles: ['owner', 'admin'],
-  },
-  {
-    id: 'assignments',
-    name: 'Assignments',
-    icon: 'Users',
-    type: 'internal',
-    path: '/assignments',
-    roles: ['owner', 'admin'],
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    section: 'main',
   },
   {
     id: 'chatter-performance',
@@ -52,15 +40,47 @@ export const modules: HubModule[] = [
     icon: 'Activity',
     type: 'internal',
     path: '/chatter-performance',
-    roles: ['owner', 'admin'],
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    section: 'main',
   },
+  {
+    id: 'schedules',
+    name: 'Schedules',
+    icon: 'Calendar',
+    type: 'internal',
+    path: '/schedules',
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    section: 'main',
+  },
+  {
+    id: 'assignments',
+    name: 'Assignments',
+    icon: 'Users',
+    type: 'internal',
+    path: '/assignments',
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    section: 'main',
+  },
+
+  {
+    id: 'tasks',
+    name: 'Tasks',
+    icon: 'CheckSquare',
+    type: 'internal',
+    path: '/tasks',
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant'],
+    section: 'main',
+  },
+
+  // ── Coaching ───────────────────────────────────────────────
   {
     id: 'coaching-queue',
     name: 'Coaching Queue',
     icon: 'ClipboardCheck',
     type: 'internal',
     path: '/coaching-queue',
-    roles: ['owner', 'admin'],
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    section: 'coaching',
     dividerBefore: true,
   },
   {
@@ -69,38 +89,74 @@ export const modules: HubModule[] = [
     icon: 'Shield',
     type: 'internal',
     path: '/coaching-overview',
-    roles: ['owner'],
+    roles: ['owner', 'admin', 'chatter_manager'],
+    section: 'coaching',
   },
+
+  // ── Tools ──────────────────────────────────────────────────
+  {
+    id: 'upload-center',
+    name: 'Upload Center',
+    icon: 'Upload',
+    type: 'internal',
+    path: '/upload-center',
+    roles: ['owner', 'admin', 'chatter_manager', 'personal_assistant'],
+    section: 'tools',
+    dividerBefore: true,
+  },
+  {
+    id: 'model-info',
+    name: 'Model Info',
+    icon: 'BookOpen',
+    type: 'internal',
+    path: '/model-info',
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'chatter'],
+    section: 'tools',
+  },
+
+  {
+    id: 'knowledge-base',
+    name: 'Knowledge Base',
+    icon: 'BookMarked',
+    type: 'internal',
+    path: '/knowledge-base',
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant', 'chatter', 'recruit'],
+    section: 'tools',
+  },
+
+  // ── Chatter Self-service ───────────────────────────────────
   {
     id: 'my-dashboard',
     name: 'My Dashboard',
     icon: 'LayoutDashboard',
     type: 'internal',
     path: '/my-dashboard',
-    roles: ['chatter'],
+    roles: ['chatter', 'va'],
+    section: 'main',
   },
 
-  // --- Embedded modules (iframes) ---
+  // ── Embedded ───────────────────────────────────────────────
   {
     id: 'school',
     name: 'School',
     icon: 'GraduationCap',
     type: 'iframe',
     path: `${GITHUB_PAGES_BASE}/CW-ChattingSchool/`,
-    roles: ['owner', 'admin', 'chatter', 'recruit'],
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'chatter', 'recruit'],
+    section: 'tools',
+    dividerBefore: true,
   },
   {
     id: 'scripts',
     name: 'Scripts',
     icon: 'FileText',
     type: 'iframe',
-    path: `${GITHUB_PAGES_BASE}/CW-ScriptManager/`,
-    roles: ['owner', 'admin'],
-    badge: 'Soon',
-    disabled: true,
+    path: `${GITHUB_PAGES_BASE}/chattingwizard.github.io/`,
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager'],
+    section: 'tools',
   },
 
-  // --- Settings (owner only) ---
+  // ── System ─────────────────────────────────────────────────
   {
     id: 'settings',
     name: 'Settings',
@@ -108,24 +164,15 @@ export const modules: HubModule[] = [
     type: 'internal',
     path: '/settings',
     roles: ['owner'],
+    section: 'system',
     dividerBefore: true,
   },
 ];
 
-export function getModulesForRole(role: string): HubModule[] {
-  return modules.filter((m) => m.roles.includes(role as any));
+export function getModulesForRole(role: UserRole): HubModule[] {
+  return modules.filter(m => m.roles.includes(role));
 }
 
-export function getDefaultPath(role: string): string {
-  switch (role) {
-    case 'owner':
-    case 'admin':
-      return '/overview';
-    case 'chatter':
-      return '/my-dashboard';
-    case 'recruit':
-      return '/embed/school';
-    default:
-      return '/embed/school';
-  }
+export function getDefaultPath(role: UserRole): string {
+  return getRoleDefaultPath(role);
 }

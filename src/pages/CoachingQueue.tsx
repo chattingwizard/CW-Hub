@@ -266,7 +266,7 @@ export default function CoachingQueue() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">Coaching Queue</h1>
+        <h1 className="text-2xl font-extrabold text-text-primary">Coaching Queue</h1>
         <p className="text-text-secondary text-sm mt-1">
           Daily coaching checklist. Complete each session and log the focus area.
         </p>

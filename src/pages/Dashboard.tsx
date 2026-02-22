@@ -81,7 +81,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-6 gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Model Performance</h1>
+          <h1 className="text-2xl font-extrabold text-text-primary">Model Performance</h1>
           <p className="text-sm text-text-secondary mt-1">
             Daily averages from Creator Reports &middot; {modelsWithRevenue} models reporting
           </p>

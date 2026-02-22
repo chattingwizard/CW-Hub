@@ -144,9 +144,9 @@ export default function Assignments() {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 gap-3 shrink-0">
         <div>
-          <h1 className="text-2xl font-bold text-white">Assignments</h1>
+          <h1 className="text-2xl font-extrabold text-text-primary">Assignments</h1>
           <p className="text-sm text-text-secondary">
-            {chatters.length} chatters &middot; {models.filter((m) => m.status === 'Live').length} live models &middot; {assignments.length} assignments
+            {chatters.length} chatters · {models.filter((m) => m.status === 'Live').length} live models · {assignments.length} assignments
           </p>
         </div>
       </div>

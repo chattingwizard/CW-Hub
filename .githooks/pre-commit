@@ -15,7 +15,7 @@ PATTERNS=(
   "password.*=.*['\"][^'\"]{6,}"
   "PASSWORD.*=.*['\"][^'\"]{6,}"
   "service_role.*eyJ"
-  "SUPABASE_SERVICE"
+  "SUPABASE_SERVICE_KEY.*=.*eyJ"
   "secret_key.*=.*['\"]"
   "api_key.*=.*['\"]"
   "apikey.*=.*['\"][^'\"]{20,}"

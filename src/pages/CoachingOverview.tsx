@@ -238,7 +238,7 @@ export default function CoachingOverview() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-white">Coaching Overview</h1>
+          <h1 className="text-2xl font-extrabold text-text-primary">Coaching Overview</h1>
           <p className="text-text-secondary text-sm mt-1">Monitor coaching compliance across all teams.</p>
         </div>
         <div className="flex items-center gap-3">

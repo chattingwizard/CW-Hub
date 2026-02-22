@@ -1,6 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { getDefaultPath } from '../../lib/modules';
+import { getDefaultPath } from '../../lib/roles';
 import type { UserRole } from '../../types';
 
 interface Props {

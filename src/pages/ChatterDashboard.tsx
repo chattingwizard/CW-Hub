@@ -109,7 +109,7 @@ export default function ChatterDashboard() {
     <div className="p-4 lg:p-6 max-w-5xl mx-auto">
       {/* Greeting */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Hey {firstName}!</h1>
+        <h1 className="text-2xl font-extrabold text-text-primary">Hey {firstName}!</h1>
         <p className="text-text-secondary text-sm mt-1">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           {myChatter.team_name && (

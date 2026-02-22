@@ -8,7 +8,9 @@ import {
   TrendingUp, TrendingDown, Minus,
 } from 'lucide-react';
 
-// ── Team colors ─────────────────────────────────────────────
+// ── Constants ────────────────────────────────────────────────
+const MIN_HOURS_FULL_SHIFT = 4;
+
 const TEAM_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Team Danilyn': { bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30' },
   'Team Huckle': { bg: 'bg-orange-500/15', text: 'text-orange-400', border: 'border-orange-500/30' },
@@ -46,6 +48,26 @@ export default function ChatterPerformance() {
   const [sortField, setSortField] = useState<SortField>('sales');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [expandedChatter, setExpandedChatter] = useState<string | null>(null);
+  const [chatterTeamMap, setChatterTeamMap] = useState<Map<string, string>>(new Map());
+
+  // ── Load canonical chatter→team mapping from Supabase ─────
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from('chatters')
+        .select('full_name, team_name')
+        .eq('status', 'Active')
+        .eq('airtable_role', 'Chatter');
+      if (data) {
+        const map = new Map<string, string>();
+        for (const c of data as { full_name: string; team_name: string | null }[]) {
+          const key = c.full_name.toLowerCase().trim().replace(/\s+/g, ' ');
+          map.set(key, c.team_name ?? '');
+        }
+        setChatterTeamMap(map);
+      }
+    })();
+  }, []);
 
   // ── Fetch available dates ─────────────────────────────────
   const fetchDates = useCallback(async () => {
@@ -65,7 +87,7 @@ export default function ChatterPerformance() {
 
   // ── Fetch stats for selected date ─────────────────────────
   const fetchStats = useCallback(async () => {
-    if (!selectedDate) return;
+    if (!selectedDate || chatterTeamMap.size === 0) return;
     setLoading(true);
 
     const { data, error } = await supabase
@@ -75,10 +97,19 @@ export default function ChatterPerformance() {
       .order('sales', { ascending: false });
 
     if (!error && data) {
-      setStats(data as ChatterDailyStat[]);
+      const raw = data as ChatterDailyStat[];
+      const enriched = raw
+        .map((s) => {
+          const key = s.employee_name.toLowerCase().trim().replace(/\s+/g, ' ');
+          const realTeam = chatterTeamMap.get(key);
+          if (realTeam === undefined) return null;
+          return { ...s, team: realTeam || s.team };
+        })
+        .filter((s): s is ChatterDailyStat => s !== null);
+      setStats(enriched);
     }
     setLoading(false);
-  }, [selectedDate]);
+  }, [selectedDate, chatterTeamMap]);
 
   useEffect(() => { fetchDates(); }, [fetchDates]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
@@ -102,8 +133,7 @@ export default function ChatterPerformance() {
           (s.creators || '').toLowerCase().includes(q)
       );
     }
-    // Filter out chatters with 0 clocked hours (didn't work)
-    result = result.filter((s) => s.clocked_hours > 0);
+    result = result.filter((s) => s.clocked_hours >= MIN_HOURS_FULL_SHIFT);
 
     // Sort
     result = [...result].sort((a, b) => {
@@ -133,14 +163,15 @@ export default function ChatterPerformance() {
 
   // ── Team aggregates ───────────────────────────────────────
   const teamAggs = useMemo(() => {
-    const map: Record<string, { sales: number; chatters: number; fans: number; avgCVR: number[] }> = {};
-    for (const s of stats.filter((s) => s.clocked_hours > 0)) {
+    const map: Record<string, { sales: number; chatters: number; fans: number; hours: number; salesHrValues: number[] }> = {};
+    for (const s of stats.filter((s) => s.clocked_hours >= MIN_HOURS_FULL_SHIFT)) {
       if (!s.team) continue;
-      if (!map[s.team]) map[s.team] = { sales: 0, chatters: 0, fans: 0, avgCVR: [] };
+      if (!map[s.team]) map[s.team] = { sales: 0, chatters: 0, fans: 0, hours: 0, salesHrValues: [] };
       map[s.team]!.sales += s.sales;
       map[s.team]!.chatters += 1;
       map[s.team]!.fans += s.fans_chatted;
-      if (s.fan_cvr > 0) map[s.team]!.avgCVR.push(s.fan_cvr);
+      map[s.team]!.hours += s.clocked_hours;
+      if (s.sales_per_hour > 0) map[s.team]!.salesHrValues.push(s.sales_per_hour);
     }
     return Object.entries(map)
       .map(([team, d]) => ({
@@ -148,14 +179,15 @@ export default function ChatterPerformance() {
         sales: d.sales,
         chatters: d.chatters,
         fans: d.fans,
-        avgCVR: d.avgCVR.length ? d.avgCVR.reduce((a, b) => a + b, 0) / d.avgCVR.length : 0,
+        hours: d.hours,
+        avgSalesHr: d.salesHrValues.length ? d.salesHrValues.reduce((a, b) => a + b, 0) / d.salesHrValues.length : 0,
       }))
       .sort((a, b) => b.sales - a.sales);
   }, [stats]);
 
   // ── Global totals ─────────────────────────────────────────
   const totals = useMemo(() => {
-    const working = stats.filter((s) => s.clocked_hours > 0);
+    const working = stats.filter((s) => s.clocked_hours >= MIN_HOURS_FULL_SHIFT);
     return {
       totalSales: working.reduce((s, c) => s + c.sales, 0),
       totalChatters: working.length,
@@ -195,7 +227,7 @@ export default function ChatterPerformance() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-white">Chatter Performance</h1>
+          <h1 className="text-2xl font-extrabold text-text-primary">Chatter Performance</h1>
           <p className="text-sm text-text-secondary mt-0.5">
             Daily KPIs from Inflow Employee Reports
           </p>
@@ -245,9 +277,10 @@ export default function ChatterPerformance() {
                   <p className="text-xs text-text-secondary">{t.fans} fans chatted</p>
                 </div>
                 <div className="text-right">
-                  <p className={`text-sm font-medium ${t.avgCVR >= 10 ? 'text-success' : 'text-warning'}`}>
-                    {t.avgCVR.toFixed(1)}% CVR
+                  <p className={`text-sm font-medium ${t.avgSalesHr >= 70 ? 'text-success' : 'text-warning'}`}>
+                    {formatCurrency(t.avgSalesHr)}/hr
                   </p>
+                  <p className="text-xs text-text-muted">{t.hours.toFixed(0)}h total</p>
                 </div>
               </div>
             </div>

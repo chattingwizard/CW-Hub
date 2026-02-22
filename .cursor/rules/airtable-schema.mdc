@@ -1,0 +1,78 @@
+---
+description: Airtable schema completo de Chatting Wizard. Base de datos central con 36 tablas.
+alwaysApply: true
+---
+
+# Airtable — Chatting Wizard
+
+## Acceso
+- Base ID: `appy0qGaMEfyDz9LZ`
+- Token: variable de entorno `AIRTABLE_TOKEN`
+- Documentación completa: `context/airtable_schema.md`
+
+## Estructura General (36 tablas)
+
+### Hub Central
+- **Chatter** (`tblBrbCZyL5ub48zc`) — Tabla maestra de TODOS los miembros del equipo (chatters, TLs, CHM, QA, VA, CEO, COO). 47 campos. TODAS las demás tablas se vinculan aquí. **⚠️ IMPORTANTE: Team 0 = management (CEO, COO, VA, CHM, Script Manager, Content Manager). NO son chatters. Filtrar por `⚡️Rol = 'Chatter'` para obtener solo chatters reales.**
+- **Team** (`tblGTOPvVCQTbEHsW`) — 29 equipos. Nombre = nombre del TL (Team Danilyn → TL Danilyn). Vincula Chatters con Models. **Team con Equipo = '0' es el equipo de management — excluir de todas las operaciones de chatters.**
+- **Models** (`tbl97sE9V8wbcgjAJ`) — Perfiles de creadoras OF. 63 campos: identidad, físico, servicios, nicho, branding, scripts. La tabla más detallada.
+- **Clients** (`tblkawE86Yxsu5fIr`) — 47 clientes (dueños de cuentas OF). Datos de facturación, Telegram, Infloww.
+
+### Performance y KPIs
+- **Chatter Performance** (`tbl97bJZ3ngHiQx1w`) — Métricas por turno: Sales, Sales/hr, Messages/hr, PPV, Unlock Rate, Golden Ratio, CVR, Reply Time, Performance Points.
+- **Daily Performance** (`tbltaM187ka2UNOsi`) — Rendimiento diario. Usa texto plano (no links).
+- **KPIs** (`tblb8JHkQYUDZ3xDb`) — 32 resúmenes semanales de KPIs por empleado.
+- **Chatter Score** (`tbljQun5AMLAfFtzX`) — Sistema de puntos (+/-) por comportamiento.
+
+### Coaching y Desarrollo
+- **Coaching Log** (`tbl2vOAqIIpyseVIg`) — 19 registros. Log de coaching sessions con Focus KPI, Baseline, Target.
+- **Chatters Call** (`tblXv6uXkrctmm9FZ`) — Coaching calls (modelo GROW). ⚠️ Sin uso desde Oct 2025.
+- **Chatters Performance** (`tblN6PZxXDpmDBExw`) — Evaluaciones cualitativas (ratings Chatting/Involvement/Progress).
+- **Chatters improvement plan** (`tbl8d1DWrwTqDrS6x`) — Planes de mejora por tipo (Sexting, Ortography, Fan engagement, etc.)
+
+### Reportes (por rol)
+- **Shift Report** (`tblHRpUH8WUQqSJOr`) — Reporte fin de turno de chatters. ✅ Muy activa.
+- **🔵CHM Shift/Weekly Report** — Reportes del Chatter Manager (Rycel).
+- **🟡TL Live Assistance Report** (`tblzj0mONmQUvuQqI`) — TLs ayudando chatters en vivo. ✅ Muy activa.
+- **🟡TL Week Report** — Reporte semanal de TLs.
+- **🟣SM Weekly Shift Report** — Reporte del Script Manager.
+- **🟠Weekly Checklist** — Revenue semanal por modelo.
+- **🟠AM Client Calls** — Llamadas con clientes.
+
+### Operaciones
+- **Custom** (`tblSRIKj7Qm1E6yM4`) — Pedidos custom (video, fotos, VC, audio).
+- **Content Request** (`tblS5R1Zes8P7FzUi`) — Peticiones de contenido a modelos.
+- **Content Management** (`tblabiWymhYwy4u9w`) — Calendario de contenido. ⚠️ Sin uso desde Nov 2025.
+- **Scripts Management** (`tblGlj7w3lzXT5riz`) — Tracking de scripts por modelo.
+- **Quality Control** (`tblBXoAhJc3IEHvSr`) — Feedback QA. ⚠️ Sin uso desde Nov 2025.
+
+### Recruiting y Email
+- **Recruitment** (`tblL7aNq9GftQhm7V`) — Pipeline completo de hiring (59 campos).
+- **New MasterClass Test** (`tblFOpnzu7RInU3NL`) — Examen de 30 preguntas.
+- **Email** / **Email Serbia** / **Email editors** — Listas de emails para recruiting.
+
+### Otros
+- **Hubstaff** (`tblQBmYPfjOmeVAiH`) — Horas trabajadas.
+- **Task Form** (`tblUegBA9paITpJCy`) — Tareas internas.
+- **Deep Dive** (`tblGcCLgC7KQ6mti0`) — Análisis revenue por modelo.
+
+## Relación Central
+```
+Recruitment → Chatter ← Team
+                 ↕          ↕
+         Performance    Models ← Clients
+         Coaching       Custom/Content/Scripts
+         Reports        Quality Control
+         Scores/KPIs
+```
+
+## Problemas Conocidos
+1. Coaching Log y Daily Performance usan texto plano en vez de links → no se pueden cruzar datos automáticamente
+2. KPIs tiene campos como texto en vez de numbers → no se puede calcular
+3. Quality Control sin uso desde Nov 2025
+4. Chatters Call sin uso desde Oct 2025 (reemplazada parcialmente por Coaching Log)
+
+## Reglas para Agentes
+- Para cualquier consulta sobre estructura de Airtable, leer `context/airtable_schema.md` para el detalle completo
+- La tabla Chatter es el hub central — siempre empezar por ahí para encontrar relaciones
+- Usar `tools/airtable_cli.py` (si existe) o requests directos a la API con el token de entorno

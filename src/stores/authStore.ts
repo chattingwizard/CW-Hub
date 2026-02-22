@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import type { Profile, UserRole } from '../types';
+import { isManagement, isLeadership, isAdminLevel } from '../lib/roles';
 
 interface AuthState {
   user: { id: string; email: string } | null;
@@ -14,9 +15,10 @@ interface AuthState {
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 
-  // Helpers
   hasRole: (...roles: UserRole[]) => boolean;
   isAdminOrOwner: () => boolean;
+  isManagement: () => boolean;
+  isLeadership: () => boolean;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -48,7 +50,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ user: null, profile: null, initialized: true });
     }
 
-    // Listen for auth changes
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || !session?.user) {
         set({ user: null, profile: null });
@@ -80,14 +81,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signUp: async (email: string, password: string, fullName: string, inviteCode: string) => {
     set({ loading: true });
     try {
-      // Validate invite code
       const { data: valid, error: checkErr } = await supabase.rpc('validate_invite_code', {
         invite_code: inviteCode,
       });
       if (checkErr) throw checkErr;
       if (!valid) throw new Error('Invalid or already used invite code.');
 
-      // Create account
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -95,7 +94,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       if (error) throw error;
 
-      // Mark invite code as used
       if (data.user) {
         await supabase.rpc('use_invite_code', {
           invite_code: inviteCode,
@@ -130,6 +128,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   isAdminOrOwner: () => {
     const { profile } = get();
-    return profile ? ['admin', 'owner'].includes(profile.role) : false;
+    return profile ? isAdminLevel(profile.role) : false;
+  },
+
+  isManagement: () => {
+    const { profile } = get();
+    return profile ? isManagement(profile.role) : false;
+  },
+
+  isLeadership: () => {
+    const { profile } = get();
+    return profile ? isLeadership(profile.role) : false;
   },
 }));

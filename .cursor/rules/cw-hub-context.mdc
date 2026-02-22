@@ -1,0 +1,146 @@
+---
+description: CW Hub project context — centralized operations panel for Chatting Wizard
+alwaysApply: true
+---
+
+# CW Hub — Project Context
+
+## What This Is
+CW Hub is the **centralized web panel** for Chatting Wizard. All employees (chatters, team leaders, chatter manager, COO) access it with their own account. It replaces Google Sheets for schedules, centralizes model metrics, and embeds existing tools (School, Coaching Dashboard, Scripts).
+
+## Tech Stack
+- **Frontend:** React 19 + TypeScript + Vite
+- **Styling:** Tailwind CSS 4, dark theme, CW blue `#1d9bf0`
+- **State:** Zustand
+- **Backend:** Supabase (shared with CW-ChattingSchool)
+  - URL: `https://bnmrdlqqzxenyqjknqhy.supabase.co`
+  - Auth: email + password with invite codes
+  - RLS on all tables
+- **Hosting:** GitHub Pages now → `hub.chattingwizard.com` (Hostinger) when ready
+
+## Roles (8 levels)
+| Role | Who | Access |
+|---|---|---|
+| `owner` | Pau | Everything + settings |
+| `admin` | Mileh (Head of Sales) | Everything except settings |
+| `chatter_manager` | Ryzel | All chatters, coaching oversight, schedules, assignments, performance |
+| `team_leader` | Huckle, Danilyn, Ezekiel | Their team's chatters, coaching queue, schedules, assignments, performance |
+| `script_manager` | (TBD) | Scripts management, model info |
+| `va` | Content VAs | Content-related tasks (posts, stories, vaults, promotions) |
+| `personal_assistant` | Daniela | Upload reports, operational support |
+| `chatter` | ~30+ chatters | Own dashboard, schedule, models, School |
+| `recruit` | New hires | School only |
+
+## Current Views Built
+1. **Overview** — High-level operational overview (owner/admin)
+2. **Model Metrics (Dashboard)** — Creator Report upload + model performance stats
+3. **Schedules** — Weekly schedule grid (3 shifts x 7 days), assign chatters
+4. **Assignments** — Model-chatter assignments management
+5. **Chatter Performance** — Daily KPIs from Inflow Employee Reports
+6. **Coaching Queue** — Daily coaching task queue for TLs
+7. **Coaching Overview** — Coaching system monitoring (owner only)
+8. **My Dashboard** — Chatter self-service view (schedule, team models, stats)
+9. **Settings** — User management, invite codes (owner only)
+10. **Embedded modules** — School and Scripts via iframe
+
+## Module System
+Add new modules in `src/lib/modules.ts`. Supports `internal` (React pages) and `iframe` (external URLs). Role-based visibility.
+
+## Data Sources
+| Data | Source | Sync Method |
+|---|---|---|
+| Models, Chatters, Teams | Airtable | Python sync script → Supabase |
+| Model revenue/metrics | Infloww Creator Reports (.xlsx) | CSV/Excel upload via Dashboard UI |
+| Chatter daily KPIs | Inflow Employee Reports (.csv) | CSV upload via Chatter Performance page |
+| Schedules, Assignments | CW Hub (Supabase) | Created directly in Hub UI |
+| Hours worked | CW Tracker (future) / Hubstaff (legacy) | Tracker microservice → Supabase (planned). Until integration: manual or Hubstaff sync |
+
+## Supabase Tables (Hub-specific)
+- `profiles` — Extended with `role`, `airtable_chatter_id`, `team_name`, `is_active`
+- `models` — Synced from Airtable
+- `chatters` — Synced from Airtable
+- `model_metrics` — Weekly model stats (CSV upload)
+- `model_daily_stats` — Daily Creator Report data
+- `chatter_daily_stats` — Daily Employee Report data
+- `schedules` — Weekly chatter schedules (created in Hub)
+- `model_chatter_assignments` — Who chats which model
+- `chatter_hours` — Hours worked per day
+- `csv_uploads` — Upload history log
+- `coaching_tasks` — Daily coaching queue
+- `coaching_logs` — Coaching session records
+
+## Team Structure
+| Role | People |
+|---|---|
+| COO (Owner) | Pau Lopez |
+| Head of Sales (Admin) | Mileh |
+| Chatter Manager | Ryzel Monique |
+| Personal Assistant | Daniela |
+| TL Night (00-08 chatters) | Huckle (works 23:00-07:00 UTC) |
+| TL Day (08-16 chatters) | Danilyn (works 07:00-15:00 UTC) |
+| TL Evening (16-00 chatters) | Ezekiel (works 15:00-23:00 UTC) |
+| Chatters | ~30+ across 3 teams |
+
+**TL shift logic:** Each TL starts 1 hour before their chatters' shift to prepare handoff. All TLs manage the SAME models — the assignment is how each TL distributes their chatters across those models.
+
+## CW Tracker (Santi's project — replaces Hubstaff + Discord)
+
+**Status:** Developed separately by Santi. Integration planned but NOT yet executed. Hub architecture must be READY for integration when Santi is available.
+
+**What it does:**
+- Clock-in/clock-out with session tracking (breaks, total hours, activity %)
+- Screen sharing via LiveKit (WebRTC SFU) — chatters share full screen, TLs view grid
+- Voice calls between TL and chatters (walkie-talkie style)
+- Desktop agent (Python) monitors activity every 30s: mouse, keyboard, active window, on-task detection
+- Automatic screenshots stored in Cloudflare R2
+- Alerts: idle, disconnected, off-task, break exceeded, agent offline
+- Power saving mode: stops video stream but keeps capturing screenshots
+- Stale session reaper: auto clock-out after 5min without heartbeat
+
+**Tech stack (Tracker):**
+- Frontend: Next.js 16 + React 19 + Tailwind CSS 4
+- Backend: Fastify 5 + Prisma 6 + PostgreSQL (separate DB, NOT Supabase yet)
+- Real-time: Socket.io (events) + LiveKit (video/audio)
+- Desktop agent: Python (pynput, psutil, pystray)
+- Storage: Cloudflare R2 (screenshots)
+- Auth: Own JWT system (NOT Supabase Auth yet)
+- Repo: `chattingwizard/CW_Tracker` (private)
+
+**Integration plan (Option D — Hybrid):**
+1. Tracker backend becomes a microservice pointing to Supabase's PostgreSQL
+2. Tracker UI pages get rebuilt as Hub pages (same React codebase)
+3. Auth unified via Supabase Auth (Tracker validates Supabase JWT)
+4. Desktop agent keeps talking to Tracker microservice API
+5. Hub reads session/activity data from shared Supabase tables
+
+**What Hub must prepare NOW (before integration):**
+- Supabase tables designed to accommodate Tracker data (sessions, activity, alerts)
+- `chatter_hours` table already exists — will receive real Tracker data later
+- Schedule system must expose "who should be working now" for cross-referencing
+- Role system must map to Tracker roles (supervisor = team_leader, etc.)
+- UI components for online/offline status ready to switch from mock to real data
+- Socket.io client library included in Hub dependencies (for future real-time)
+
+**Cross-reference logic (future):**
+```
+Schedule says: "Ana works 00:00-08:00 UTC"
+Tracker says: "Ana has no active session"
+Hub shows: "⚠️ Ana — ABSENT (should have started 15min ago)"
+→ TL gets auto-notification
+```
+
+## Design Principles
+- Premium dark UI (#0a0a0a, #111111, #1a1a1a) with CW blue (#1d9bf0)
+- Minimal, clean — inspired by Linear/Vercel
+- Mobile-responsive (chatters use phones)
+- Simple for non-technical users (big text, clear icons)
+- Modular architecture for easy expansion
+
+## Future Plans
+- Custom domain: `hub.chattingwizard.com` (Hostinger)
+- Replace Google Sheets entirely for schedules
+- Add more embedded modules (Script Manager, future tools)
+- Eventually migrate iframe modules to native React components
+- **CW Tracker integration:** Merge Tracker into Hub as microservice + shared DB (waiting for Santi coordination)
+- **Slack replacement:** In-app notifications, announcements feed, automated alerts (phased)
+- **Real-time features:** Socket.io client for live chatter status, alerts, coaching notifications

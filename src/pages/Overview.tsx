@@ -1,11 +1,13 @@
 import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { TEAM_COLORS, SHIFT_LABELS, SHIFTS, formatCurrency } from '../lib/utils';
+import { TEAM_COLORS, SHIFT_LABELS, SHIFTS, formatCurrency, getCurrentShift } from '../lib/utils';
+import { getTeamColor, getTLForShift } from '../lib/roles';
 import { Users, Monitor, Calendar, Clock, AlertTriangle, TrendingUp, ChevronRight, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import ModelAvatar from '../components/ModelAvatar';
 import { TeamTrafficBar, ModelTrafficRow, PageTypeBadge } from '../components/TrafficBadge';
+import { AnnouncementBanner, AnnouncementComposer } from '../components/Announcements';
 import { useTrafficData } from '../hooks/useTrafficData';
 import type { Model, Chatter, ModelChatterAssignment, Schedule } from '../types';
 
@@ -104,11 +106,17 @@ export default function Overview() {
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">Overview</h1>
+        <h1 className="text-2xl font-extrabold text-text-primary">Overview</h1>
         <p className="text-sm text-text-secondary mt-1">
           {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          <span className="text-text-muted ml-2">·</span>
+          <span className="text-cw ml-2 font-semibold">{getTLForShift(getCurrentShift())?.tl || 'Night'} shift active</span>
         </p>
       </div>
+
+      {/* Announcements */}
+      <AnnouncementBanner />
+      <AnnouncementComposer />
 
       {/* Alerts */}
       {alerts.length > 0 && (
