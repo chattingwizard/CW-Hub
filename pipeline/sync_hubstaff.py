@@ -1,13 +1,18 @@
 """
 Sync hours worked from Hubstaff API → Supabase chatter_hours.
 Runs every 6 hours via GitHub Actions.
+
+Hubstaff personal access tokens are refresh tokens (90-day expiry).
+Must exchange for short-lived access token before each API call.
+New refresh token is stored in Supabase for next run.
 """
 import os, requests, json
 from datetime import datetime, timezone, timedelta
 
-HUBSTAFF_TOKEN = os.environ["HUBSTAFF_TOKEN"]
+HUBSTAFF_REFRESH_TOKEN = os.environ["HUBSTAFF_TOKEN"]
 SUPABASE_URL = os.environ["SUPABASE_URL"]
 SUPABASE_KEY = os.environ["SUPABASE_SERVICE_KEY"]
+TOKEN_ENDPOINT = "https://account.hubstaff.com/access_tokens"
 
 HEADERS_SB = {
     "apikey": SUPABASE_KEY,
@@ -16,69 +21,99 @@ HEADERS_SB = {
     "Prefer": "resolution=merge-duplicates",
 }
 
-def get_hubstaff_org_id():
-    """Get the organization ID from Hubstaff."""
+def get_stored_refresh_token():
+    """Try to get the latest refresh token from Supabase (rotated tokens)."""
     r = requests.get(
-        "https://api.hubstaff.com/v2/organizations",
-        headers={"Authorization": f"Bearer {HUBSTAFF_TOKEN}"},
+        f"{SUPABASE_URL}/rest/v1/app_settings?key=eq.hubstaff_refresh_token&select=value",
+        headers=HEADERS_SB,
     )
-    if r.status_code == 401:
-        print("  ⚠️ Hubstaff token expired or invalid (401). Skipping sync.")
-        print("  To fix: generate a new token at https://account.hubstaff.com/developer")
-        return None
-    r.raise_for_status()
-    orgs = r.json().get("organizations", [])
-    if not orgs:
-        raise Exception("No Hubstaff organizations found")
-    return orgs[0]["id"]
+    if r.status_code == 200:
+        rows = r.json()
+        if rows and rows[0].get("value"):
+            return rows[0]["value"]
+    return None
 
-def get_hubstaff_members(org_id):
-    """Get all members from Hubstaff."""
-    r = requests.get(
-        f"https://api.hubstaff.com/v2/organizations/{org_id}/members",
-        headers={"Authorization": f"Bearer {HUBSTAFF_TOKEN}"},
-        params={"page_limit": 100},
+def store_refresh_token(token):
+    """Store the new refresh token in Supabase for next run."""
+    requests.post(
+        f"{SUPABASE_URL}/rest/v1/app_settings?on_conflict=key",
+        headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
+        json={"key": "hubstaff_refresh_token", "value": token},
     )
-    r.raise_for_status()
-    return r.json().get("members", [])
 
-def get_hubstaff_activities(org_id, start_date, end_date):
-    """Get daily activities (hours) from Hubstaff."""
+def exchange_for_access_token(refresh_token):
+    """Exchange refresh token for access token via Hubstaff OAuth endpoint."""
+    r = requests.post(TOKEN_ENDPOINT, data={
+        "grant_type": "refresh_token",
+        "refresh_token": refresh_token,
+    })
+    
+    if r.status_code != 200:
+        print(f"  ⚠️ Token exchange failed ({r.status_code}): {r.text[:200]}")
+        return None, None
+    
+    data = r.json()
+    access_token = data.get("access_token")
+    new_refresh = data.get("refresh_token")
+    expires_in = data.get("expires_in", "?")
+    print(f"  🔑 Access token obtained (expires in {expires_in}s)")
+    
+    return access_token, new_refresh
+
+def hubstaff_get(path, access_token, params=None):
+    """Make an authenticated GET to Hubstaff API v2."""
     r = requests.get(
-        f"https://api.hubstaff.com/v2/organizations/{org_id}/activities/daily",
-        headers={"Authorization": f"Bearer {HUBSTAFF_TOKEN}"},
-        params={
-            "date[start]": start_date,
-            "date[stop]": end_date,
-            "page_limit": 500,
-        },
+        f"https://api.hubstaff.com/v2/{path}",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params=params or {},
     )
     r.raise_for_status()
-    return r.json().get("daily_activities", [])
+    return r.json()
 
 def sync_hours():
     """Main sync function."""
     print("⏱️ Syncing Hubstaff hours...")
     
-    org_id = get_hubstaff_org_id()
-    if org_id is None:
+    refresh_token = get_stored_refresh_token() or HUBSTAFF_REFRESH_TOKEN
+    access_token, new_refresh = exchange_for_access_token(refresh_token)
+    
+    if not access_token:
+        if refresh_token != HUBSTAFF_REFRESH_TOKEN:
+            print("  Retrying with original env token...")
+            access_token, new_refresh = exchange_for_access_token(HUBSTAFF_REFRESH_TOKEN)
+        if not access_token:
+            print("  ❌ Cannot obtain access token. Generate new token at:")
+            print("     https://developer.hubstaff.com/personal_access_tokens")
+            return
+    
+    if new_refresh:
+        store_refresh_token(new_refresh)
+        print("  💾 New refresh token stored")
+    
+    orgs = hubstaff_get("organizations", access_token).get("organizations", [])
+    if not orgs:
+        print("  ❌ No organizations found")
         return
+    org_id = orgs[0]["id"]
     print(f"  Org ID: {org_id}")
     
-    members = get_hubstaff_members(org_id)
+    members_data = hubstaff_get(f"organizations/{org_id}/members", access_token, {"page_limit": 100})
+    members = members_data.get("members", [])
     member_map = {m["user_id"]: m.get("name", f"User {m['user_id']}") for m in members}
     print(f"  Members: {len(member_map)}")
     
     end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     start_date = (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d")
     
-    activities = get_hubstaff_activities(org_id, start_date, end_date)
+    activities = hubstaff_get(
+        f"organizations/{org_id}/activities/daily", access_token,
+        {"date[start]": start_date, "date[stop]": end_date, "page_limit": 500},
+    ).get("daily_activities", [])
     print(f"  Activities: {len(activities)} records ({start_date} to {end_date})")
     
-    # Match Hubstaff users to Supabase chatters by name
     r = requests.get(
         f"{SUPABASE_URL}/rest/v1/chatters?select=id,full_name&status=eq.Active",
-        headers={**HEADERS_SB},
+        headers=HEADERS_SB,
     )
     chatters = r.json() if r.status_code == 200 else []
     chatter_name_map = {}
