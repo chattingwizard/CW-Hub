@@ -84,6 +84,7 @@ export default function Login() {
                     type="text"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
+                    maxLength={100}
                     className="w-full bg-surface-2 border border-border rounded-lg px-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-cw focus:ring-1 focus:ring-cw"
                     placeholder="Your full name"
                     required
@@ -95,6 +96,7 @@ export default function Login() {
                     type="text"
                     value={inviteCode}
                     onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
+                    maxLength={20}
                     className="w-full bg-surface-2 border border-border rounded-lg px-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-cw focus:ring-1 focus:ring-cw font-mono"
                     placeholder="CW-XXXXXXXX"
                     required

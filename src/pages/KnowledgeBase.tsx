@@ -243,7 +243,7 @@ export default function KnowledgeBase() {
               <input value={icon} onChange={e => setIcon(e.target.value)} maxLength={2}
                 className="w-12 h-12 bg-surface-2 border border-border rounded-xl text-center text-2xl outline-none" />
               <input autoFocus placeholder="Document title..." value={title} onChange={e => setTitle(e.target.value)}
-                className="flex-1 bg-transparent text-white text-lg font-semibold placeholder:text-text-muted outline-none" />
+                maxLength={200} className="flex-1 bg-transparent text-white text-lg font-semibold placeholder:text-text-muted outline-none" />
             </div>
 
             <div>
@@ -271,7 +271,7 @@ export default function KnowledgeBase() {
             </div>
 
             <textarea placeholder="Start writing..." value={content} onChange={e => setContent(e.target.value)}
-              rows={8} className="w-full bg-surface-2 border border-border rounded-lg p-3 text-sm text-text-secondary placeholder:text-text-muted outline-none resize-none focus:border-cw/50" />
+              rows={8} maxLength={50000} className="w-full bg-surface-2 border border-border rounded-lg p-3 text-sm text-text-secondary placeholder:text-text-muted outline-none resize-none focus:border-cw/50" />
           </div>
 
           <div className="flex justify-end gap-2 p-4 border-t border-border">
@@ -317,7 +317,7 @@ export default function KnowledgeBase() {
             <div className="flex-1 min-w-0">
               {editing ? (
                 <input value={editTitle} onChange={e => setEditTitle(e.target.value)}
-                  className="text-lg font-bold text-white bg-transparent outline-none border-b border-cw/50 w-full" />
+                  maxLength={200} className="text-lg font-bold text-white bg-transparent outline-none border-b border-cw/50 w-full" />
               ) : (
                 <h2 className="text-lg font-bold text-white">{doc.title}</h2>
               )}
@@ -365,7 +365,7 @@ export default function KnowledgeBase() {
         <div className="flex-1 overflow-y-auto p-6 lg:px-10">
           {editing ? (
             <textarea value={editContent} onChange={e => setEditContent(e.target.value)}
-              className="w-full h-full min-h-[400px] bg-surface-2 border border-border rounded-xl p-4 text-sm text-text-secondary leading-relaxed outline-none resize-none focus:border-cw/50 font-mono"
+              maxLength={50000} className="w-full h-full min-h-[400px] bg-surface-2 border border-border rounded-xl p-4 text-sm text-text-secondary leading-relaxed outline-none resize-none focus:border-cw/50 font-mono"
               placeholder="Write your content here (Markdown supported)..." />
           ) : (
             <div className="max-w-3xl">

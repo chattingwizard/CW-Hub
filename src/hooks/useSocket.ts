@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
+import { supabase } from '../lib/supabase';
 import type { ChatterLiveStatus } from '../types';
 
 // ── Configuration ────────────────────────────────────────────
@@ -71,7 +72,9 @@ export function useSocket() {
         const { io } = await import('socket.io-client');
         if (cancelled) return;
 
+        const { data: { session } } = await supabase.auth.getSession();
         const socket = io(TRACKER_SOCKET_URL, {
+          auth: { token: session?.access_token },
           autoConnect: true,
           reconnection: true,
           reconnectionDelay: 2000,

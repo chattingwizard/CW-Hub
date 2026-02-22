@@ -193,6 +193,7 @@ export default function Tasks() {
               placeholder="Task title..."
               value={title}
               onChange={e => setTitle(e.target.value)}
+              maxLength={200}
               className="w-full bg-transparent text-white text-lg font-semibold placeholder:text-text-muted outline-none"
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleCreate()}
             />
@@ -202,6 +203,7 @@ export default function Tasks() {
               value={desc}
               onChange={e => setDesc(e.target.value)}
               rows={3}
+              maxLength={5000}
               className="w-full bg-surface-2 border border-border rounded-lg p-3 text-sm text-text-secondary placeholder:text-text-muted outline-none resize-none focus:border-cw/50"
             />
 
@@ -348,7 +350,7 @@ export default function Tasks() {
               {isEditingDesc ? (
                 <div>
                   <textarea value={editDesc} onChange={e => setEditDesc(e.target.value)}
-                    rows={4} className="w-full bg-surface-2 border border-border rounded-lg p-3 text-sm text-text-secondary outline-none resize-none focus:border-cw/50" />
+                    rows={4} maxLength={5000} className="w-full bg-surface-2 border border-border rounded-lg p-3 text-sm text-text-secondary outline-none resize-none focus:border-cw/50" />
                   <div className="flex gap-2 mt-2">
                     <button onClick={saveDescription} className="px-3 py-1 text-xs font-medium bg-cw text-white rounded-lg">Save</button>
                     <button onClick={() => setIsEditingDesc(false)} className="px-3 py-1 text-xs text-text-muted">Cancel</button>
@@ -384,7 +386,7 @@ export default function Tasks() {
               </div>
               <div className="flex gap-2 mt-3">
                 <input value={newComment} onChange={e => setNewComment(e.target.value)}
-                  placeholder="Add a comment..." onKeyDown={e => e.key === 'Enter' && addComment()}
+                  placeholder="Add a comment..." maxLength={2000} onKeyDown={e => e.key === 'Enter' && addComment()}
                   className="flex-1 bg-surface-2 border border-border rounded-lg px-3 py-2 text-sm text-white placeholder:text-text-muted outline-none focus:border-cw/50" />
                 <button onClick={addComment} disabled={!newComment.trim()}
                   className="px-3 py-2 text-sm font-medium bg-cw/20 text-cw rounded-lg hover:bg-cw/30 disabled:opacity-50">

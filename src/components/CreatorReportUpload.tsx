@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Upload, FileSpreadsheet, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
-import * as XLSX from 'xlsx';
+import { readSpreadsheet } from '../lib/spreadsheet';
 
 interface UploadResult {
   type: 'success' | 'error';
@@ -72,18 +72,18 @@ export default function CreatorReportUpload({ onUploadComplete }: { onUploadComp
     setResult(null);
 
     try {
-      // Read Excel file
-      const buffer = await file.arrayBuffer();
-      const workbook = XLSX.read(buffer, { type: 'array' });
+      const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+      if (file.size > MAX_SIZE) {
+        throw new Error(`File too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is 10 MB.`);
+      }
+      if (!/\.(xlsx|xls|csv)$/i.test(file.name)) {
+        throw new Error('Invalid file type. Please upload .xlsx, .xls, or .csv files only.');
+      }
 
-      // Use first sheet
-      const sheetName = workbook.SheetNames[0];
-      if (!sheetName) throw new Error('Excel file has no sheets');
-
-      const sheet = workbook.Sheets[sheetName]!;
-      const rawData = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet);
+      const rawData = await readSpreadsheet(file);
 
       if (!rawData.length) throw new Error('Sheet is empty');
+      if (rawData.length > 10000) throw new Error(`Too many rows (${rawData.length}). Maximum is 10,000.`);
 
       // Normalize headers
       const firstRow = rawData[0]!;

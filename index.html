@@ -2,6 +2,16 @@
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy"
+          content="default-src 'self';
+                   script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:;
+                   style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+                   font-src 'self' https://fonts.gstatic.com;
+                   img-src 'self' data: https:;
+                   connect-src 'self' https://bnmrdlqqzxenyqjknqhy.supabase.co wss://bnmrdlqqzxenyqjknqhy.supabase.co;
+                   frame-src 'self' https://chattingwizard.github.io;
+                   object-src 'none';
+                   base-uri 'self';" />
     <link rel="icon" type="image/svg+xml" href="/CW-Hub/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CW Hub — Chatting Wizard</title>

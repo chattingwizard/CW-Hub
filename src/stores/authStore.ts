@@ -81,12 +81,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signUp: async (email: string, password: string, fullName: string, inviteCode: string) => {
     set({ loading: true });
     try {
-      const { data: valid, error: checkErr } = await supabase.rpc('validate_invite_code', {
-        invite_code: inviteCode,
-      });
-      if (checkErr) throw checkErr;
-      if (!valid) throw new Error('Invalid or already used invite code.');
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -95,10 +89,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (error) throw error;
 
       if (data.user) {
-        await supabase.rpc('use_invite_code', {
+        const { error: inviteErr } = await supabase.rpc('signup_with_invite', {
           invite_code: inviteCode,
           for_user_id: data.user.id,
         });
+        if (inviteErr) {
+          await supabase.auth.admin?.deleteUser(data.user.id).catch(() => {});
+          throw new Error('Invalid or already used invite code.');
+        }
       }
     } finally {
       set({ loading: false });

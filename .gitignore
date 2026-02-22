@@ -40,3 +40,6 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Internal docs (contain PII / operational details)
+FIRST_PROMPT.md

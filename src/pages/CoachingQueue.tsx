@@ -131,6 +131,7 @@ function CompletionForm({ task, onSubmit, onCancel, loading }: CompletionFormPro
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
           rows={2}
+          maxLength={2000}
           placeholder="Quick notes about the session..."
           className="w-full bg-surface-3 border border-border rounded-lg px-3 py-2 text-sm text-white focus:border-cw outline-none resize-none"
         />

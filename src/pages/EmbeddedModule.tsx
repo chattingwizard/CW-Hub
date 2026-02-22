@@ -70,7 +70,9 @@ export default function EmbeddedModule() {
         src={iframeUrl}
         className={`flex-1 w-full border-0 bg-surface-0 ${error ? 'hidden' : ''}`}
         title={mod.name}
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         allow="clipboard-write"
+        referrerPolicy="no-referrer"
         onLoad={() => setLoading(false)}
         onError={() => { setLoading(false); setError(true); }}
       />
