@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CW Hub — Chatter Performance (Mockup)</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', sans-serif; background: #0a0a0a; color: #fff; }
+
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 60px; background: #0a0a0a; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; z-index: 10; }
+  .sidebar-logo { width: 36px; height: 36px; background: linear-gradient(135deg, #0b7dba, #1a90c8); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; margin-bottom: 20px; }
+  .sidebar-item { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #555; cursor: pointer; transition: all .15s; }
+  .sidebar-item:hover { background: #1a1a1a; color: #888; }
+  .sidebar-item.active { background: rgba(26,144,200,0.12); color: #1a90c8; }
+  .sidebar-item svg { width: 20px; height: 20px; }
+  .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .sidebar-avatar { width: 34px; height: 34px; border-radius: 50%; background: #1a90c8; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; cursor: pointer; }
+  .main { margin-left: 60px; padding: 28px 32px; }
+
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+  .page-title { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
+  .page-title svg { vertical-align: middle; margin-right: 8px; color: #1a90c8; }
+
+  .filters { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-group { display: flex; gap: 4px; }
+  .filter-pill { padding: 5px 12px; border-radius: 7px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid #2a2a2a; background: transparent; color: #666; transition: all .15s; }
+  .filter-pill:hover { border-color: #444; color: #888; }
+  .filter-pill.active { background: rgba(26,144,200,0.12); border-color: #1a90c8; color: #1a90c8; }
+  .search-input { padding: 5px 12px; border-radius: 7px; border: 1px solid #2a2a2a; background: #111; color: #ccc; font-family: 'Nunito', sans-serif; font-size: 12px; width: 180px; }
+  .search-input::placeholder { color: #444; }
+  .search-input:focus { outline: none; border-color: #1a90c8; }
+  .date-input { padding: 5px 12px; border-radius: 7px; border: 1px solid #2a2a2a; background: #111; color: #ccc; font-family: 'Nunito', sans-serif; font-size: 12px; }
+  .filter-divider { width: 1px; height: 24px; background: #1a1a1a; }
+
+  /* Summary KPIs */
+  .kpi-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
+  .kpi-mini { background: #111; border: 1px solid #1a1a1a; border-radius: 12px; padding: 14px 16px; }
+  .kpi-mini-label { font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.3px; }
+  .kpi-mini-val { font-size: 22px; font-weight: 900; margin-top: 4px; }
+  .kpi-mini-sub { font-size: 10px; color: #444; margin-top: 2px; }
+
+  /* Table */
+  .table-wrapper { background: #111; border: 1px solid #1a1a1a; border-radius: 14px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th { padding: 12px 14px; text-align: left; font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; background: #0e0e0e; border-bottom: 1px solid #1a1a1a; white-space: nowrap; cursor: pointer; user-select: none; }
+  thead th:hover { color: #888; }
+  thead th.sorted { color: #1a90c8; }
+  thead th .sort-icon { font-size: 8px; margin-left: 3px; }
+  tbody tr { border-bottom: 1px solid #111; transition: background .1s; }
+  tbody tr:hover { background: #151515; }
+  tbody td { padding: 10px 14px; white-space: nowrap; color: #ccc; }
+  .chatter-cell { display: flex; align-items: center; gap: 8px; }
+  .chatter-av { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+  .chatter-n { font-weight: 700; }
+  .chatter-team { font-size: 10px; color: #555; }
+  .score-pill { display: inline-flex; align-items: center; gap: 3px; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 800; }
+  .score-high { background: rgba(34,197,94,0.12); color: #22c55e; }
+  .score-mid { background: rgba(234,179,8,0.12); color: #eab308; }
+  .score-low { background: rgba(239,68,68,0.12); color: #ef4444; }
+  .val-good { color: #22c55e; }
+  .val-warn { color: #eab308; }
+  .val-bad { color: #ef4444; }
+  .val-neutral { color: #888; }
+  .trend { font-size: 10px; font-weight: 700; }
+  .trend-up { color: #22c55e; }
+  .trend-down { color: #ef4444; }
+  .hours-bar { display: flex; align-items: center; gap: 6px; }
+  .hours-track { width: 50px; height: 4px; background: #1a1a1a; border-radius: 2px; overflow: hidden; }
+  .hours-fill { height: 100%; border-radius: 2px; }
+  .expand-btn { color: #444; cursor: pointer; font-size: 16px; transition: color .15s; }
+  .expand-btn:hover { color: #1a90c8; }
+
+  /* Day off row */
+  tbody tr.day-off { opacity: 0.35; }
+  .day-off-badge { font-size: 10px; font-weight: 700; color: #555; background: #1a1a1a; padding: 2px 8px; border-radius: 4px; }
+
+  .table-footer { padding: 12px 14px; font-size: 11px; color: #444; display: flex; justify-content: space-between; border-top: 1px solid #1a1a1a; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">CW</div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg></div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+  <div class="sidebar-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+  <div class="sidebar-bottom"><div class="sidebar-avatar">P</div></div>
+</nav>
+
+<main class="main">
+  <div class="page-header">
+    <h1 class="page-title">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Chatter Performance
+    </h1>
+  </div>
+
+  <div class="filters">
+    <input class="date-input" type="date" value="2026-02-21">
+    <span class="filter-divider"></span>
+    <div class="filter-group">
+      <span class="filter-pill active">All Teams</span>
+      <span class="filter-pill">Danilyn</span>
+      <span class="filter-pill">Huckle</span>
+      <span class="filter-pill">Ezekiel</span>
+    </div>
+    <span class="filter-divider"></span>
+    <input class="search-input" placeholder="Search chatters...">
+  </div>
+
+  <!-- Summary KPIs -->
+  <div class="kpi-row">
+    <div class="kpi-mini">
+      <div class="kpi-mini-label">Avg Sales/hr</div>
+      <div class="kpi-mini-val" style="color:#22c55e;">$42.80</div>
+      <div class="kpi-mini-sub">Target: $35/hr</div>
+    </div>
+    <div class="kpi-mini">
+      <div class="kpi-mini-label">Avg CVR</div>
+      <div class="kpi-mini-val" style="color:#eab308;">6.2%</div>
+      <div class="kpi-mini-sub">Target: 8%</div>
+    </div>
+    <div class="kpi-mini">
+      <div class="kpi-mini-label">Avg Unlock Rate</div>
+      <div class="kpi-mini-val" style="color:#22c55e;">34%</div>
+      <div class="kpi-mini-sub">Target: 30%</div>
+    </div>
+    <div class="kpi-mini">
+      <div class="kpi-mini-label">Avg Golden Ratio</div>
+      <div class="kpi-mini-val" style="color:#1a90c8;">2.1</div>
+      <div class="kpi-mini-sub">Target: 1.5-3.0</div>
+    </div>
+    <div class="kpi-mini">
+      <div class="kpi-mini-label">Active Chatters</div>
+      <div class="kpi-mini-val" style="color:#ccc;">24</div>
+      <div class="kpi-mini-sub">of 32 total (8 day off)</div>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrapper">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:30px;"></th>
+          <th>Chatter</th>
+          <th class="sorted">Score <span class="sort-icon">▼</span></th>
+          <th>Sales</th>
+          <th>Sales/hr</th>
+          <th>CVR</th>
+          <th>Unlock %</th>
+          <th>Golden R.</th>
+          <th>Msg/hr</th>
+          <th>Reply Time</th>
+          <th>Hours</th>
+          <th>Trend</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="expand-btn">›</span></td>
+          <td><div class="chatter-cell"><div class="chatter-av" style="background:#1a90c8;color:#fff;">M</div><div><div class="chatter-n">Maria S.</div><div class="chatter-team">Team Danilyn</div></div></div></td>
+          <td><span class="score-pill score-high">92</span></td>
+          <td class="val-good">$385</td>
+          <td class="val-good">$52.30</td>
+          <td class="val-good">9.4%</td>
+          <td class="val-good">41%</td>
+          <td class="val-good">2.3</td>
+          <td class="val-neutral">48</td>
+          <td class="val-good">2:15</td>
+          <td><div class="hours-bar"><div class="hours-track"><div class="hours-fill" style="width:92%;background:#22c55e;"></div></div><span style="font-size:11px;color:#888;">7.4h</span></div></td>
+          <td><span class="trend trend-up">↑ 8%</span></td>
+        </tr>
+        <tr>
+          <td><span class="expand-btn">›</span></td>
+          <td><div class="chatter-cell"><div class="chatter-av" style="background:#f59e0b;color:#fff;">J</div><div><div class="chatter-n">John K.</div><div class="chatter-team">Team Huckle</div></div></div></td>
+          <td><span class="score-pill score-high">87</span></td>
+          <td class="val-good">$312</td>
+          <td class="val-good">$44.60</td>
+          <td class="val-good">8.1%</td>
+          <td class="val-good">38%</td>
+          <td class="val-good">1.9</td>
+          <td class="val-neutral">52</td>
+          <td class="val-good">1:58</td>
+          <td><div class="hours-bar"><div class="hours-track"><div class="hours-fill" style="width:88%;background:#22c55e;"></div></div><span style="font-size:11px;color:#888;">7.0h</span></div></td>
+          <td><span class="trend trend-up">↑ 3%</span></td>
+        </tr>
+        <tr>
+          <td><span class="expand-btn">›</span></td>
+          <td><div class="chatter-cell"><div class="chatter-av" style="background:#8b5cf6;color:#fff;">L</div><div><div class="chatter-n">Luis T.</div><div class="chatter-team">Team Ezekiel</div></div></div></td>
+          <td><span class="score-pill score-mid">71</span></td>
+          <td class="val-warn">$198</td>
+          <td class="val-warn">$28.30</td>
+          <td class="val-warn">5.6%</td>
+          <td class="val-good">33%</td>
+          <td class="val-good">2.5</td>
+          <td class="val-neutral">61</td>
+          <td class="val-warn">4:12</td>
+          <td><div class="hours-bar"><div class="hours-track"><div class="hours-fill" style="width:88%;background:#22c55e;"></div></div><span style="font-size:11px;color:#888;">7.0h</span></div></td>
+          <td><span class="trend trend-down">↓ 5%</span></td>
+        </tr>
+        <tr>
+          <td><span class="expand-btn">›</span></td>
+          <td><div class="chatter-cell"><div class="chatter-av" style="background:#f59e0b;color:#fff;">A</div><div><div class="chatter-n">Ana P.</div><div class="chatter-team">Team Huckle</div></div></div></td>
+          <td><span class="score-pill score-mid">65</span></td>
+          <td class="val-warn">$176</td>
+          <td class="val-warn">$25.10</td>
+          <td class="val-bad">4.2%</td>
+          <td class="val-warn">27%</td>
+          <td class="val-warn">1.3</td>
+          <td class="val-neutral">44</td>
+          <td class="val-neutral">3:05</td>
+          <td><div class="hours-bar"><div class="hours-track"><div class="hours-fill" style="width:88%;background:#22c55e;"></div></div><span style="font-size:11px;color:#888;">7.0h</span></div></td>
+          <td><span class="trend trend-down">↓ 12%</span></td>
+        </tr>
+        <tr>
+          <td><span class="expand-btn">›</span></td>
+          <td><div class="chatter-cell"><div class="chatter-av" style="background:#8b5cf6;color:#fff;">S</div><div><div class="chatter-n">Sara M.</div><div class="chatter-team">Team Ezekiel</div></div></div></td>
+          <td><span class="score-pill score-mid">62</span></td>
+          <td class="val-warn">$165</td>
+          <td class="val-warn">$23.60</td>
+          <td class="val-warn">5.1%</td>
+          <td class="val-warn">25%</td>
+          <td class="val-good">2.0</td>
+          <td class="val-neutral">55</td>
+          <td class="val-bad">5:30</td>
+          <td><div class="hours-bar"><div class="hours-track"><div class="hours-fill" style="width:88%;background:#22c55e;"></div></div><span style="font-size:11px;color:#888;">7.0h</span></div></td>
+          <td><span class="trend" style="color:#888;">— 0%</span></td>
+        </tr>
+        <tr>
+          <td><span class="expand-btn">›</span></td>
+          <td><div class="chatter-cell"><div class="chatter-av" style="background:#1a90c8;color:#fff;">C</div><div><div class="chatter-n">Carlos R.</div><div class="chatter-team">Team Danilyn</div></div></div></td>
+          <td><span class="score-pill score-low">38</span></td>
+          <td class="val-bad">$89</td>
+          <td class="val-bad">$12.70</td>
+          <td class="val-bad">2.8%</td>
+          <td class="val-bad">18%</td>
+          <td class="val-bad">0.8</td>
+          <td class="val-bad">28</td>
+          <td class="val-bad">7:45</td>
+          <td><div class="hours-bar"><div class="hours-track"><div class="hours-fill" style="width:88%;background:#22c55e;"></div></div><span style="font-size:11px;color:#888;">7.0h</span></div></td>
+          <td><span class="trend trend-down">↓ 22%</span></td>
+        </tr>
+        <tr class="day-off">
+          <td></td>
+          <td><div class="chatter-cell"><div class="chatter-av" style="background:#333;color:#555;">D</div><div><div class="chatter-n" style="color:#555;">Diana M.</div><div class="chatter-team">Team Huckle</div></div></div></td>
+          <td colspan="10"><span class="day-off-badge">Day Off</span> <span style="font-size:11px;color:#444;">— 0.3h logged (< 1h threshold)</span></td>
+        </tr>
+        <tr class="day-off">
+          <td></td>
+          <td><div class="chatter-cell"><div class="chatter-av" style="background:#333;color:#555;">N</div><div><div class="chatter-n" style="color:#555;">Nina G.</div><div class="chatter-team">Team Huckle</div></div></div></td>
+          <td colspan="10"><span class="day-off-badge">Day Off</span></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="table-footer">
+      <span>Showing 24 active chatters · 8 day off (hidden at bottom)</span>
+      <span style="color:#888;">Data from: Inflow Employee Report (Feb 21) + Hubstaff</span>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>

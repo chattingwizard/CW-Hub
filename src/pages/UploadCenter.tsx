@@ -183,45 +183,47 @@ export default function UploadCenter() {
           </div>
         ) : (
           <div className="bg-surface-1 border border-border rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">Type</th>
-                  <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">File</th>
-                  <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">Rows</th>
-                  <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">Uploaded by</th>
-                  <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">When</th>
-                </tr>
-              </thead>
-              <tbody>
-                {uploads.map((u) => (
-                  <tr key={u.id} className="border-b border-border/50 hover:bg-surface-2/30">
-                    <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2">
-                        {getTypeIcon(u.upload_type)}
-                        <span className="text-text-secondary text-xs font-medium">{getTypeLabel(u.upload_type)}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className="text-text-primary font-medium truncate max-w-[200px] block">{u.file_name}</span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className="text-text-secondary">{u.row_count}</span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className="text-text-secondary">
-                        {u.uploader?.full_name ?? 'Unknown'}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className="text-text-muted text-xs" title={new Date(u.uploaded_at).toLocaleString()}>
-                        {formatTimeAgo(u.uploaded_at)}
-                      </span>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">Type</th>
+                    <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">File</th>
+                    <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">Rows</th>
+                    <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">Uploaded by</th>
+                    <th className="text-left px-4 py-3 text-xs text-text-muted font-medium">When</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {uploads.map((u) => (
+                    <tr key={u.id} className="border-b border-border/50 hover:bg-surface-2/30">
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2">
+                          {getTypeIcon(u.upload_type)}
+                          <span className="text-text-secondary text-xs font-medium">{getTypeLabel(u.upload_type)}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="text-text-primary font-medium truncate max-w-[200px] block">{u.file_name}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="text-text-secondary">{u.row_count}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="text-text-secondary">
+                          {u.uploader?.full_name ?? 'Unknown'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="text-text-muted text-xs" title={new Date(u.uploaded_at).toLocaleString()}>
+                          {formatTimeAgo(u.uploaded_at)}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </div>

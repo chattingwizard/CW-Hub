@@ -92,7 +92,7 @@ export default function ChatterDashboard() {
           <h2 className="text-xl font-bold text-white mb-2">Account Not Linked</h2>
           <p className="text-text-secondary text-sm leading-relaxed">
             Your Hub account hasn't been linked to a chatter profile yet.
-            Please contact your Team Leader or Ryzel to link your account.
+            Please contact your Team Leader or Rycel to link your account.
           </p>
           <div className="mt-6 bg-surface-2 rounded-lg p-4 text-left">
             <p className="text-xs text-text-muted mb-1">Your account email:</p>

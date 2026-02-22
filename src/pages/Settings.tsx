@@ -121,7 +121,7 @@ export default function Settings() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface-2 rounded-xl p-1 mb-6 w-fit">
+      <div className="flex flex-wrap gap-1 bg-surface-2 rounded-xl p-1 mb-6 w-fit">
         <button
           onClick={() => setTab('users')}
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${

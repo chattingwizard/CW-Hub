@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CW Hub — Upload Center (Mockup)</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', sans-serif; background: #0a0a0a; color: #fff; }
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 60px; background: #0a0a0a; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; z-index: 10; }
+  .sidebar-logo { width: 36px; height: 36px; background: linear-gradient(135deg, #0b7dba, #1a90c8); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; margin-bottom: 20px; }
+  .sidebar-item { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #555; cursor: pointer; transition: all .15s; }
+  .sidebar-item.active { background: rgba(26,144,200,0.12); color: #1a90c8; }
+  .sidebar-item svg { width: 20px; height: 20px; }
+  .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .sidebar-avatar { width: 34px; height: 34px; border-radius: 50%; background: #f59e0b; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; cursor: pointer; }
+  .main { margin-left: 60px; padding: 28px 32px; max-width: 900px; }
+  .page-title { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; margin-bottom: 4px; }
+  .page-title svg { vertical-align: middle; margin-right: 8px; color: #1a90c8; }
+  .page-subtitle { font-size: 13px; color: #555; margin-bottom: 24px; }
+
+  /* Upload zones */
+  .upload-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .upload-zone { background: #111; border: 2px dashed #2a2a2a; border-radius: 16px; padding: 32px 24px; text-align: center; cursor: pointer; transition: all .2s; }
+  .upload-zone:hover { border-color: #1a90c8; background: rgba(26,144,200,0.03); }
+  .upload-zone.dragover { border-color: #1a90c8; background: rgba(26,144,200,0.08); }
+  .upload-icon { font-size: 40px; margin-bottom: 12px; }
+  .upload-title { font-size: 16px; font-weight: 800; color: #ccc; margin-bottom: 4px; }
+  .upload-desc { font-size: 12px; color: #555; margin-bottom: 12px; }
+  .upload-btn { display: inline-block; padding: 8px 20px; border-radius: 8px; background: #1a90c8; color: #fff; font-size: 12px; font-weight: 700; border: none; cursor: pointer; }
+  .upload-btn:hover { background: #0b7dba; }
+  .upload-formats { font-size: 10px; color: #444; margin-top: 8px; }
+
+  /* Alert missing */
+  .alert-missing { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); border-radius: 10px; margin-bottom: 24px; font-size: 12px; color: #eab308; font-weight: 600; }
+
+  /* Upload history */
+  .section-title { font-size: 14px; font-weight: 800; color: #888; margin-bottom: 10px; }
+  .history-table { width: 100%; border-collapse: collapse; background: #111; border: 1px solid #1a1a1a; border-radius: 14px; overflow: hidden; font-size: 12px; }
+  .history-table thead th { padding: 10px 14px; text-align: left; font-size: 10px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; background: #0e0e0e; border-bottom: 1px solid #1a1a1a; }
+  .history-table tbody tr { border-bottom: 1px solid #111; }
+  .history-table tbody tr:hover { background: #151515; }
+  .history-table td { padding: 10px 14px; color: #ccc; }
+  .type-badge { padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; }
+  .type-creator { background: rgba(26,144,200,0.12); color: #1a90c8; }
+  .type-employee { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+  .status-badge { display: inline-flex; align-items: center; gap: 4px; }
+  .status-dot { width: 6px; height: 6px; border-radius: 50%; }
+  .success-dot { background: #22c55e; }
+  .error-dot { background: #ef4444; }
+
+  /* Processing result card */
+  .result-card { background: #111; border: 1px solid rgba(34,197,94,0.2); border-radius: 14px; padding: 18px 20px; margin-bottom: 24px; }
+  .result-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .result-icon { font-size: 24px; }
+  .result-title { font-size: 14px; font-weight: 800; color: #22c55e; }
+  .result-sub { font-size: 12px; color: #888; }
+  .result-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .result-stat { text-align: center; padding: 10px; background: #0e0e0e; border-radius: 8px; }
+  .result-stat-val { font-size: 18px; font-weight: 900; color: #ccc; }
+  .result-stat-label { font-size: 10px; color: #555; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">CW</div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+  <div class="sidebar-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></div>
+  <div class="sidebar-bottom"><div class="sidebar-avatar">D</div></div>
+</nav>
+
+<main class="main">
+  <h1 class="page-title">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+    Upload Center
+  </h1>
+  <p class="page-subtitle">Upload daily reports — Creator Reports (.xlsx) and Employee Reports (.csv)</p>
+
+  <!-- Missing alert -->
+  <div class="alert-missing">
+    ⚠️ Employee Report for today (Feb 22) has not been uploaded yet. Last upload: yesterday 16:40 UTC.
+  </div>
+
+  <!-- Upload Zones -->
+  <div class="upload-grid">
+    <div class="upload-zone">
+      <div class="upload-icon">📊</div>
+      <div class="upload-title">Creator Report</div>
+      <div class="upload-desc">Infloww Creator Report with model metrics, revenue, fans data</div>
+      <button class="upload-btn">Choose File or Drop Here</button>
+      <div class="upload-formats">Accepts: .xlsx · From Infloww export</div>
+    </div>
+    <div class="upload-zone">
+      <div class="upload-icon">👥</div>
+      <div class="upload-title">Employee Report</div>
+      <div class="upload-desc">Inflow Employee Report with chatter KPIs, sales, performance</div>
+      <button class="upload-btn">Choose File or Drop Here</button>
+      <div class="upload-formats">Accepts: .csv · From Inflow export</div>
+    </div>
+  </div>
+
+  <!-- Last upload result -->
+  <div class="result-card">
+    <div class="result-header">
+      <span class="result-icon">✅</span>
+      <div>
+        <div class="result-title">Creator Report Processed Successfully</div>
+        <div class="result-sub">creator_report_2026-02-21.xlsx · Uploaded by Daniela · 2 hours ago</div>
+      </div>
+    </div>
+    <div class="result-stats">
+      <div class="result-stat"><div class="result-stat-val">19</div><div class="result-stat-label">Models Matched</div></div>
+      <div class="result-stat"><div class="result-stat-val">1</div><div class="result-stat-label">Date Range (day)</div></div>
+      <div class="result-stat"><div class="result-stat-val">0</div><div class="result-stat-label">Errors</div></div>
+      <div class="result-stat"><div class="result-stat-val">2</div><div class="result-stat-label">Names Unmatched</div></div>
+    </div>
+  </div>
+
+  <!-- Upload History -->
+  <div class="section-title">Upload History</div>
+  <table class="history-table">
+    <thead>
+      <tr>
+        <th>File</th>
+        <th>Type</th>
+        <th>Date Range</th>
+        <th>Records</th>
+        <th>Uploaded By</th>
+        <th>Time</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="font-weight:700;">creator_report_2026-02-21.xlsx</td>
+        <td><span class="type-badge type-creator">Creator</span></td>
+        <td>Feb 21</td>
+        <td>19 models</td>
+        <td>Daniela</td>
+        <td style="color:#888;">Today, 12:32</td>
+        <td><span class="status-badge"><span class="status-dot success-dot"></span> Success</span></td>
+      </tr>
+      <tr>
+        <td style="font-weight:700;">employee_report_2026-02-21.csv</td>
+        <td><span class="type-badge type-employee">Employee</span></td>
+        <td>Feb 21</td>
+        <td>28 chatters</td>
+        <td>Daniela</td>
+        <td style="color:#888;">Today, 12:15</td>
+        <td><span class="status-badge"><span class="status-dot success-dot"></span> Success</span></td>
+      </tr>
+      <tr>
+        <td style="font-weight:700;">creator_report_2026-02-20.xlsx</td>
+        <td><span class="type-badge type-creator">Creator</span></td>
+        <td>Feb 20</td>
+        <td>19 models</td>
+        <td>Daniela</td>
+        <td style="color:#888;">Yesterday, 16:40</td>
+        <td><span class="status-badge"><span class="status-dot success-dot"></span> Success</span></td>
+      </tr>
+      <tr>
+        <td style="font-weight:700;">employee_report_2026-02-20.csv</td>
+        <td><span class="type-badge type-employee">Employee</span></td>
+        <td>Feb 20</td>
+        <td>26 chatters</td>
+        <td>Daniela</td>
+        <td style="color:#888;">Yesterday, 16:22</td>
+        <td><span class="status-badge"><span class="status-dot success-dot"></span> Success</span></td>
+      </tr>
+      <tr>
+        <td style="font-weight:700;">creator_report_2026-02-19.xlsx</td>
+        <td><span class="type-badge type-creator">Creator</span></td>
+        <td>Feb 19</td>
+        <td>18 models</td>
+        <td>Daniela</td>
+        <td style="color:#888;">Feb 19, 15:10</td>
+        <td><span class="status-badge"><span class="status-dot error-dot"></span> 1 error</span></td>
+      </tr>
+    </tbody>
+  </table>
+</main>
+
+</body>
+</html>

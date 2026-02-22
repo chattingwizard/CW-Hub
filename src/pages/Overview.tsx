@@ -141,7 +141,7 @@ export default function Overview() {
       )}
 
       {/* Top KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <div className="bg-surface-1 border border-border rounded-xl p-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-text-secondary">Live Models</span>
@@ -277,23 +277,25 @@ export default function Overview() {
             <h2 className="text-sm font-semibold text-white">Top Revenue / day</h2>
           </div>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart
-                data={modelTraffic
-                  .filter((t) => t.earnings_per_day > 0)
-                  .slice(0, 8)
-                  .map((t) => ({ name: t.model_name.slice(0, 10), revenue: Math.round(t.earnings_per_day) }))}
-                margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
-              >
-                <XAxis dataKey="name" tick={{ fill: '#888', fontSize: 9 }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, fontSize: 12 }}
-                  formatter={(v: number) => [`$${v.toLocaleString()}/day`, 'Revenue']}
-                  cursor={{ fill: 'rgba(29, 155, 240, 0.08)' }}
-                />
-                <Bar dataKey="revenue" fill="#1d9bf0" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-[200px] sm:h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={modelTraffic
+                    .filter((t) => t.earnings_per_day > 0)
+                    .slice(0, 8)
+                    .map((t) => ({ name: t.model_name.slice(0, 10), revenue: Math.round(t.earnings_per_day) }))}
+                  margin={{ top: 5, right: 5, bottom: 5, left: 5 }}
+                >
+                  <XAxis dataKey="name" tick={{ fill: '#888', fontSize: 9 }} axisLine={false} tickLine={false} />
+                  <Tooltip
+                    contentStyle={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, fontSize: 12 }}
+                    formatter={(v: number) => [`$${v.toLocaleString()}/day`, 'Revenue']}
+                    cursor={{ fill: 'rgba(29, 155, 240, 0.08)' }}
+                  />
+                  <Bar dataKey="revenue" fill="#1d9bf0" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
             <div className="space-y-2">
               {modelTraffic
                 .filter((t) => t.earnings_per_day > 0)

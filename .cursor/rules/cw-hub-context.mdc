@@ -23,7 +23,7 @@ CW Hub is the **centralized web panel** for Chatting Wizard. All employees (chat
 |---|---|---|
 | `owner` | Pau | Everything + settings |
 | `admin` | Mileh (Head of Sales) | Everything except settings |
-| `chatter_manager` | Ryzel | All chatters, coaching oversight, schedules, assignments, performance |
+| `chatter_manager` | Rycel | All chatters, coaching oversight, schedules, assignments, performance |
 | `team_leader` | Huckle, Danilyn, Ezekiel | Their team's chatters, coaching queue, schedules, assignments, performance |
 | `script_manager` | (TBD) | Scripts management, model info |
 | `va` | Content VAs | Content-related tasks (posts, stories, vaults, promotions) |
@@ -74,7 +74,7 @@ Add new modules in `src/lib/modules.ts`. Supports `internal` (React pages) and `
 |---|---|
 | COO (Owner) | Pau Lopez |
 | Head of Sales (Admin) | Mileh |
-| Chatter Manager | Ryzel Monique |
+| Chatter Manager | Rycel Monique |
 | Personal Assistant | Daniela |
 | TL Night (00-08 chatters) | Huckle (works 23:00-07:00 UTC) |
 | TL Day (08-16 chatters) | Danilyn (works 07:00-15:00 UTC) |

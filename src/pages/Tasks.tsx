@@ -181,7 +181,7 @@ export default function Tasks() {
 
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh]" onClick={() => setShowCreate(false)}>
-        <div className="bg-surface-1 border border-border rounded-2xl w-full max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="bg-surface-1 border border-border rounded-2xl w-[calc(100%-2rem)] sm:max-w-lg shadow-2xl" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h2 className="text-base font-bold text-white">New Task</h2>
             <button onClick={() => setShowCreate(false)} className="text-text-muted hover:text-white"><X size={18} /></button>
@@ -205,7 +205,7 @@ export default function Tasks() {
               className="w-full bg-surface-2 border border-border rounded-lg p-3 text-sm text-text-secondary placeholder:text-text-muted outline-none resize-none focus:border-cw/50"
             />
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-text-muted mb-1 block">Priority</label>
                 <select value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}
@@ -226,7 +226,7 @@ export default function Tasks() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs text-text-muted mb-1 block">Assignee</label>
                 <select value={assigneeId} onChange={e => setAssigneeId(e.target.value)}
@@ -294,7 +294,7 @@ export default function Tasks() {
 
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[5vh]" onClick={() => setSelectedTask(null)}>
-        <div className="bg-surface-1 border border-border rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="bg-surface-1 border border-border rounded-2xl w-[calc(100%-2rem)] sm:max-w-2xl max-h-[85vh] flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
           {/* Header */}
           <div className="flex items-start justify-between p-5 border-b border-border">
             <div className="flex-1 min-w-0 pr-4">
@@ -362,7 +362,7 @@ export default function Tasks() {
             </div>
 
             {/* Metadata */}
-            <div className="grid grid-cols-3 gap-3 text-xs text-text-muted">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-text-muted">
               <div className="flex items-center gap-1"><User size={12} /> Created by {(task.creator as any)?.full_name}</div>
               <div className="flex items-center gap-1"><Clock size={12} /> {timeAgo(task.created_at)} ago</div>
               <div className="flex items-center gap-1"><MessageSquare size={12} /> {comments.length} comments</div>
@@ -455,7 +455,7 @@ export default function Tasks() {
 
   function BoardView() {
     return (
-      <div className="grid grid-cols-4 gap-4 h-[calc(100vh-220px)] overflow-hidden">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 h-[calc(100vh-220px)] overflow-hidden">
         {BOARD_COLUMNS.map(status => {
           const config = STATUS_CONFIG[status];
           const columnTasks = boardTasks[status];

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CW Hub — Assignments (Mockup)</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', sans-serif; background: #0a0a0a; color: #fff; overflow-x: hidden; }
+
+  .sidebar { position: fixed; left: 0; top: 0; bottom: 0; width: 60px; background: #0a0a0a; border-right: 1px solid #1a1a1a; display: flex; flex-direction: column; align-items: center; padding: 16px 0; gap: 8px; z-index: 10; }
+  .sidebar-logo { width: 36px; height: 36px; background: linear-gradient(135deg, #0b7dba, #1a90c8); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 14px; margin-bottom: 20px; }
+  .sidebar-item { width: 40px; height: 40px; border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #555; cursor: pointer; transition: all .15s; }
+  .sidebar-item:hover { background: #1a1a1a; color: #888; }
+  .sidebar-item.active { background: rgba(26,144,200,0.12); color: #1a90c8; }
+  .sidebar-item svg { width: 20px; height: 20px; }
+  .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .sidebar-avatar { width: 34px; height: 34px; border-radius: 50%; background: #1a90c8; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; cursor: pointer; }
+
+  .main { margin-left: 60px; padding: 28px 32px; min-height: 100vh; }
+
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+  .page-title { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
+  .page-title svg { vertical-align: middle; margin-right: 8px; color: #1a90c8; }
+  .page-subtitle { font-size: 13px; color: #555; margin-top: 4px; }
+
+  .filters { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+  .filter-group { display: flex; gap: 4px; }
+  .filter-pill { padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid #2a2a2a; background: transparent; color: #666; transition: all .15s; }
+  .filter-pill:hover { border-color: #444; color: #888; }
+  .filter-pill.active { background: rgba(26,144,200,0.12); border-color: #1a90c8; color: #1a90c8; }
+  .search-input { padding: 6px 14px; border-radius: 8px; border: 1px solid #2a2a2a; background: #111; color: #ccc; font-family: 'Nunito', sans-serif; font-size: 12px; width: 200px; }
+  .search-input::placeholder { color: #444; }
+  .search-input:focus { outline: none; border-color: #1a90c8; }
+  .filter-divider { width: 1px; height: 24px; background: #1a1a1a; }
+  .view-toggle { display: flex; gap: 0; }
+  .view-btn { padding: 6px 14px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid #2a2a2a; background: transparent; color: #666; transition: all .15s; }
+  .view-btn:first-child { border-radius: 8px 0 0 8px; }
+  .view-btn:last-child { border-radius: 0 8px 8px 0; border-left: none; }
+  .view-btn.active { background: #1a90c8; border-color: #1a90c8; color: #fff; }
+
+  /* Workload Balance */
+  .workload-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; padding: 16px; background: #111; border: 1px solid #1a1a1a; border-radius: 14px; }
+  .workload-team { }
+  .workload-team-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .workload-team-name { font-size: 12px; font-weight: 700; color: #888; display: flex; align-items: center; gap: 6px; }
+  .workload-team-name .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .workload-pct { font-size: 13px; font-weight: 800; }
+  .workload-track { height: 8px; background: #1a1a1a; border-radius: 4px; overflow: hidden; }
+  .workload-fill { height: 100%; border-radius: 4px; transition: width .5s; }
+  .workload-detail { font-size: 10px; color: #444; margin-top: 4px; }
+  .imbalance-alert { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2); border-radius: 10px; margin-bottom: 20px; font-size: 12px; color: #eab308; font-weight: 600; }
+  .imbalance-alert svg { flex-shrink: 0; }
+
+  /* Board */
+  .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 16px; }
+  .board::-webkit-scrollbar { height: 6px; }
+  .board::-webkit-scrollbar-track { background: transparent; }
+  .board::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+
+  .model-col { min-width: 240px; max-width: 240px; flex-shrink: 0; }
+  .model-header { background: #111; border: 1px solid #1a1a1a; border-radius: 14px 14px 0 0; padding: 14px 14px 12px; }
+  .model-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .model-avatar { width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 14px; flex-shrink: 0; }
+  .model-info { flex: 1; min-width: 0; }
+  .model-name { font-size: 14px; font-weight: 800; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .model-badges { display: flex; gap: 4px; margin-top: 3px; }
+  .badge { padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.3px; }
+  .badge-free { background: rgba(34,197,94,0.12); color: #22c55e; }
+  .badge-paid { background: rgba(26,144,200,0.12); color: #1a90c8; }
+  .badge-mixed { background: rgba(234,179,8,0.12); color: #eab308; }
+  .model-stats { font-size: 11px; color: #555; }
+  .model-stats span { color: #888; font-weight: 700; }
+  .model-workload-bar { height: 3px; background: #1a1a1a; border-radius: 2px; margin-top: 8px; overflow: hidden; }
+  .model-workload-fill { height: 100%; border-radius: 2px; }
+
+  .model-body { background: #0e0e0e; border: 1px solid #1a1a1a; border-top: none; border-radius: 0 0 14px 14px; padding: 8px; min-height: 120px; display: flex; flex-direction: column; gap: 6px; }
+
+  .chatter-card { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: #151515; border: 1px solid #1a1a1a; cursor: grab; transition: all .15s; }
+  .chatter-card:hover { background: #1a1a1a; border-color: #2a2a2a; }
+  .chatter-card.dragging { opacity: 0.4; transform: rotate(2deg); }
+  .card-avatar { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 800; background: #252525; color: #888; flex-shrink: 0; }
+  .card-info { flex: 1; min-width: 0; }
+  .card-name { font-size: 12px; font-weight: 700; color: #ccc; }
+  .card-meta { font-size: 10px; color: #444; }
+  .card-team-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+  .drop-zone { border: 2px dashed #2a2a2a; border-radius: 10px; padding: 16px; display: flex; align-items: center; justify-content: center; min-height: 50px; }
+  .drop-zone-text { font-size: 11px; color: #333; }
+  .drop-zone.active { border-color: #1a90c8; background: rgba(26,144,200,0.05); }
+  .drop-zone.active .drop-zone-text { color: #1a90c8; }
+
+  /* Ghost card (being dragged in) */
+  .chatter-card.ghost { border: 2px dashed #1a90c8; background: rgba(26,144,200,0.06); }
+  .chatter-card.ghost .card-name { color: #1a90c8; }
+
+  /* Unassigned pool */
+  .unassigned-pool { margin-top: 20px; padding: 14px 16px; background: #111; border: 1px solid #1a1a1a; border-radius: 14px; }
+  .pool-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .pool-title { font-size: 13px; font-weight: 800; color: #eab308; }
+  .pool-count { font-size: 11px; color: #666; }
+  .pool-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pool-chip { display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; background: #1a1a1a; border: 1px solid #2a2a2a; cursor: grab; font-size: 12px; font-weight: 600; color: #ccc; transition: all .15s; }
+  .pool-chip:hover { border-color: #444; background: #222; }
+
+  .team-d { background: #1a90c8; }
+  .team-h { background: #f59e0b; }
+  .team-e { background: #8b5cf6; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<nav class="sidebar">
+  <div class="sidebar-logo">CW</div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg></div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+  <div class="sidebar-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg></div>
+  <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></div>
+  <div class="sidebar-bottom">
+    <div class="sidebar-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9c.26.604.852.997 1.51 1H21a2 2 0 0 1 0 4h-.09c-.658.003-1.25.396-1.51 1z"/></svg></div>
+    <div class="sidebar-avatar">P</div>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        Assignments
+      </h1>
+      <p class="page-subtitle">Manage model-chatter assignments and workload balance</p>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <div class="filter-group">
+      <span class="filter-pill active">All Teams</span>
+      <span class="filter-pill">Danilyn</span>
+      <span class="filter-pill">Huckle</span>
+      <span class="filter-pill">Ezekiel</span>
+    </div>
+    <span class="filter-divider"></span>
+    <div class="filter-group">
+      <span class="filter-pill active">All Types</span>
+      <span class="filter-pill">Free</span>
+      <span class="filter-pill">Paid</span>
+      <span class="filter-pill">Mixed</span>
+    </div>
+    <span class="filter-divider"></span>
+    <input class="search-input" placeholder="Search models...">
+    <div style="margin-left:auto"></div>
+    <div class="view-toggle">
+      <button class="view-btn active">Board</button>
+      <button class="view-btn">Table</button>
+    </div>
+  </div>
+
+  <!-- Workload Balance -->
+  <div class="workload-bar">
+    <div class="workload-team">
+      <div class="workload-team-header">
+        <span class="workload-team-name"><span class="dot team-d"></span>Team Danilyn</span>
+        <span class="workload-pct" style="color:#1a90c8;">72%</span>
+      </div>
+      <div class="workload-track"><div class="workload-fill" style="width:72%;background:#1a90c8;"></div></div>
+      <div class="workload-detail">8 chatters · 7 models · 4 Free, 2 Paid, 1 Mixed</div>
+    </div>
+    <div class="workload-team">
+      <div class="workload-team-header">
+        <span class="workload-team-name"><span class="dot team-h"></span>Team Huckle</span>
+        <span class="workload-pct" style="color:#eab308;">85%</span>
+      </div>
+      <div class="workload-track"><div class="workload-fill" style="width:85%;background:#eab308;"></div></div>
+      <div class="workload-detail">6 chatters · 8 models · 5 Free, 1 Paid, 2 Mixed</div>
+    </div>
+    <div class="workload-team">
+      <div class="workload-team-header">
+        <span class="workload-team-name"><span class="dot team-e"></span>Team Ezekiel</span>
+        <span class="workload-pct" style="color:#22c55e;">45%</span>
+      </div>
+      <div class="workload-track"><div class="workload-fill" style="width:45%;background:#8b5cf6;"></div></div>
+      <div class="workload-detail">5 chatters · 4 models · 2 Free, 2 Paid, 0 Mixed</div>
+    </div>
+  </div>
+
+  <!-- Imbalance Alert -->
+  <div class="imbalance-alert">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    Workload imbalance: Team Huckle is at 85% while Team Ezekiel is at 45%. Consider rebalancing assignments.
+  </div>
+
+  <!-- Board -->
+  <div class="board">
+    <!-- Model 1 -->
+    <div class="model-col">
+      <div class="model-header">
+        <div class="model-top">
+          <div class="model-avatar" style="background:#e91e63;color:#fff;">S</div>
+          <div class="model-info">
+            <div class="model-name">Sofia Rose</div>
+            <div class="model-badges"><span class="badge badge-free">Free</span></div>
+          </div>
+        </div>
+        <div class="model-stats">Revenue: <span>$1,840</span>/day · Workload: <span>92%</span></div>
+        <div class="model-workload-bar"><div class="model-workload-fill" style="width:92%;background:#ef4444;"></div></div>
+      </div>
+      <div class="model-body">
+        <div class="chatter-card">
+          <div class="card-avatar" style="background:#1a90c8;color:#fff;">M</div>
+          <div class="card-info"><div class="card-name">Maria S.</div><div class="card-meta">3 models</div></div>
+          <span class="card-team-dot team-d"></span>
+        </div>
+        <div class="chatter-card">
+          <div class="card-avatar" style="background:#1a90c8;color:#fff;">C</div>
+          <div class="card-info"><div class="card-name">Carlos R.</div><div class="card-meta">2 models</div></div>
+          <span class="card-team-dot team-d"></span>
+        </div>
+        <div class="chatter-card">
+          <div class="card-avatar" style="background:#f59e0b;color:#fff;">A</div>
+          <div class="card-info"><div class="card-name">Ana P.</div><div class="card-meta">4 models</div></div>
+          <span class="card-team-dot team-h"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model 2 -->
+    <div class="model-col">
+      <div class="model-header">
+        <div class="model-top">
+          <div class="model-avatar" style="background:#9c27b0;color:#fff;">L</div>
+          <div class="model-info">
+            <div class="model-name">Luna Star</div>
+            <div class="model-badges"><span class="badge badge-paid">Paid</span></div>
+          </div>
+        </div>
+        <div class="model-stats">Revenue: <span>$2,350</span>/day · Workload: <span>64%</span></div>
+        <div class="model-workload-bar"><div class="model-workload-fill" style="width:64%;background:#eab308;"></div></div>
+      </div>
+      <div class="model-body">
+        <div class="chatter-card">
+          <div class="card-avatar" style="background:#f59e0b;color:#fff;">J</div>
+          <div class="card-info"><div class="card-name">John K.</div><div class="card-meta">2 models</div></div>
+          <span class="card-team-dot team-h"></span>
+        </div>
+        <div class="chatter-card ghost">
+          <div class="card-avatar" style="background:#8b5cf6;color:#fff;">R</div>
+          <div class="card-info"><div class="card-name">Rosa L.</div><div class="card-meta">Dragging...</div></div>
+          <span class="card-team-dot team-e"></span>
+        </div>
+        <div class="drop-zone active">
+          <span class="drop-zone-text">Drop here to assign</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model 3 -->
+    <div class="model-col">
+      <div class="model-header">
+        <div class="model-top">
+          <div class="model-avatar" style="background:#ff5722;color:#fff;">V</div>
+          <div class="model-info">
+            <div class="model-name">Valentina Fox</div>
+            <div class="model-badges"><span class="badge badge-free">Free</span></div>
+          </div>
+        </div>
+        <div class="model-stats">Revenue: <span>$1,120</span>/day · Workload: <span>78%</span></div>
+        <div class="model-workload-bar"><div class="model-workload-fill" style="width:78%;background:#eab308;"></div></div>
+      </div>
+      <div class="model-body">
+        <div class="chatter-card">
+          <div class="card-avatar" style="background:#8b5cf6;color:#fff;">L</div>
+          <div class="card-info"><div class="card-name">Luis T.</div><div class="card-meta">3 models</div></div>
+          <span class="card-team-dot team-e"></span>
+        </div>
+        <div class="chatter-card">
+          <div class="card-avatar" style="background:#8b5cf6;color:#fff;">S</div>
+          <div class="card-info"><div class="card-name">Sara M.</div><div class="card-meta">2 models</div></div>
+          <span class="card-team-dot team-e"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model 4 -->
+    <div class="model-col">
+      <div class="model-header">
+        <div class="model-top">
+          <div class="model-avatar" style="background:#00bcd4;color:#fff;">A</div>
+          <div class="model-info">
+            <div class="model-name">Aria Bell</div>
+            <div class="model-badges"><span class="badge badge-mixed">Mixed</span></div>
+          </div>
+        </div>
+        <div class="model-stats">Revenue: <span>$980</span>/day · Workload: <span>35%</span></div>
+        <div class="model-workload-bar"><div class="model-workload-fill" style="width:35%;background:#22c55e;"></div></div>
+      </div>
+      <div class="model-body">
+        <div class="chatter-card">
+          <div class="card-avatar">D</div>
+          <div class="card-info"><div class="card-name">Diana M.</div><div class="card-meta">1 model</div></div>
+          <span class="card-team-dot team-h"></span>
+        </div>
+        <div class="drop-zone">
+          <span class="drop-zone-text">+ Drag chatter here</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model 5 -->
+    <div class="model-col">
+      <div class="model-header">
+        <div class="model-top">
+          <div class="model-avatar" style="background:#4caf50;color:#fff;">M</div>
+          <div class="model-info">
+            <div class="model-name">Mia Love</div>
+            <div class="model-badges"><span class="badge badge-paid">Paid</span></div>
+          </div>
+        </div>
+        <div class="model-stats">Revenue: <span>$3,100</span>/day · Workload: <span>58%</span></div>
+        <div class="model-workload-bar"><div class="model-workload-fill" style="width:58%;background:#22c55e;"></div></div>
+      </div>
+      <div class="model-body">
+        <div class="chatter-card">
+          <div class="card-avatar" style="background:#1a90c8;color:#fff;">A</div>
+          <div class="card-info"><div class="card-name">Alex J.</div><div class="card-meta">2 models</div></div>
+          <span class="card-team-dot team-d"></span>
+        </div>
+        <div class="chatter-card">
+          <div class="card-avatar" style="background:#f59e0b;color:#fff;">N</div>
+          <div class="card-info"><div class="card-name">Nina G.</div><div class="card-meta">3 models</div></div>
+          <span class="card-team-dot team-h"></span>
+        </div>
+        <div class="drop-zone">
+          <span class="drop-zone-text">+ Drag chatter here</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Model 6 (empty) -->
+    <div class="model-col">
+      <div class="model-header">
+        <div class="model-top">
+          <div class="model-avatar" style="background:#ff9800;color:#fff;">E</div>
+          <div class="model-info">
+            <div class="model-name">Emma Blaze</div>
+            <div class="model-badges"><span class="badge badge-free">Free</span></div>
+          </div>
+        </div>
+        <div class="model-stats">Revenue: <span>$760</span>/day · Workload: <span>0%</span></div>
+        <div class="model-workload-bar"><div class="model-workload-fill" style="width:0%;background:#555;"></div></div>
+      </div>
+      <div class="model-body" style="align-items:center;justify-content:center;">
+        <div style="text-align:center;padding:16px;">
+          <div style="font-size:28px;color:#2a2a2a;margin-bottom:6px;">⚠</div>
+          <div style="font-size:12px;color:#444;font-weight:600;">No chatters assigned</div>
+          <div style="font-size:10px;color:#333;margin-top:2px;">Drag from pool below</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unassigned Pool -->
+  <div class="unassigned-pool">
+    <div class="pool-header">
+      <span class="pool-title">⚡ Unassigned Chatters</span>
+      <span class="pool-count">4 chatters without model assignments</span>
+    </div>
+    <div class="pool-chips">
+      <div class="pool-chip"><span class="card-team-dot team-h" style="width:8px;height:8px;"></span>Karen S.</div>
+      <div class="pool-chip"><span class="card-team-dot team-e" style="width:8px;height:8px;"></span>Pedro V.</div>
+      <div class="pool-chip"><span class="card-team-dot team-d" style="width:8px;height:8px;"></span>Jorge B.</div>
+      <div class="pool-chip"><span class="card-team-dot team-e" style="width:8px;height:8px;"></span>Tomas R.</div>
+    </div>
+  </div>
+</main>
+
+</body>
+</html>

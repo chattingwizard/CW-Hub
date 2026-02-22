@@ -14,7 +14,7 @@ alwaysApply: true
 | Chatter names & team assignments | **Airtable "Chatters" table** | Canonical names. Inflow names must match these. |
 | Daily aggregated performance | **Airtable "Daily Performance" table** | Merged Inflow + Hubstaff data per chatter per day. |
 | Weekly aggregated performance | **Airtable "Performance" table** | Historical weekly data. |
-| Model traffic (new fans/day, active fans) | **Infloww Creator Reports** (.xlsx) | Exported by Raizel daily. Uploaded via CW Hub or ingested via Slack. |
+| Model traffic (new fans/day, active fans) | **Infloww Creator Reports** (.xlsx) | Exported by Rycel daily. Uploaded via CW Hub or ingested via Slack. |
 | Model account type (Free/Paid/Mixed) | **Airtable "Models" table → `Page Type`** | Synced to Supabase as `page_type`. Determines workload weighting. |
 
 ## Key Rules
@@ -58,7 +58,7 @@ send_briefings.py --pau → Daily summary to management
 
 - **At end of each TL's shift**, the system checks which recommended coaching calls were completed.
 - Compares chatters who were overdue (days_since ≥ 2) vs coaching logs for today.
-- Report sent to `#0-management-chatter` tagging **Raizel** (chatter manager, `U08SZB25CJV`).
+- Report sent to `#0-management-chatter` tagging **Rycel** (chatter manager, `U08SZB25CJV`).
 - Schedule: Huckle checked at 06:30 UTC, Danilyn at 14:30 UTC, Ezekiel at 22:30 UTC.
 - Shows: completion rate, completed list, missed list (with red flags + days since last coaching).
 - Missed chatters are automatically re-assigned in the next briefing.

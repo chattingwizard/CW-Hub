@@ -100,7 +100,7 @@ function CompletionForm({ task, onSubmit, onCancel, loading }: CompletionFormPro
     <div className="mt-3 p-4 bg-surface-2 rounded-lg border border-border space-y-3">
       <p className="text-xs font-medium text-cw uppercase tracking-wide">Log Coaching Session</p>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="text-xs text-text-secondary mb-1 block">Focus KPI</label>
           <select
@@ -263,7 +263,7 @@ export default function CoachingQueue() {
   const currentTl = TL_OPTIONS.find((t) => t.key === selectedTl);
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-2xl font-extrabold text-text-primary">Coaching Queue</h1>
@@ -281,7 +281,7 @@ export default function CoachingQueue() {
               <button
                 key={tl.key}
                 onClick={() => setSelectedTl(tl.key)}
-                className={`px-4 py-2 text-sm rounded-md font-medium transition-colors relative ${
+                className={`px-3 py-1.5 text-xs sm:px-4 sm:py-2 sm:text-sm rounded-md font-medium transition-colors relative ${
                   selectedTl === tl.key
                     ? 'bg-cw text-white'
                     : 'text-text-secondary hover:text-white'
@@ -442,7 +442,7 @@ export default function CoachingQueue() {
                   <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
                     {/* KPIs Grid */}
                     {Object.keys(task.kpis).length > 0 && (
-                      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                         {Object.entries(task.kpis).map(([key, val]) => {
                           const keyBase = key.split('_')[0] ?? key;
                           const isRed = task.red_flags.some((f) => f.kpi.toLowerCase().includes(keyBase));

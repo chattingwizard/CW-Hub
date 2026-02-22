@@ -22,6 +22,10 @@ def get_hubstaff_org_id():
         "https://api.hubstaff.com/v2/organizations",
         headers={"Authorization": f"Bearer {HUBSTAFF_TOKEN}"},
     )
+    if r.status_code == 401:
+        print("  ⚠️ Hubstaff token expired or invalid (401). Skipping sync.")
+        print("  To fix: generate a new token at https://account.hubstaff.com/developer")
+        return None
     r.raise_for_status()
     orgs = r.json().get("organizations", [])
     if not orgs:
@@ -57,6 +61,8 @@ def sync_hours():
     print("⏱️ Syncing Hubstaff hours...")
     
     org_id = get_hubstaff_org_id()
+    if org_id is None:
+        return
     print(f"  Org ID: {org_id}")
     
     members = get_hubstaff_members(org_id)
@@ -104,7 +110,7 @@ def sync_hours():
     
     if rows:
         r = requests.post(
-            f"{SUPABASE_URL}/rest/v1/chatter_hours",
+            f"{SUPABASE_URL}/rest/v1/chatter_hours?on_conflict=chatter_id,date",
             headers={**HEADERS_SB, "Prefer": "resolution=merge-duplicates"},
             json=rows,
         )

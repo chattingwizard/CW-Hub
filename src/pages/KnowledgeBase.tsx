@@ -7,7 +7,7 @@ import remarkGfm from 'remark-gfm';
 import {
   Search, Plus, X, Edit3, Save, Trash2, Eye, EyeOff,
   Building2, Users, ClipboardList, GraduationCap, Shield, BookOpen,
-  ChevronRight, FileText, ArrowLeft,
+  ChevronRight, FileText, ArrowLeft, Menu,
 } from 'lucide-react';
 
 // ── Constants ────────────────────────────────────────────────
@@ -131,6 +131,7 @@ export default function KnowledgeBase() {
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // ── Fetch ────────────────────────────────────────────────
 
@@ -231,7 +232,7 @@ export default function KnowledgeBase() {
 
     return (
       <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center pt-[10vh]" onClick={() => setShowCreate(false)}>
-        <div className="bg-surface-1 border border-border rounded-2xl w-full max-w-xl shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="bg-surface-1 border border-border rounded-2xl w-[calc(100%-2rem)] sm:max-w-xl shadow-2xl" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between p-4 border-b border-border">
             <h2 className="text-base font-bold text-white">New Document</h2>
             <button onClick={() => setShowCreate(false)} className="text-text-muted hover:text-white"><X size={18} /></button>
@@ -396,9 +397,18 @@ export default function KnowledgeBase() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-100px)] overflow-hidden">
+    <div className="flex h-[calc(100vh-100px)] overflow-hidden relative">
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
       {/* Sidebar */}
-      <div className={`w-64 shrink-0 border-r border-border flex flex-col ${selectedDoc ? 'hidden lg:flex' : 'flex'}`}>
+      <div className={`w-64 shrink-0 border-r border-border flex flex-col bg-[var(--color-surface-0,#0a0a0a)] ${
+        sidebarOpen
+          ? 'fixed inset-y-0 left-0 z-50 lg:relative lg:inset-auto'
+          : selectedDoc ? 'hidden lg:flex' : 'flex'
+      }`}>
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
             <h1 className="text-lg font-extrabold text-white">Knowledge Base</h1>
@@ -452,7 +462,7 @@ export default function KnowledgeBase() {
             const cc = CATEGORY_CONFIG[doc.category];
             return (
               <button key={doc.id}
-                onClick={() => { setSelectedDoc(doc); setEditing(false); }}
+                onClick={() => { setSelectedDoc(doc); setEditing(false); setSidebarOpen(false); }}
                 className={`w-full flex items-start gap-2.5 px-3 py-2.5 rounded-lg text-left transition-colors ${
                   selectedDoc?.id === doc.id ? 'bg-surface-3 border border-border' : 'hover:bg-surface-2'
                 }`}>
@@ -476,6 +486,13 @@ export default function KnowledgeBase() {
 
       {/* Content area */}
       <div className={`flex-1 ${!selectedDoc ? 'hidden lg:flex' : 'flex'} flex-col`}>
+        {/* Mobile sidebar toggle */}
+        {selectedDoc && (
+          <button onClick={() => setSidebarOpen(true)}
+            className="lg:hidden absolute top-3 right-3 z-30 p-2 bg-surface-2 border border-border rounded-lg text-text-muted hover:text-white">
+            <Menu size={18} />
+          </button>
+        )}
         {selectedDoc ? (
           <DocViewer doc={selectedDoc} />
         ) : (

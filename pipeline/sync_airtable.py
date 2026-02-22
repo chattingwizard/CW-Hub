@@ -42,8 +42,8 @@ def upsert_supabase(table, rows, on_conflict="airtable_id"):
     """Upsert rows to Supabase."""
     if not rows:
         return 0
-    url = f"{SUPABASE_URL}/rest/v1/{table}"
-    headers = {**HEADERS_SB, "Prefer": f"resolution=merge-duplicates"}
+    url = f"{SUPABASE_URL}/rest/v1/{table}?on_conflict={on_conflict}"
+    headers = {**HEADERS_SB, "Prefer": "resolution=merge-duplicates"}
     r = requests.post(url, headers=headers, json=rows)
     if r.status_code not in (200, 201):
         print(f"  Error upserting {table}: {r.status_code} {r.text[:300]}")

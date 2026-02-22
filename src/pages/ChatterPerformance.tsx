@@ -253,7 +253,7 @@ export default function ChatterPerformance() {
       </div>
 
       {/* KPI Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 mb-6">
         <KPICard icon={DollarSign} label="Total Sales" value={formatCurrency(totals.totalSales)} color="text-success" />
         <KPICard icon={UsersIcon} label="Active Chatters" value={String(totals.totalChatters)} color="text-cw" />
         <KPICard icon={MessageSquare} label="Total Fans" value={String(totals.totalFans)} color="text-blue-400" />
@@ -262,7 +262,7 @@ export default function ChatterPerformance() {
       </div>
 
       {/* Team Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mb-6">
         {teamAggs.map((t) => {
           const colors = TEAM_COLORS[t.team] ?? { bg: 'bg-surface-2', text: 'text-white', border: 'border-border' };
           return (
@@ -494,7 +494,7 @@ function ChatterRow({
       {isExpanded && (
         <tr className="bg-surface-2/30">
           <td colSpan={11} className="px-6 py-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <DetailItem label="PPV Sales" value={formatCurrency(s.ppv_sales)} />
               <DetailItem label="Tips" value={formatCurrency(s.tips)} />
               <DetailItem label="DM Sales" value={formatCurrency(s.dm_sales)} />
@@ -521,7 +521,7 @@ function ChatterRow({
 
 function DetailItem({ label, value, wide }: { label: string; value: string; wide?: boolean }) {
   return (
-    <div className={wide ? 'col-span-2 md:col-span-4 lg:col-span-6' : ''}>
+    <div className={wide ? 'col-span-1 sm:col-span-2 md:col-span-3 lg:col-span-4' : ''}>
       <p className="text-[11px] text-text-muted mb-0.5">{label}</p>
       <p className="text-sm text-white">{value}</p>
     </div>
