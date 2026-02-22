@@ -63,8 +63,9 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const sections: { key: string; modules: HubModule[] }[] = [];
   let currentSection = '';
   for (const mod of visibleModules) {
-    if (mod.section !== currentSection) {
-      currentSection = mod.section;
+    const sec = mod.section ?? 'main';
+    if (sec !== currentSection) {
+      currentSection = sec;
       sections.push({ key: currentSection, modules: [] });
     }
     sections[sections.length - 1]!.modules.push(mod);

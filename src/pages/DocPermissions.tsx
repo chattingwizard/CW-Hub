@@ -178,7 +178,7 @@ export default function DocPermissions() {
           <tbody>
             {filtered.map((doc, i) => {
               const isOpen = !doc.target_roles || doc.target_roles.length === 0;
-              const prevCat = i > 0 ? filtered[i - 1].category : null;
+              const prevCat = i > 0 ? filtered[i - 1]?.category : null;
               const showCatHeader = doc.category !== prevCat;
 
               return [
