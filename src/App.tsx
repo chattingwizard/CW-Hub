@@ -1,4 +1,4 @@
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, Component, type ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { getDefaultPath } from './lib/roles';
@@ -7,20 +7,47 @@ import Shell from './components/layout/Shell';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import Login from './pages/Login';
 
-const Overview = lazy(() => import('./pages/Overview'));
-const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Schedules = lazy(() => import('./pages/Schedules'));
-const Assignments = lazy(() => import('./pages/Assignments'));
-const ChatterPerformance = lazy(() => import('./pages/ChatterPerformance'));
-const CoachingQueue = lazy(() => import('./pages/CoachingQueue'));
-const CoachingOverview = lazy(() => import('./pages/CoachingOverview'));
-const ChatterDashboard = lazy(() => import('./pages/ChatterDashboard'));
-const Settings = lazy(() => import('./pages/Settings'));
-const EmbeddedModule = lazy(() => import('./pages/EmbeddedModule'));
-const UploadCenter = lazy(() => import('./pages/UploadCenter'));
-const ModelInfo = lazy(() => import('./pages/ModelInfo'));
-const Tasks = lazy(() => import('./pages/Tasks'));
-const KnowledgeBase = lazy(() => import('./pages/KnowledgeBase'));
+function lazyRetry(factory: () => Promise<{ default: React.ComponentType }>) {
+  return lazy(() =>
+    factory().catch(() => {
+      window.location.reload();
+      return factory();
+    }),
+  );
+}
+
+const Overview = lazyRetry(() => import('./pages/Overview'));
+const Dashboard = lazyRetry(() => import('./pages/Dashboard'));
+const Schedules = lazyRetry(() => import('./pages/Schedules'));
+const Assignments = lazyRetry(() => import('./pages/Assignments'));
+const ChatterPerformance = lazyRetry(() => import('./pages/ChatterPerformance'));
+const CoachingQueue = lazyRetry(() => import('./pages/CoachingQueue'));
+const CoachingOverview = lazyRetry(() => import('./pages/CoachingOverview'));
+const ChatterDashboard = lazyRetry(() => import('./pages/ChatterDashboard'));
+const Settings = lazyRetry(() => import('./pages/Settings'));
+const EmbeddedModule = lazyRetry(() => import('./pages/EmbeddedModule'));
+const UploadCenter = lazyRetry(() => import('./pages/UploadCenter'));
+const ModelInfo = lazyRetry(() => import('./pages/ModelInfo'));
+const Tasks = lazyRetry(() => import('./pages/Tasks'));
+const KnowledgeBase = lazyRetry(() => import('./pages/KnowledgeBase'));
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+          <p className="text-text-secondary text-sm">Something went wrong loading this page.</p>
+          <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg bg-cw text-white text-sm font-medium hover:bg-cw/90">
+            Reload
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 function PageLoader() {
   return (
@@ -55,6 +82,7 @@ export default function App() {
 
   return (
     <HashRouter>
+      <ErrorBoundary>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -141,7 +169,7 @@ export default function App() {
             <Route
               path="/upload-center"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'personal_assistant']}>
+                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'script_manager', 'va', 'personal_assistant']}>
                   <UploadCenter />
                 </ProtectedRoute>
               }
@@ -205,6 +233,7 @@ export default function App() {
           />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
     </HashRouter>
   );
 }

@@ -1,20 +1,15 @@
-import ExcelJS from 'exceljs';
-
-/**
- * Normalize an ExcelJS cell value to a primitive (string | number | null).
- * Handles formula cells, rich text, dates, and hyperlinks.
- */
-function normalizeCellValue(val: ExcelJS.CellValue): unknown {
+function normalizeCellValue(val: unknown): unknown {
   if (val === null || val === undefined) return '';
   if (typeof val === 'number' || typeof val === 'boolean') return val;
   if (typeof val === 'string') return val;
   if (val instanceof Date) return val.toISOString().split('T')[0];
 
   if (typeof val === 'object') {
-    if ('result' in val && 'formula' in val) return (val as ExcelJS.CellFormulaValue).result ?? '';
-    if ('richText' in val) return (val as ExcelJS.CellRichTextValue).richText.map(r => r.text).join('');
-    if ('hyperlink' in val) return (val as ExcelJS.CellHyperlinkValue).text ?? '';
-    if ('error' in val) return '';
+    const obj = val as Record<string, unknown>;
+    if ('result' in obj && 'formula' in obj) return obj.result ?? '';
+    if ('richText' in obj && Array.isArray(obj.richText)) return (obj.richText as { text: string }[]).map(r => r.text).join('');
+    if ('hyperlink' in obj && 'text' in obj) return obj.text ?? '';
+    if ('error' in obj) return '';
   }
 
   return String(val);
@@ -79,6 +74,7 @@ export async function readSpreadsheet(file: File): Promise<Record<string, unknow
     throw new Error('The .xls format is not supported. Please export as .xlsx or .csv.');
   }
 
+  const ExcelJS = (await import('exceljs')).default;
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
 

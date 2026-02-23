@@ -100,7 +100,7 @@ export const modules: HubModule[] = [
     icon: 'Upload',
     type: 'internal',
     path: '/upload-center',
-    roles: ['owner', 'admin', 'chatter_manager', 'va', 'personal_assistant'],
+    roles: ['owner', 'admin', 'chatter_manager', 'script_manager', 'va', 'personal_assistant'],
     section: 'tools',
     dividerBefore: true,
   },
