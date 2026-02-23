@@ -13,6 +13,7 @@ interface UploadResult {
 // Column mapping from Infloww Creator Report to our schema
 const COLUMN_MAP: Record<string, string> = {
   'creator': 'creator_name',
+  'creators': 'creator_name',
   'new fans': 'new_fans_net',
   'active fans': 'active_fans',
   'fans with renew on': 'fans_renew_on',
@@ -26,9 +27,14 @@ const COLUMN_MAP: Record<string, string> = {
   'avg subscription length': 'avg_sub_length',
   'of ranking': 'of_ranking',
   'following': 'following',
-  'date/time africa/monrovia': 'date_range',
   'new subscriptions net': 'new_subs_earnings',
 };
+
+function mapCreatorHeader(normalized: string): string | undefined {
+  if (COLUMN_MAP[normalized]) return COLUMN_MAP[normalized];
+  if (normalized.startsWith('date/time')) return 'date_range';
+  return undefined;
+}
 
 function parseMoneyValue(val: unknown): number {
   if (typeof val === 'number') return val;
@@ -90,7 +96,7 @@ export default function CreatorReportUpload({ onUploadComplete }: { onUploadComp
       const headerMap = new Map<string, string>();
       for (const key of Object.keys(firstRow)) {
         const normalized = key.toLowerCase().trim();
-        const mapped = COLUMN_MAP[normalized];
+        const mapped = mapCreatorHeader(normalized);
         if (mapped) headerMap.set(key, mapped);
       }
 

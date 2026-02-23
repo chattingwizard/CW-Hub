@@ -12,7 +12,9 @@ interface UploadResult {
 
 const COLUMN_MAP: Record<string, string> = {
   'employee': 'employee_name',
+  'employees': 'employee_name',
   'creators': 'creators',
+  'creator': 'creators',
   'sales': 'sales',
   'ppv sales': 'ppv_sales',
   'tips': 'tips',
@@ -37,9 +39,13 @@ const COLUMN_MAP: Record<string, string> = {
   'sales per hour': 'sales_per_hour',
   'messages per hour': 'messages_per_hour',
   'fans per hour': 'fans_per_hour',
-  'date/time utc': 'date_range',
-  'date/time africa/monrovia': 'date_range',
 };
+
+function mapHeader(normalized: string): string | undefined {
+  if (COLUMN_MAP[normalized]) return COLUMN_MAP[normalized];
+  if (normalized.startsWith('date/time')) return 'date_range';
+  return undefined;
+}
 
 function parseNum(val: unknown): number {
   if (typeof val === 'number') return val;
@@ -93,7 +99,7 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
       const headerMap = new Map<string, string>();
       for (const key of Object.keys(firstRow)) {
         const normalized = key.toLowerCase().trim();
-        const mapped = COLUMN_MAP[normalized];
+        const mapped = mapHeader(normalized);
         if (mapped) headerMap.set(key, mapped);
       }
 
