@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { modules } from '../lib/modules';
+import { supabase } from '../lib/supabase';
 import { ExternalLink, AlertCircle } from 'lucide-react';
 
 export default function EmbeddedModule() {
@@ -8,6 +9,21 @@ export default function EmbeddedModule() {
   const mod = modules.find((m) => m.id === moduleId);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const handleIframeLoad = useCallback(async () => {
+    setLoading(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({
+          type: 'cw-hub-session',
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        }, '*');
+      }
+    } catch { /* iframe may block postMessage on cross-origin */ }
+  }, []);
 
   if (!mod || mod.type !== 'iframe') {
     return (
@@ -24,7 +40,6 @@ export default function EmbeddedModule() {
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Thin header bar */}
       <div className="h-10 bg-surface-1 border-b border-border flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-sm text-white font-medium">{mod.name}</span>
@@ -43,7 +58,6 @@ export default function EmbeddedModule() {
         </a>
       </div>
 
-      {/* Error state */}
       {error && (
         <div className="flex-1 flex items-center justify-center bg-surface-0">
           <div className="text-center">
@@ -65,15 +79,15 @@ export default function EmbeddedModule() {
         </div>
       )}
 
-      {/* iframe */}
       <iframe
+        ref={iframeRef}
         src={iframeUrl}
         className={`flex-1 w-full border-0 bg-surface-0 ${error ? 'hidden' : ''}`}
         title={mod.name}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
         allow="clipboard-write"
         referrerPolicy="no-referrer"
-        onLoad={() => setLoading(false)}
+        onLoad={handleIframeLoad}
         onError={() => { setLoading(false); setError(true); }}
       />
     </div>
