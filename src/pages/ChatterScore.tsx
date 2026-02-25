@@ -165,22 +165,20 @@ export default function ChatterScore() {
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-border">
-        <div className="flex gap-0.5">
-          {TABS.filter(t => !t.adminOnly || isAdmin).map(t => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`px-4 py-2.5 text-xs font-medium transition-all border-b-2 ${
-                tab === t.id
-                  ? 'border-cw text-cw'
-                  : 'border-transparent text-text-muted hover:text-text-primary'
-              }`}
-            >
-              {t.label}
-            </button>
-          ))}
-        </div>
+      <div className="flex gap-0.5 bg-surface-1 border border-border rounded-xl p-1 w-fit mb-1">
+        {TABS.filter(t => !t.adminOnly || isAdmin).map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+              tab === t.id
+                ? 'bg-surface-3 text-text-primary shadow-sm'
+                : 'text-text-muted hover:text-text-primary'
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {/* Tab content */}
@@ -235,9 +233,20 @@ export default function ChatterScore() {
                       {filteredScores.map((s, i) => {
                         const badge = getStatusBadge(s.status);
                         return (
-                          <tr key={s.chatter_id} className="border-b border-border/50 hover:bg-surface-2/50 transition-colors">
-                            <td className="px-4 py-2.5 text-xs text-text-muted font-medium">{i + 1}</td>
-                            <td className="px-4 py-2.5 text-xs font-medium text-text-primary">{s.chatter_name}</td>
+                          <tr key={s.chatter_id} className="border-b border-border/50 hover:bg-surface-2/50 transition-colors cursor-pointer" onClick={() => setDrawerChatterId(s.chatter_id)}>
+                            <td className="px-4 py-2.5 text-xs text-text-muted font-medium">
+                              {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                            </td>
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-[7px] h-[7px] rounded-full shrink-0 ${
+                                  s.team_name?.includes('Huckle') ? 'bg-team-huckle' :
+                                  s.team_name?.includes('Danilyn') ? 'bg-team-danilyn' :
+                                  s.team_name?.includes('Ezekiel') ? 'bg-team-ezekiel' : 'bg-text-muted'
+                                }`} />
+                                <span className="text-xs font-medium text-text-primary">{s.chatter_name}</span>
+                              </div>
+                            </td>
                             <td className="px-4 py-2.5">
                               {s.team_name && (
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-3 text-text-muted font-medium">
