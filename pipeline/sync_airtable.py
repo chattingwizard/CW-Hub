@@ -50,12 +50,15 @@ def upsert_supabase(table, rows, on_conflict="airtable_id"):
         return 0
     return len(rows)
 
+ACTIVE_STATUSES = {"Active"}
+
 def sync_chatters():
-    """Sync Chatter table from Airtable."""
+    """Sync Chatter table from Airtable, respecting ⚡Status field."""
     print("📋 Syncing chatters...")
     records = fetch_airtable("tblBrbCZyL5ub48zc")
     
     rows = []
+    active_count = 0
     for rec in records:
         f = rec.get("fields", {})
         name = f.get("Name", f.get("Full Name", ""))
@@ -63,6 +66,11 @@ def sync_chatters():
             continue
         
         role = f.get("⚡️Rol", "")
+        at_status = f.get("\u26a1\ufe0fStatus", f.get("\u26a1Status", ""))
+        status = "Active" if at_status in ACTIVE_STATUSES else "Inactive"
+        if status == "Active":
+            active_count += 1
+        
         team_names = f.get("Team", [])
         team_name = None
         if isinstance(team_names, list) and team_names:
@@ -73,7 +81,7 @@ def sync_chatters():
         rows.append({
             "airtable_id": rec["id"],
             "full_name": name.strip(),
-            "status": "Active",
+            "status": status,
             "airtable_role": role or None,
             "team_name": team_name,
             "favorite_shift": f.get("Favorite Shift", None),
@@ -81,7 +89,7 @@ def sync_chatters():
         })
     
     count = upsert_supabase("chatters", rows)
-    print(f"  ✅ {count} chatters synced")
+    print(f"  ✅ {count} chatters synced ({active_count} active, {count - active_count} inactive)")
 
 def sync_models():
     """Sync Models table from Airtable."""
