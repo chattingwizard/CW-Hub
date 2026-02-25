@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { isAdminLevel } from '../lib/roles';
@@ -14,6 +14,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
   Signal,
   SignalLow,
@@ -22,6 +24,8 @@ import {
   ShieldAlert,
   ArrowLeftRight,
   StickyNote,
+  CalendarDays,
+  Trash2,
 } from 'lucide-react';
 
 const TEAMS = ['Team Danilyn', 'Team Huckle', 'Team Ezekiel'] as const;
@@ -212,12 +216,7 @@ function SubmitTab({ chatters }: { chatters: Chatter[] }) {
         {/* Date */}
         <div>
           <label className="text-xs text-text-muted mb-1.5 block">Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            className="w-full bg-surface-2 border border-border rounded-lg px-3 py-2.5 text-sm text-text-primary"
-          />
+          <DatePicker value={date} onChange={setDate} />
         </div>
 
         {/* Team + Model Team (side by side) */}
@@ -394,11 +393,14 @@ function SubmitTab({ chatters }: { chatters: Chatter[] }) {
 function ReportsTab({ chatters }: { chatters: Chatter[] }) {
   const { profile } = useAuthStore();
   const isChatter = profile?.role === 'chatter';
+  const isAdmin = profile ? isAdminLevel(profile.role) : false;
 
   const [reports, setReports] = useState<ShiftReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [teamFilter, setTeamFilter] = useState('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadReports();
@@ -423,6 +425,17 @@ function ReportsTab({ chatters }: { chatters: Chatter[] }) {
     const { data } = await query;
     setReports(data || []);
     setLoading(false);
+  }
+
+  async function handleDelete(reportId: string) {
+    setDeleting(true);
+    const { error } = await supabase.from('shift_reports').delete().eq('id', reportId);
+    if (!error) {
+      setReports(prev => prev.filter(r => r.id !== reportId));
+      setExpandedId(null);
+    }
+    setConfirmDeleteId(null);
+    setDeleting(false);
   }
 
   const filtered = teamFilter === 'all' ? reports : reports.filter(r => r.team === teamFilter);
@@ -513,7 +526,65 @@ function ReportsTab({ chatters }: { chatters: Chatter[] }) {
                 </button>
 
                 {expanded && (
-                  <div className="px-4 pb-4 pt-1 space-y-3 border-t border-border">
+                  <div className="px-4 pb-4 pt-3 space-y-4 border-t border-border">
+                    {/* Summary grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="bg-surface-2 rounded-lg px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60 mb-0.5">Date</p>
+                        <p className="text-sm font-medium text-text-primary">{dateStr}</p>
+                      </div>
+                      <div className="bg-surface-2 rounded-lg px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60 mb-0.5">Team</p>
+                        <p className="text-sm font-medium text-text-primary">{report.team}</p>
+                      </div>
+                      <div className="bg-surface-2 rounded-lg px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60 mb-0.5">Model Team</p>
+                        <p className="text-sm font-medium text-text-primary">Team {report.model_team}</p>
+                      </div>
+                      <div className="bg-surface-2 rounded-lg px-3 py-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60 mb-0.5">Traffic</p>
+                        <span className={`inline-flex items-center gap-1 text-sm font-medium ${trafficCfg.color.split(' ')[0]}`}>
+                          <trafficCfg.icon size={14} />
+                          {trafficCfg.label}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Incidents & Covers status */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className={`rounded-lg px-3 py-2 border ${
+                        report.has_incident
+                          ? 'bg-red-500/5 border-red-500/20'
+                          : 'bg-emerald-500/5 border-emerald-500/20'
+                      }`}>
+                        <div className="flex items-center gap-1.5">
+                          {report.has_incident
+                            ? <X size={13} className="text-red-400" />
+                            : <Check size={13} className="text-emerald-400" />}
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60">Incidents</p>
+                        </div>
+                        <p className={`text-sm font-medium mt-0.5 ${report.has_incident ? 'text-red-400' : 'text-emerald-400'}`}>
+                          {report.has_incident ? 'Yes' : 'None'}
+                        </p>
+                      </div>
+                      <div className={`rounded-lg px-3 py-2 border ${
+                        report.has_cover
+                          ? 'bg-amber-500/5 border-amber-500/20'
+                          : 'bg-emerald-500/5 border-emerald-500/20'
+                      }`}>
+                        <div className="flex items-center gap-1.5">
+                          {report.has_cover
+                            ? <ArrowLeftRight size={13} className="text-amber-400" />
+                            : <Check size={13} className="text-emerald-400" />}
+                          <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60">Cover</p>
+                        </div>
+                        <p className={`text-sm font-medium mt-0.5 ${report.has_cover ? 'text-amber-400' : 'text-emerald-400'}`}>
+                          {report.has_cover ? 'Yes' : 'None'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Incident notes */}
                     {report.has_incident && report.incident_notes && (
                       <div className="flex gap-2">
                         <ShieldAlert size={14} className="text-red-400 shrink-0 mt-0.5" />
@@ -523,6 +594,8 @@ function ReportsTab({ chatters }: { chatters: Chatter[] }) {
                         </div>
                       </div>
                     )}
+
+                    {/* Cover notes */}
                     {report.has_cover && report.cover_notes && (
                       <div className="flex gap-2">
                         <ArrowLeftRight size={14} className="text-amber-400 shrink-0 mt-0.5" />
@@ -532,6 +605,8 @@ function ReportsTab({ chatters }: { chatters: Chatter[] }) {
                         </div>
                       </div>
                     )}
+
+                    {/* Notes */}
                     {report.notes && (
                       <div className="flex gap-2">
                         <StickyNote size={14} className="text-text-muted shrink-0 mt-0.5" />
@@ -541,8 +616,41 @@ function ReportsTab({ chatters }: { chatters: Chatter[] }) {
                         </div>
                       </div>
                     )}
-                    {!report.incident_notes && !report.cover_notes && !report.notes && (
-                      <p className="text-xs text-text-muted italic">No additional details</p>
+
+                    {/* Delete (admin only) */}
+                    {isAdmin && (
+                      <div className="pt-2 border-t border-border">
+                        {confirmDeleteId === report.id ? (
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-red-400 font-medium">Delete this report permanently?</span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => setConfirmDeleteId(null)}
+                                disabled={deleting}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-2 border border-border text-text-secondary hover:text-text-primary transition-all"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleDelete(report.id)}
+                                disabled={deleting}
+                                className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 disabled:opacity-40 transition-all flex items-center gap-1"
+                              >
+                                {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                                Confirm Delete
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmDeleteId(report.id)}
+                            className="flex items-center gap-1.5 text-xs text-text-muted hover:text-red-400 transition-colors"
+                          >
+                            <Trash2 size={12} />
+                            Delete Report
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
@@ -792,6 +900,154 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
               </div>
             );
           })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Date Picker ──────────────────────────────────────────────
+
+const WEEKDAY_LABELS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+
+function DatePicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  const selected = new Date(value + 'T00:00:00');
+  const [viewYear, setViewYear] = useState(selected.getFullYear());
+  const [viewMonth, setViewMonth] = useState(selected.getMonth());
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  function prevMonth() {
+    if (viewMonth === 0) { setViewMonth(11); setViewYear(y => y - 1); }
+    else setViewMonth(m => m - 1);
+  }
+
+  function nextMonth() {
+    if (viewMonth === 11) { setViewMonth(0); setViewYear(y => y + 1); }
+    else setViewMonth(m => m + 1);
+  }
+
+  function goToday() {
+    const now = new Date();
+    setViewYear(now.getFullYear());
+    setViewMonth(now.getMonth());
+    onChange(todayStr);
+    setOpen(false);
+  }
+
+  function selectDay(day: number) {
+    const d = new Date(viewYear, viewMonth, day);
+    onChange(d.toISOString().slice(0, 10));
+    setOpen(false);
+  }
+
+  const firstDayOfMonth = new Date(viewYear, viewMonth, 1).getDay();
+  const offsetDays = (firstDayOfMonth + 6) % 7;
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+  const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
+
+  const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const displayLabel = selected.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+
+  const isToday = value === todayStr;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`w-full flex items-center gap-2.5 bg-surface-2 border rounded-lg px-3 py-2.5 text-sm text-left transition-all ${
+          open ? 'border-cw ring-1 ring-cw/20' : 'border-border hover:border-zinc-600'
+        }`}
+      >
+        <CalendarDays size={16} className="text-cw shrink-0" />
+        <span className="text-text-primary flex-1">{displayLabel}</span>
+        {isToday && (
+          <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-cw/15 text-cw border border-cw/20">Today</span>
+        )}
+        <ChevronDown size={14} className={`text-text-muted transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && (
+        <div className="absolute z-50 mt-1.5 w-full bg-surface-1 border border-border rounded-xl shadow-xl shadow-black/30 p-3 animate-in fade-in slide-in-from-top-1 duration-150">
+          {/* Month nav */}
+          <div className="flex items-center justify-between mb-3">
+            <button type="button" onClick={prevMonth} className="p-1 rounded-lg hover:bg-surface-2 text-text-muted hover:text-text-primary transition-colors">
+              <ChevronLeft size={16} />
+            </button>
+            <span className="text-sm font-semibold text-text-primary">{monthLabel}</span>
+            <button type="button" onClick={nextMonth} className="p-1 rounded-lg hover:bg-surface-2 text-text-muted hover:text-text-primary transition-colors">
+              <ChevronRight size={16} />
+            </button>
+          </div>
+
+          {/* Weekday headers */}
+          <div className="grid grid-cols-7 mb-1">
+            {WEEKDAY_LABELS.map(d => (
+              <div key={d} className="text-center text-[10px] font-semibold text-text-muted/60 uppercase py-1">{d}</div>
+            ))}
+          </div>
+
+          {/* Day grid */}
+          <div className="grid grid-cols-7">
+            {/* Previous month trailing days */}
+            {Array.from({ length: offsetDays }, (_, i) => {
+              const day = daysInPrevMonth - offsetDays + 1 + i;
+              return (
+                <div key={`prev-${i}`} className="text-center py-1.5">
+                  <span className="text-xs text-text-muted/30">{day}</span>
+                </div>
+              );
+            })}
+
+            {/* Current month days */}
+            {Array.from({ length: daysInMonth }, (_, i) => {
+              const day = i + 1;
+              const dateStr = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const isSelected = dateStr === value;
+              const isTodayCell = dateStr === todayStr;
+
+              return (
+                <div key={day} className="text-center py-0.5">
+                  <button
+                    type="button"
+                    onClick={() => selectDay(day)}
+                    className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                      isSelected
+                        ? 'bg-cw text-white shadow-sm shadow-cw/30'
+                        : isTodayCell
+                          ? 'bg-cw/10 text-cw border border-cw/30 hover:bg-cw/20'
+                          : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary'
+                    }`}
+                  >
+                    {day}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Today shortcut */}
+          <div className="mt-2 pt-2 border-t border-border flex justify-center">
+            <button
+              type="button"
+              onClick={goToday}
+              className="text-xs text-cw hover:text-cw/80 font-medium transition-colors"
+            >
+              Go to today
+            </button>
+          </div>
         </div>
       )}
     </div>
