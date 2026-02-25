@@ -44,6 +44,15 @@ export const modules: HubModule[] = [
     section: 'main',
   },
   {
+    id: 'infloww-kpis',
+    name: 'Infloww KPIs',
+    icon: 'BarChart3',
+    type: 'internal',
+    path: '/infloww-kpis',
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    section: 'main',
+  },
+  {
     id: 'schedules',
     name: 'Schedules',
     icon: 'Calendar',
