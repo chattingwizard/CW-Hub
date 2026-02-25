@@ -26,8 +26,8 @@ export function getWeekEnd(date: Date): Date {
 }
 
 export function parseWeekKey(weekKey: string): { year: number; week: number } {
-  const [yearStr, weekStr] = weekKey.split('-W');
-  return { year: parseInt(yearStr, 10), week: parseInt(weekStr, 10) };
+  const parts = weekKey.split('-W');
+  return { year: parseInt(parts[0] ?? '0', 10), week: parseInt(parts[1] ?? '0', 10) };
 }
 
 export function weekKeyToMonday(weekKey: string): Date {
