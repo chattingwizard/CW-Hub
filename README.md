@@ -1,75 +1,120 @@
 # CW Hub — Chatting Wizard Operations Center
 
-Centralized web panel for Chatting Wizard. Manages model performance, chatter schedules, assignments, and integrates all CW tools into one unified interface.
+Centralized web panel for Chatting Wizard. Manages model performance, chatter schedules, assignments, coaching, scoring, and integrates all CW tools into one unified interface.
 
 ## Tech Stack
 
 - **Frontend:** React 19 + TypeScript + Vite
 - **Styling:** Tailwind CSS 4 (dark theme with CW blue `#1d9bf0`)
 - **State:** Zustand
-- **Backend:** Supabase (Auth, Database, RLS, RPCs)
-- **Hosting:** GitHub Pages (future: custom domain via Hostinger)
-- **Data sync:** Airtable → Supabase (Python script + GitHub Actions)
+- **Backend:** Supabase (Auth, Database, RLS, RPCs, Realtime)
+- **Hosting:** GitHub Pages via GitHub Actions (auto-deploy on push to `main`)
+- **Data sync:** Airtable + Hubstaff → Supabase (Python scripts + GitHub Actions)
+
+## Quick Start
+
+```bash
+git clone https://github.com/chattingwizard/CW-Hub.git
+cd CW-Hub
+npm install
+npm run dev
+```
+
+The frontend connects to Supabase directly (anon key is in `src/lib/supabase.ts` by design). No `.env` needed for frontend development.
+
+### Pipeline scripts (optional)
+
+If you need to run data sync scripts locally:
+
+```bash
+cp .env.example .env
+# Fill in the values — ask Pau for credentials via DM (never public channels)
+```
+
+## Branch Workflow
+
+**Never push directly to `main`.** All work goes through feature branches + Pull Requests.
+
+```
+main (protected — auto-deploys to GitHub Pages)
+  |
+  +-- yourname/feature-name (your working branch)
+```
+
+1. Create a branch: `git checkout -b yourname/feature-description`
+2. Make your changes and commit
+3. Push: `git push -u origin yourname/feature-description`
+4. Open a Pull Request on GitHub
+5. Merge to `main` when ready — deploy happens automatically
 
 ## Roles
 
 | Role | Access |
 |---|---|
 | `owner` | Everything + admin management + settings |
-| `admin` | Dashboard, Schedules, Assignments, Coaching, School |
-| `chatter` | Own dashboard, schedule, team models, Coaching, School |
+| `admin` | Dashboard, Schedules, Assignments, Coaching, School, Score |
+| `chatter_manager` | Overview, Dashboard, Coaching, Schedules, Assignments |
+| `team_leader` | Dashboard, Coaching Queue, Schedules, Assignments |
+| `chatter` | Own dashboard, schedule, team models, School |
 | `recruit` | School only |
 
 ## Views
 
-### Admin/Owner
-- **Dashboard** — Model performance metrics, KPI cards, CSV upload for weekly data
-- **Schedules** — Weekly schedule grid (3 shifts × 7 days), quick assign, copy previous week
-- **Assignments** — Assign chatters to models, filter by team/status
-- **Settings** — Generate invite codes, manage user roles
+| View | Roles | Description |
+|---|---|---|
+| Overview | owner, admin, chatter_manager | High-level KPIs, alerts, team breakdown |
+| Model Performance | owner, admin, chatter_manager, team_leader | Creator Report upload + model revenue/traffic |
+| Schedules | owner, admin, chatter_manager, team_leader | Weekly schedule grid (3 shifts x 7 days) |
+| Assignments | owner, admin, chatter_manager, team_leader | Model-chatter assignment management |
+| Chatter Performance | owner, admin, chatter_manager, team_leader | Daily KPIs from Employee Reports |
+| Coaching Queue | owner, admin, chatter_manager, team_leader | Daily coaching task queue for TLs |
+| Coaching Overview | owner | Coaching system monitoring |
+| Chatter Score | owner, admin, chatter_manager, team_leader | Weekly points, leaderboard, bonuses |
+| Upload Center | owner, admin, chatter_manager | Employee + Creator Report upload |
+| Knowledge Base | all authenticated | Company documentation, role-filtered |
+| Tasks | all authenticated | Task management |
+| My Dashboard | chatter | Self-service: schedule, stats, score |
+| Settings | owner | User management, invite codes, doc permissions |
+| School | all authenticated | Training platform (iframe) |
+| Scripts | all authenticated | Script manager (iframe) |
 
-### Chatter
-- **My Dashboard** — Hours worked, schedule, team models
+## Project Structure
 
-### Embedded (all authenticated roles)
-- **Coaching** — Coaching dashboard via iframe
-- **School** — Training platform via iframe
-- **Scripts** — Script manager via iframe (coming soon)
-
-## Development
-
-```bash
-# Install
-npm install
-
-# Dev server
-npm run dev
-
-# Build
-npm run build
+```
+src/
+  components/       UI components (reusable)
+  pages/            Route-level page components
+  hooks/            Custom React hooks
+  stores/           Zustand state stores
+  lib/              Utilities, Supabase client, modules config
+  types/            TypeScript interfaces
+pipeline/           Python scripts for data sync (Airtable, Hubstaff)
+.cursor/rules/      Cursor AI context rules (auto-loaded)
+.github/workflows/  CI/CD (deploy + pipeline schedules)
 ```
 
-## Supabase Setup
+## Cursor AI Context
 
-1. Run `supabase/migration_fixed.sql` in the Supabase SQL Editor
-2. Seed initial data with `sync/generate_seed_sql.py` or `sync/sync_airtable.py`
-3. Set Pau's profile role to `owner` manually in Supabase
+The `.cursor/rules/` directory contains project context files that Cursor loads automatically:
 
-## CSV Upload Format
+| File | Content |
+|---|---|
+| `cw-hub-context.mdc` | Tech stack, roles, views, tables, design system |
+| `coaching-system.mdc` | Coaching business rules, data sources, pipeline |
+| `airtable-schema.mdc` | Full Airtable schema (36 tables) |
+| `security-protocol.mdc` | Security rules, credential storage, pre-commit hooks |
 
-Upload model metrics through the Dashboard. Required columns:
+These load automatically when you open the project in Cursor.
 
-| Column | Required | Description |
+## Data Sources
+
+| Data | Source | Sync |
 |---|---|---|
-| `model_name` | Yes | Must match model name in Supabase exactly |
-| `date` | Yes | Any date in the week (system auto-calculates week start) |
-| `revenue` | Yes | Total revenue for the week |
-| `new_subs` | No | New subscribers |
-| `messages_revenue` | No | Revenue from messages |
-| `tips` | No | Tips received |
-| `refunds` | No | Refund amount |
-
-See `sample_data/model_metrics_example.csv` for an example.
+| Models, Chatters, Teams | Airtable | `pipeline/sync_airtable.py` (every 6h via GitHub Actions) |
+| Model revenue/traffic | Infloww Creator Reports (.xlsx) | Upload via Hub UI |
+| Chatter daily KPIs | Inflow Employee Reports (.csv) | Upload via Hub UI |
+| Hours worked | Hubstaff API | `pipeline/sync_hubstaff.py` (every 6h via GitHub Actions) |
+| Schedules, Assignments | Hub (Supabase) | Created directly in Hub |
 
 ## Adding New Modules
 
@@ -80,7 +125,7 @@ Edit `src/lib/modules.ts`:
 {
   id: 'new-module',
   name: 'New Module',
-  icon: 'IconName', // Lucide icon
+  icon: 'IconName', // Lucide icon name
   type: 'internal',
   path: '/new-module',
   roles: ['owner', 'admin'],
@@ -97,30 +142,13 @@ Edit `src/lib/modules.ts`:
 }
 ```
 
-## GitHub Secrets (for automated sync)
+Then add the route in `src/App.tsx` and (if internal) create the page component in `src/pages/`.
+
+## GitHub Secrets (for automated pipelines)
 
 | Secret | Description |
 |---|---|
 | `AIRTABLE_TOKEN` | Airtable API token |
 | `SUPABASE_URL` | `https://bnmrdlqqzxenyqjknqhy.supabase.co` |
 | `SUPABASE_SERVICE_KEY` | Supabase service_role key |
-
-## Architecture
-
-```
-CW Hub (React SPA)
-├── Auth (Supabase)
-├── Internal Views
-│   ├── Dashboard (model metrics, CSV upload)
-│   ├── Schedules (weekly grid)
-│   ├── Assignments (model ↔ chatter)
-│   ├── ChatterDashboard (own stats)
-│   └── Settings (users, invite codes)
-├── Embedded Modules (iframes)
-│   ├── Coaching Dashboard
-│   ├── Chatting School
-│   └── Script Manager (future)
-└── Data Sync
-    ├── Airtable → Supabase (Python/GitHub Actions)
-    └── CSV Upload (via Dashboard UI)
-```
+| `HUBSTAFF_TOKEN` | Hubstaff API JWT |

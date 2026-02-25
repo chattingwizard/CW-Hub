@@ -49,7 +49,7 @@ for file in $FILES; do
       echo "BLOCKED: Sensitive file type: $file"
       FOUND=1
       ;;
-    .env|.env.*|*.env)
+    .env|.env.local|.env.production|.env.development)
       echo "BLOCKED: Environment file: $file"
       FOUND=1
       ;;

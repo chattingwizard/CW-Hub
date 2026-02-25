@@ -1,6 +1,6 @@
 ---
-description: Pau Lopez context — COO operating this workspace. Loads cursor_context/ for decisions and business logic.
-alwaysApply: true
+description: Pau Lopez context — COO operating this workspace. Loads cursor_context/ for decisions and business logic. Use @pau-context to activate.
+alwaysApply: false
 ---
 
 # Pau Context (COO — Chatting Wizard)
