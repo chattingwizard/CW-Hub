@@ -196,12 +196,14 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
       });
       if (error) throw error;
 
-      await supabase.from('csv_uploads').insert({
-        uploaded_by: profile!.id,
-        file_name: file.name,
-        row_count: rows.length,
-        upload_type: 'employee_report',
-      });
+      if (profile) {
+        await supabase.from('csv_uploads').insert({
+          uploaded_by: profile.id,
+          file_name: file.name,
+          row_count: rows.length,
+          upload_type: 'employee_report',
+        });
+      }
 
       const details: string[] = [];
       details.push(`Date: ${reportDate || 'today'}`);

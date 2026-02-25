@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { TEAM_COLORS, SHIFT_LABELS, SHIFTS, formatCurrency, getCurrentShift } from '../lib/utils';
 import { getTeamColor, getTLForShift } from '../lib/roles';
@@ -20,29 +20,32 @@ export default function Overview() {
   const [loading, setLoading] = useState(true);
   const { modelTraffic, teamTraffic, getModelTraffic, globalAvg } = useTrafficData();
 
-  const getWeekStart = () => {
+  const weekStart = useMemo(() => {
     const d = new Date();
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     d.setDate(diff);
     return d.toISOString().split('T')[0]!;
-  };
-
-  const weekStart = getWeekStart();
+  }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [modelsRes, chattersRes, assignRes, schedRes] = await Promise.all([
-      supabase.from('models').select('*'),
-      supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
-      supabase.from('model_chatter_assignments').select('*').eq('active', true),
-      supabase.from('schedules').select('*').eq('week_start', weekStart),
-    ]);
-    setModels((modelsRes.data ?? []) as Model[]);
-    setChatters((chattersRes.data ?? []) as Chatter[]);
-    setAssignments((assignRes.data ?? []) as ModelChatterAssignment[]);
-    setSchedules((schedRes.data ?? []) as Schedule[]);
-    setLoading(false);
+    try {
+      const [modelsRes, chattersRes, assignRes, schedRes] = await Promise.all([
+        supabase.from('models').select('*'),
+        supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
+        supabase.from('model_chatter_assignments').select('*').eq('active', true),
+        supabase.from('schedules').select('*').eq('week_start', weekStart),
+      ]);
+      setModels((modelsRes.data ?? []) as Model[]);
+      setChatters((chattersRes.data ?? []) as Chatter[]);
+      setAssignments((assignRes.data ?? []) as ModelChatterAssignment[]);
+      setSchedules((schedRes.data ?? []) as Schedule[]);
+    } catch (err) {
+      console.error('Overview fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
   }, [weekStart]);
 
   useEffect(() => { fetchData(); }, [fetchData]);

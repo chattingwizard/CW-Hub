@@ -3,6 +3,8 @@ import { supabase } from '../lib/supabase';
 import type { Profile, UserRole } from '../types';
 import { isManagement, isLeadership, isAdminLevel } from '../lib/roles';
 
+let authSubscription: { unsubscribe: () => void } | null = null;
+
 interface AuthState {
   user: { id: string; email: string } | null;
   profile: Profile | null;
@@ -28,6 +30,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialized: false,
 
   initialize: async () => {
+    if (authSubscription) {
+      authSubscription.unsubscribe();
+      authSubscription = null;
+    }
+
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -46,11 +53,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } else {
         set({ user: null, profile: null, initialized: true });
       }
-    } catch {
+    } catch (err) {
+      console.error('Auth init failed:', err);
       set({ user: null, profile: null, initialized: true });
     }
 
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT') {
         const { data: { session: retrySession } } = await supabase.auth.getSession();
         if (retrySession?.user) return;
@@ -73,6 +81,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         });
       }
     });
+    authSubscription = subscription;
   },
 
   signIn: async (email: string, password: string) => {
@@ -113,18 +122,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Sign out error:', err);
+    }
     set({ user: null, profile: null });
   },
 
   refreshProfile: async () => {
     const { user } = get();
     if (!user) return;
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', user.id)
       .single();
+    if (error) {
+      console.error('Profile refresh failed:', error);
+      return;
+    }
     set({ profile: profile as Profile | null });
   },
 

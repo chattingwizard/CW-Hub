@@ -10,7 +10,11 @@ import Login from './pages/Login';
 function lazyRetry(factory: () => Promise<{ default: React.ComponentType }>) {
   return lazy(() =>
     factory().catch(() => {
-      window.location.reload();
+      const key = 'lazyRetry_' + factory.toString().slice(0, 50);
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, '1');
+        window.location.reload();
+      }
       return factory();
     }),
   );

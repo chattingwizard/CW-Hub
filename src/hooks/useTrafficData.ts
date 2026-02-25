@@ -303,7 +303,13 @@ export function useTrafficData(): UseTrafficDataReturn {
   }, []);
 
   useEffect(() => {
-    fetchData();
+    let cancelled = false;
+    const load = async () => {
+      await fetchData();
+      if (cancelled) return;
+    };
+    load();
+    return () => { cancelled = true; };
   }, [fetchData]);
 
   const getModelTraffic = useCallback(

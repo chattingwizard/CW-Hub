@@ -192,12 +192,14 @@ export default function CreatorReportUpload({ onUploadComplete }: { onUploadComp
       if (error) throw error;
 
       // Log upload
-      await supabase.from('csv_uploads').insert({
-        uploaded_by: profile!.id,
-        file_name: file.name,
-        row_count: rows.length,
-        upload_type: 'creator_report',
-      });
+      if (profile) {
+        await supabase.from('csv_uploads').insert({
+          uploaded_by: profile.id,
+          file_name: file.name,
+          row_count: rows.length,
+          upload_type: 'creator_report',
+        });
+      }
 
       const details: string[] = [];
       details.push(`Date: ${dateStr}`);
