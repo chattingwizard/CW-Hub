@@ -544,6 +544,344 @@ export function formatDateRange(range: { from: string; to: string }): string {
   return `${fmt(range.from)} — ${fmt(inclEnd)}`;
 }
 
+// ── Compact View Data ──
+
+export const COMPACT_BONUS = [60, 40, 30, 20, 15, 12, 10, 6, 4, 3];
+export const COMPACT_JACKPOT = [75, 50, 37, 25, 19, 14, 11, 8, 6, 5];
+export const RANK_MEDALS = ['🥇', '🥈', '🥉'];
+export const COMPACT_VISIBLE = 12;
+
+export function getCompactRanking(data: EmployeeMetrics[]) {
+  return [...data].sort((a, b) => {
+    const va = isNaN(Number(a.sales)) ? -Infinity : Number(a.sales);
+    const vb = isNaN(Number(b.sales)) ? -Infinity : Number(b.sales);
+    return vb - va;
+  });
+}
+
+export function getTotalSales(data: EmployeeMetrics[]): number {
+  return data.reduce((s, r) => s + (isNaN(Number(r.sales)) ? 0 : Number(r.sales)), 0);
+}
+
+// ── Google Sheets Export ──
+
+const GSHEET_CID_KEY = 'infloww_gsheet_client_id';
+const GSHEET_ID_KEY = 'infloww_gsheet_id';
+
+export function getGsheetClientId(): string {
+  return localStorage.getItem(GSHEET_CID_KEY) || '';
+}
+
+export function saveGsheetClientId(cid: string) {
+  localStorage.setItem(GSHEET_CID_KEY, cid);
+}
+
+export function getGsheetUrl(): string | null {
+  const sid = localStorage.getItem(GSHEET_ID_KEY);
+  return sid ? `https://docs.google.com/spreadsheets/d/${sid}` : null;
+}
+
+function numOrDash(v: number) { return isNaN(v) ? '-' : v; }
+function intOrDash(v: number) { return isNaN(v) ? '-' : Math.round(v); }
+function pctOrDash(v: number) { return isNaN(v) ? '-' : v / 100; }
+function hoursToSerial(h: number) { return isNaN(h) || h === 0 ? '-' : h / 24; }
+function secsToSerial(s: number) { return isNaN(s) ? '-' : s / 86400; }
+
+function fmtClockedExport(hours: number): string {
+  if (isNaN(hours)) return '-';
+  const totalMin = Math.round(hours * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return m > 0 ? h + 'h ' + m + 'min' : h + 'h';
+}
+
+function buildEmployeeRow(r: EmployeeMetrics): (string | number)[] {
+  return [
+    String(r.employee),
+    hoursToSerial(Number(r.duration)),
+    numOrDash(Number(r.sales)),
+    intOrDash(Number(r.directMessagesSent)),
+    intOrDash(Number(r.directPpvsSent)),
+    pctOrDash(Number(r.goldenRatio)),
+    intOrDash(Number(r.ppvsUnlocked)),
+    pctOrDash(Number(r.unlockRate)),
+    intOrDash(Number(r.fansChatted)),
+    intOrDash(Number(r.fansWhoSpentMoney)),
+    pctOrDash(Number(r.fanCvr)),
+    secsToSerial(Number(r.responseTime)),
+    fmtClockedExport(Number(r.clockedHours)),
+    numOrDash(Number(r.salesPerHour)),
+    intOrDash(Number(r.characterCount)),
+    numOrDash(Number(r.messagesSentPerHour)),
+  ];
+}
+
+function extractTeamName(group: string): string {
+  if (!group) return '';
+  return group.replace(/^team\s+/i, '').trim().toUpperCase();
+}
+
+async function sheetsApi(path: string, method: string, body?: unknown, token?: string) {
+  const base = 'https://sheets.googleapis.com/v4/spreadsheets';
+  const res = await fetch(base + path, {
+    method: method || 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!res.ok) {
+    const t = await res.text();
+    throw new Error('Sheets API error ' + res.status + ': ' + t);
+  }
+  return res.json();
+}
+
+function rgb(hex: string) {
+  const r = parseInt(hex.slice(0, 2), 16) / 255;
+  const g = parseInt(hex.slice(2, 4), 16) / 255;
+  const b = parseInt(hex.slice(4, 6), 16) / 255;
+  return { red: r, green: g, blue: b };
+}
+
+export async function exportToGoogleSheets(
+  data: EmployeeMetrics[],
+  hubstaffRaw: ParsedCSV | null,
+  period: PeriodType,
+  customFrom: string | null,
+  customTo: string | null,
+  onProgress: (msg: string) => void
+): Promise<string> {
+  const cid = getGsheetClientId();
+  if (!cid) throw new Error('No Client ID configured');
+
+  if (typeof google === 'undefined' || !google.accounts) {
+    throw new Error('Google Identity Services not loaded. Reload the page.');
+  }
+
+  onProgress('Authenticating...');
+  const accessToken = await new Promise<string>((resolve, reject) => {
+    const tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cid,
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      callback: (resp: { error?: string; access_token?: string }) => {
+        if (resp.error) reject(new Error('Auth error: ' + resp.error));
+        else resolve(resp.access_token!);
+      },
+      error_callback: () => reject(new Error('Authentication failed')),
+    });
+    tokenClient.requestAccessToken();
+  });
+
+  if (!data.length) throw new Error('No data to export');
+
+  onProgress('Preparing data...');
+  function hasActivity(r: EmployeeMetrics) {
+    return !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0;
+  }
+  const sorted = [...data].sort((a, b) => {
+    const aa = hasActivity(a), ba = hasActivity(b);
+    if (aa !== ba) return aa ? -1 : 1;
+    return String(a.employee).localeCompare(String(b.employee));
+  });
+  const firstInactiveIdx = sorted.findIndex(r => !hasActivity(r));
+
+  const teams: Record<string, EmployeeMetrics[]> = {};
+  for (const r of sorted) {
+    const tn = extractTeamName(String(r.group));
+    if (tn) {
+      if (!teams[tn]) teams[tn] = [];
+      teams[tn].push(r);
+    }
+  }
+  const teamNames = Object.keys(teams).sort();
+
+  const HEADERS = [
+    'Employees', 'Duration', 'Sales', 'Direct messages sent', 'Direct PPVs sent',
+    'Golden ratio', 'PPVs unlocked', 'Unlock rate', 'Fans chatted',
+    'Fans who spent money', 'Fan CVR', 'Response time (based on clocked hours)',
+    'Clocked hours', 'Sales per hour', 'Character count', 'Messages sent per hour',
+  ];
+
+  const sheetTitles = ['By employee', 'TL BONUSES', ...teamNames, 'HUBSTAFF HOURS'];
+
+  onProgress('Creating spreadsheet...');
+  const today = new Date().toLocaleDateString();
+  const title = 'KPI Dashboard Export – ' + today;
+  const createBody = {
+    properties: { title },
+    sheets: sheetTitles.map(t => ({ properties: { title: t } })),
+  };
+  const created = await sheetsApi('', 'POST', createBody, accessToken);
+  const spreadsheetId = created.spreadsheetId;
+  localStorage.setItem(GSHEET_ID_KEY, spreadsheetId);
+
+  onProgress('Writing data...');
+
+  const dataStart = 4;
+  const dataEnd = dataStart + sorted.length - 1;
+  const avgCols: Record<string, boolean> = { B: true, C: true, F: true, K: true, L: true, N: true, P: true };
+
+  const byEmpRows: (string | number)[][] = [];
+  byEmpRows.push(HEADERS);
+  const avgRow: (string | number)[] = ['AVERAGE'];
+  for (let c = 1; c < HEADERS.length; c++) {
+    const col = String.fromCharCode(65 + c);
+    avgRow.push(avgCols[col] ? '=AVERAGE(' + col + dataStart + ':' + col + dataEnd + ')' : '');
+  }
+  byEmpRows.push(avgRow);
+
+  const scoreRow = ['SCORE POINTS', '', '', '', '',
+    '=IF(F2>=4%,1,0)', '', '=IF(H2>=45%,1,0)', '', '',
+    '=IF(K2>=10%,3,IF(K2>=9%,2,IF(K2>=8%,1,0)))', '2', '', '1', '', ''];
+  byEmpRows.push(scoreRow);
+
+  for (const r of sorted) byEmpRows.push(buildEmployeeRow(r));
+
+  const valueRanges: { range: string; values: (string | number)[][] }[] = [];
+  valueRanges.push({ range: "'By employee'!A1", values: byEmpRows });
+
+  const tlRows: (string | number)[][] = [];
+  let tlRow = 1;
+  for (const tn of teamNames) {
+    const teamData = teams[tn];
+    const teamAvgSph = teamData.reduce((s, r) => s + (isNaN(Number(r.salesPerHour)) ? 0 : Number(r.salesPerHour)), 0) / teamData.length;
+    const cvrs = teamData.filter(r => !isNaN(Number(r.fanCvr)));
+    const teamAvgCvr = cvrs.length ? cvrs.reduce((s, r) => s + Number(r.fanCvr) / 100, 0) / cvrs.length : 0;
+    const rts = teamData.filter(r => !isNaN(Number(r.responseTime)));
+    const avgRtSec = rts.length ? rts.reduce((s, r) => s + Number(r.responseTime), 0) / rts.length : 0;
+    const teamAvgRt: string | number = rts.length ? secsToSerial(avgRtSec) : '-';
+
+    tlRows.push([tn, '', '']);
+    tlRows.push(['METRICS', 'CURRENT', 'BONUS']);
+    tlRows.push(['Team Avg. $/hr', Math.round(teamAvgSph * 100) / 100, 0]);
+    tlRows.push(['Fan CVR', teamAvgCvr, 0]);
+    tlRows.push(['Avg. Reply Time', teamAvgRt, 0]);
+    tlRows.push(['TOTAL:', '', '=SUM(D' + (tlRow + 1) + ':D' + (tlRow + 3) + ')']);
+    tlRows.push([]);
+    tlRow += 7;
+  }
+  valueRanges.push({ range: "'TL BONUSES'!B2", values: tlRows });
+
+  for (const tn of teamNames) {
+    const teamData = [...teams[tn]].sort((a, b) => (isNaN(Number(b.sales)) ? -Infinity : Number(b.sales)) - (isNaN(Number(a.sales)) ? -Infinity : Number(a.sales)));
+    const teamRows: (string | number)[][] = [];
+    teamRows.push(HEADERS);
+    for (const r of teamData) teamRows.push(buildEmployeeRow(r));
+    const lastRow = teamData.length + 1;
+    const avgTeam: (string | number)[] = [];
+    for (let c = 0; c < HEADERS.length; c++) {
+      const col = String.fromCharCode(65 + c);
+      if (col === 'K' || col === 'N' || col === 'P') {
+        avgTeam.push('=AVERAGE(' + col + '2:' + col + lastRow + ')');
+      } else {
+        avgTeam.push('');
+      }
+    }
+    teamRows.push(avgTeam);
+    valueRanges.push({ range: "'" + tn + "'!A1", values: teamRows });
+  }
+
+  valueRanges.push({
+    range: "'HUBSTAFF HOURS'!A1",
+    values: [['Organization', 'Time Zone', 'Member', 'TOTAL HOURS', 'Activity', 'Spent total', 'Currency'],
+    hubstaffRaw ? ['(Data included)'] : ['(No Hubstaff data loaded)']],
+  });
+
+  await sheetsApi('/' + spreadsheetId + '/values:batchUpdate', 'POST', {
+    valueInputOption: 'USER_ENTERED',
+    data: valueRanges,
+  }, accessToken);
+
+  onProgress('Applying formatting...');
+
+  const meta = await sheetsApi('/' + spreadsheetId + '?fields=sheets.properties', 'GET', undefined, accessToken);
+  const sheetIdMap: Record<string, number> = {};
+  for (const s of meta.sheets) sheetIdMap[s.properties.title] = s.properties.sheetId;
+
+  const fmtReqs: unknown[] = [];
+  const WHITE = { red: 1, green: 1, blue: 1 };
+  const BLACK = { red: 0, green: 0, blue: 0 };
+  const defaultFont = { fontFamily: 'Montserrat', fontSize: 10 };
+
+  function cellFmt(sid: number, r1: number, r2: number, c1: number, c2: number, fmt: Record<string, unknown>) {
+    const fields = Object.keys(fmt).map(k => 'userEnteredFormat.' + k).join(',');
+    fmtReqs.push({ repeatCell: {
+      range: { sheetId: sid, startRowIndex: r1, endRowIndex: r2, startColumnIndex: c1, endColumnIndex: c2 },
+      cell: { userEnteredFormat: fmt }, fields,
+    }});
+  }
+
+  const byEmpSid = sheetIdMap['By employee'];
+  if (byEmpSid != null) {
+    const totalRows = 3 + sorted.length;
+    cellFmt(byEmpSid, 0, totalRows, 0, 16, {
+      textFormat: { ...defaultFont, foregroundColor: BLACK },
+      horizontalAlignment: 'CENTER',
+      verticalAlignment: 'MIDDLE',
+    });
+    cellFmt(byEmpSid, 0, 1, 0, 16, {
+      backgroundColor: rgb('F1C232'),
+      textFormat: { ...defaultFont, bold: true, foregroundColor: rgb('5B0F00'), fontSize: 9 },
+    });
+    cellFmt(byEmpSid, 1, 2, 0, 1, {
+      backgroundColor: rgb('FF9900'),
+      textFormat: { ...defaultFont, bold: true, foregroundColor: WHITE },
+    });
+    cellFmt(byEmpSid, 1, 2, 1, 16, {
+      backgroundColor: rgb('FFFF00'),
+      textFormat: { ...defaultFont, bold: true },
+    });
+    cellFmt(byEmpSid, 3, totalRows, 2, 3, { backgroundColor: rgb('D9EAD3') });
+
+    if (firstInactiveIdx >= 0) {
+      cellFmt(byEmpSid, 3 + firstInactiveIdx, totalRows, 0, 16, {
+        backgroundColor: rgb('F4CCCC'),
+        textFormat: { ...defaultFont, foregroundColor: rgb('990000') },
+      });
+    }
+  }
+
+  if (fmtReqs.length > 0) {
+    await sheetsApi('/' + spreadsheetId + ':batchUpdate', 'POST', { requests: fmtReqs }, accessToken);
+  }
+
+  const sheetUrl = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId;
+  return sheetUrl;
+}
+
+// ── Calendar helpers ──
+
+export function buildCalendarMonth(year: number, month: number, range: { from: string; to: string } | null): {
+  title: string;
+  days: { date: string; day: number; isToday: boolean; inRange: boolean; isStart: boolean; isEnd: boolean; isSingle: boolean }[];
+  blanks: number;
+} {
+  const first = new Date(Date.UTC(year, month, 1));
+  const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const dow = (first.getUTCDay() + 6) % 7;
+  const title = first.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const now = new Date();
+  const todayStr = toDateStr(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())));
+
+  const days = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+    let inRange = false, isStart = false, isEnd = false, isSingle = false;
+    if (range) {
+      const inclEnd = addDays(range.to, -1);
+      if (range.from === inclEnd && ds === range.from) isSingle = true;
+      else if (ds === range.from) isStart = true;
+      else if (ds === inclEnd) isEnd = true;
+      else if (ds > range.from && ds < inclEnd) inRange = true;
+    }
+    days.push({ date: ds, day: d, isToday: ds === todayStr, inRange, isStart, isEnd, isSingle });
+  }
+
+  return { title, days, blanks: dow };
+}
+
 // ── Init ──
 
 export function migrateHistory() {
@@ -552,4 +890,20 @@ export function migrateHistory() {
     localStorage.removeItem(HISTORY_KEY);
     localStorage.setItem(HISTORY_VER_KEY, String(HISTORY_VER));
   }
+}
+
+// Google Identity Services type declarations
+declare global {
+  const google: {
+    accounts: {
+      oauth2: {
+        initTokenClient: (config: {
+          client_id: string;
+          scope: string;
+          callback: (resp: { error?: string; access_token?: string }) => void;
+          error_callback: () => void;
+        }) => { requestAccessToken: () => void };
+      };
+    };
+  };
 }
