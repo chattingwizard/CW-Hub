@@ -35,6 +35,7 @@ const ModelInfo = lazyRetry(() => import('./pages/ModelInfo'));
 const Tasks = lazyRetry(() => import('./pages/Tasks'));
 const ChatterScore = lazyRetry(() => import('./pages/ChatterScore'));
 const KnowledgeBase = lazyRetry(() => import('./pages/KnowledgeBase'));
+const ShiftReports = lazyRetry(() => import('./pages/ShiftReports'));
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
   state = { hasError: false };
@@ -200,6 +201,15 @@ export default function App() {
               element={
                 <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'chatter']}>
                   <ModelInfo />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/shift-reports"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'chatter']}>
+                  <ShiftReports />
                 </ProtectedRoute>
               }
             />

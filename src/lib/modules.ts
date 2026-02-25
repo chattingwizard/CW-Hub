@@ -125,6 +125,15 @@ export const modules: HubModule[] = [
   },
 
   {
+    id: 'shift-reports',
+    name: 'Shift Reports',
+    icon: 'ClipboardList',
+    type: 'internal',
+    path: '/shift-reports',
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'chatter'],
+    section: 'tools',
+  },
+  {
     id: 'knowledge-base',
     name: 'Knowledge Base',
     icon: 'BookMarked',
