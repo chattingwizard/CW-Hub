@@ -51,10 +51,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT' || !session?.user) {
+      if (event === 'SIGNED_OUT') {
+        const { data: { session: retrySession } } = await supabase.auth.getSession();
+        if (retrySession?.user) return;
         set({ user: null, profile: null });
         return;
       }
+
+      if (!session?.user) return;
 
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         const { data: profile } = await supabase
@@ -81,6 +85,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signUp: async (email: string, password: string, fullName: string, inviteCode: string) => {
     set({ loading: true });
     try {
+      const { data: valid, error: checkErr } = await supabase.rpc('validate_invite_code', {
+        invite_code: inviteCode,
+      });
+      if (checkErr) throw checkErr;
+      if (!valid) throw new Error('Invalid or already used invite code.');
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -94,8 +104,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           for_user_id: data.user.id,
         });
         if (inviteErr) {
-          await supabase.auth.admin?.deleteUser(data.user.id).catch(() => {});
-          throw new Error('Invalid or already used invite code.');
+          console.warn('Invite code marking failed:', inviteErr.message);
         }
       }
     } finally {
