@@ -13,6 +13,8 @@ interface UploadResult {
 const COLUMN_MAP: Record<string, string> = {
   'employee': 'employee_name',
   'employees': 'employee_name',
+  'group': 'team_from_report',
+  'team': 'team_from_report',
   'creators': 'creators',
   'creator': 'creators',
   'sales': 'sales',
@@ -43,7 +45,10 @@ const COLUMN_MAP: Record<string, string> = {
 
 function mapHeader(normalized: string): string | undefined {
   if (COLUMN_MAP[normalized]) return COLUMN_MAP[normalized];
-  if (normalized.startsWith('date/time')) return 'date_range';
+  if (normalized.startsWith('date/time') || normalized.startsWith('date')) return 'date_range';
+  for (const [key, val] of Object.entries(COLUMN_MAP)) {
+    if (normalized.includes(key) || key.includes(normalized)) return val;
+  }
   return undefined;
 }
 
@@ -111,7 +116,8 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
       const { data: chatters } = await supabase
         .from('chatters')
         .select('full_name, team_name')
-        .eq('status', 'Active');
+        .eq('status', 'Active')
+        .eq('airtable_role', 'Chatter');
 
       const chatterTeamMap = new Map<string, string>();
       for (const c of (chatters ?? []) as { full_name: string; team_name: string | null }[]) {

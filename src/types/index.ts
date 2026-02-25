@@ -434,3 +434,80 @@ export interface ModelMetricCSVRow {
   tips: string;
   refunds: string;
 }
+
+// ── Chatter Score System ────────────────────────────────────
+
+export interface ScoreEventType {
+  id: string;
+  name: string;
+  points: number;
+  category: 'positive' | 'negative' | 'custom';
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface ScoreEvent {
+  id: string;
+  chatter_id: string;
+  submitted_by: string;
+  date: string;
+  event_type_id: string;
+  points: number;
+  custom_points: number | null;
+  notes: string | null;
+  week: string;
+  created_at: string;
+  event_type?: ScoreEventType;
+  chatter?: Chatter;
+  submitter?: Profile;
+}
+
+export interface ScoreWeeklyReport {
+  id: string;
+  chatter_id: string;
+  submitted_by: string;
+  week_start: string;
+  week: string;
+  reply_time_bucket: string | null;
+  no_shift_incidence: boolean;
+  all_reports_sent: boolean;
+  weekly_points: number;
+  notes: string | null;
+  created_at: string;
+  chatter?: Chatter;
+}
+
+export interface ScoreConfig {
+  id: number;
+  base_score: number;
+  reply_time_points: Record<string, number>;
+  no_shift_incidence_pts: number;
+  all_reports_sent_pts: number;
+  team_bonus_pts: number;
+  tier_20_threshold: number;
+  tier_10_threshold: number;
+  tier_5_threshold: number;
+  warning_threshold: number;
+  tier_20_amount: number;
+  tier_10_amount: number;
+  tier_5_amount: number;
+  updated_by: string | null;
+  updated_at: string;
+}
+
+export type ScoreStatus = 'bonus_20' | 'bonus_10' | 'bonus_5' | 'no_bonus' | 'warning';
+
+export interface ChatterWeeklyScore {
+  chatter_id: string;
+  chatter_name: string;
+  team_name: string | null;
+  base_score: number;
+  event_points: number;
+  weekly_report_points: number;
+  total: number;
+  status: ScoreStatus;
+  bonus_amount: number;
+  events: ScoreEvent[];
+  weekly_report: ScoreWeeklyReport | null;
+}

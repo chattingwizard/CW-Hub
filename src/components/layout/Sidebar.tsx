@@ -7,7 +7,7 @@ import {
   BarChart3, Calendar, Users, LayoutDashboard,
   GraduationCap, FileText, Settings, Activity,
   ClipboardCheck, Shield, Upload, BookOpen, Radio,
-  CheckSquare, BookMarked,
+  CheckSquare, BookMarked, Star,
   LogOut, ChevronLeft, Menu, ExternalLink,
 } from 'lucide-react';
 
@@ -15,7 +15,7 @@ const iconMap: Record<string, React.ComponentType<{ size?: number; className?: s
   BarChart3, Calendar, Users, LayoutDashboard,
   GraduationCap, FileText, Settings, Activity,
   ClipboardCheck, Shield, Upload, BookOpen, Radio,
-  CheckSquare, BookMarked,
+  CheckSquare, BookMarked, Star,
 };
 
 const SECTION_LABELS: Record<string, string> = {

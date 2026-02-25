@@ -63,6 +63,16 @@ export const modules: HubModule[] = [
   },
 
   {
+    id: 'chatter-score',
+    name: 'Chatter Score',
+    icon: 'Star',
+    type: 'internal',
+    path: '/chatter-score',
+    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    section: 'main',
+  },
+
+  {
     id: 'tasks',
     name: 'Tasks',
     icon: 'CheckSquare',

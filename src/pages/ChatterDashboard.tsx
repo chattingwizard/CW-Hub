@@ -2,9 +2,13 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { getDayName, SHIFT_LABELS } from '../lib/utils';
-import { Clock, Calendar, CheckCircle, AlertCircle, Users as UsersIcon } from 'lucide-react';
+import {
+  getWeekKey, getWeekLabel, getPreviousWeekKey,
+  calculateStatus, getBonusAmount, getStatusBadge, getScoreColor, getProgressPercent,
+} from '../lib/scoreUtils';
+import { Clock, Calendar, CheckCircle, AlertCircle, Users as UsersIcon, Star, TrendingUp, TrendingDown } from 'lucide-react';
 import ModelAvatar from '../components/ModelAvatar';
-import type { Schedule, Model, ChatterHours, Chatter } from '../types';
+import type { Schedule, Model, ChatterHours, Chatter, ScoreConfig, ScoreEvent, ScoreWeeklyReport } from '../types';
 
 export default function ChatterDashboard() {
   const { profile } = useAuthStore();
@@ -13,6 +17,15 @@ export default function ChatterDashboard() {
   const [models, setModels] = useState<Model[]>([]);
   const [weekHours, setWeekHours] = useState<ChatterHours[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [scoreConfig, setScoreConfig] = useState<ScoreConfig | null>(null);
+  const [myEvents, setMyEvents] = useState<ScoreEvent[]>([]);
+  const [myWeeklyReport, setMyWeeklyReport] = useState<ScoreWeeklyReport | null>(null);
+  const [lastWeekEvents, setLastWeekEvents] = useState<ScoreEvent[]>([]);
+  const [lastWeekReport, setLastWeekReport] = useState<ScoreWeeklyReport | null>(null);
+
+  const currentWeekKey = getWeekKey(new Date());
+  const lastWeekKey = getPreviousWeekKey(currentWeekKey);
 
   const getWeekStart = () => {
     const d = new Date();
@@ -59,8 +72,23 @@ export default function ChatterDashboard() {
     setSchedules((schedulesRes.data ?? []) as Schedule[]);
     setModels((modelsRes.data ?? []) as Model[]);
     setWeekHours((hoursRes.data ?? []) as ChatterHours[]);
+
+    const [cfgRes, evRes, rwRes, evLastRes, rwLastRes] = await Promise.all([
+      supabase.from('score_config').select('*').eq('id', 1).single(),
+      supabase.from('score_events').select('*, event_type:score_event_types(*)').eq('chatter_id', chatter.id).eq('week', currentWeekKey),
+      supabase.from('score_weekly_reports').select('*').eq('chatter_id', chatter.id).eq('week', currentWeekKey).maybeSingle(),
+      supabase.from('score_events').select('*, event_type:score_event_types(*)').eq('chatter_id', chatter.id).eq('week', lastWeekKey),
+      supabase.from('score_weekly_reports').select('*').eq('chatter_id', chatter.id).eq('week', lastWeekKey).maybeSingle(),
+    ]);
+
+    setScoreConfig(cfgRes.data as ScoreConfig | null);
+    setMyEvents((evRes.data ?? []) as ScoreEvent[]);
+    setMyWeeklyReport((rwRes.data as ScoreWeeklyReport) ?? null);
+    setLastWeekEvents((evLastRes.data ?? []) as ScoreEvent[]);
+    setLastWeekReport((rwLastRes.data as ScoreWeeklyReport) ?? null);
+
     setLoading(false);
-  }, [profile, weekStart]);
+  }, [profile, weekStart, currentWeekKey, lastWeekKey]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -206,6 +234,19 @@ export default function ChatterDashboard() {
         </div>
       </div>
 
+      {/* My Score Card */}
+      {scoreConfig && (
+        <MyScoreCard
+          config={scoreConfig}
+          events={myEvents}
+          weeklyReport={myWeeklyReport}
+          lastWeekEvents={lastWeekEvents}
+          lastWeekReport={lastWeekReport}
+          currentWeekKey={currentWeekKey}
+          lastWeekKey={lastWeekKey}
+        />
+      )}
+
       {/* Weekly Schedule */}
       <div className="bg-surface-1 border border-border rounded-xl p-5 mb-6">
         <h2 className="text-sm font-semibold text-white mb-4">Your Schedule This Week</h2>
@@ -267,6 +308,119 @@ export default function ChatterDashboard() {
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function MyScoreCard({
+  config,
+  events,
+  weeklyReport,
+  lastWeekEvents,
+  lastWeekReport,
+  currentWeekKey,
+  lastWeekKey,
+}: {
+  config: ScoreConfig;
+  events: ScoreEvent[];
+  weeklyReport: ScoreWeeklyReport | null;
+  lastWeekEvents: ScoreEvent[];
+  lastWeekReport: ScoreWeeklyReport | null;
+  currentWeekKey: string;
+  lastWeekKey: string;
+}) {
+  const eventPts = events.reduce((s, e) => s + e.points, 0);
+  const reportPts = weeklyReport?.weekly_points ?? 0;
+  const total = config.base_score + eventPts + reportPts;
+  const status = calculateStatus(total, config);
+  const bonus = getBonusAmount(total, config);
+  const badge = getStatusBadge(status);
+  const progress = getProgressPercent(total, config);
+
+  const lastEventPts = lastWeekEvents.reduce((s, e) => s + e.points, 0);
+  const lastReportPts = lastWeekReport?.weekly_points ?? 0;
+  const lastTotal = config.base_score + lastEventPts + lastReportPts;
+  const lastBonus = getBonusAmount(lastTotal, config);
+  const lastBadge = getStatusBadge(calculateStatus(lastTotal, config));
+
+  return (
+    <div className="bg-surface-1 border border-border rounded-xl p-5 mb-6">
+      <div className="flex items-center gap-2 mb-4">
+        <Star size={16} className="text-amber-400" />
+        <h2 className="text-sm font-semibold text-white">My Score</h2>
+        <span className="text-[10px] text-text-muted ml-auto">{getWeekLabel(currentWeekKey)}</span>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {/* Current week */}
+        <div className="bg-surface-2 rounded-xl border border-border p-4">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">This Week</p>
+          <div className="flex items-center gap-4 mb-3">
+            <span className={`text-4xl font-extrabold ${getScoreColor(total, config)}`}>{total}</span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${badge.colorClass}`}>
+              {badge.label}
+            </span>
+          </div>
+
+          {/* Progress bar */}
+          <div className="h-2 bg-surface-3 rounded-full overflow-hidden mb-3">
+            <div
+              className={`h-full rounded-full transition-all ${
+                status === 'warning' ? 'bg-red-500' :
+                status === 'no_bonus' ? 'bg-zinc-500' :
+                status === 'bonus_5' ? 'bg-cyan-400' :
+                status === 'bonus_10' ? 'bg-blue-400' : 'bg-emerald-400'
+              }`}
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          {/* Breakdown */}
+          <div className="space-y-1 text-xs">
+            <div className="flex justify-between">
+              <span className="text-text-muted">Base</span>
+              <span className="text-text-primary">{config.base_score}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Events</span>
+              <span className={eventPts > 0 ? 'text-emerald-400' : eventPts < 0 ? 'text-red-400' : 'text-text-muted'}>
+                {eventPts > 0 ? '+' : ''}{eventPts}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-muted">Weekly Report</span>
+              <span className={reportPts > 0 ? 'text-emerald-400' : 'text-text-muted'}>
+                {reportPts > 0 ? '+' : ''}{reportPts}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Last week */}
+        <div className="bg-surface-2 rounded-xl border border-border p-4">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2">Last Week</p>
+          <div className="flex items-center gap-4 mb-3">
+            <span className={`text-4xl font-extrabold ${getScoreColor(lastTotal, config)}`}>{lastTotal}</span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold border ${lastBadge.colorClass}`}>
+              {lastBadge.label}
+            </span>
+          </div>
+
+          {lastBonus > 0 ? (
+            <div className="flex items-center gap-2 bg-emerald-500/10 rounded-lg px-3 py-2 mt-2">
+              <TrendingUp size={14} className="text-emerald-400" />
+              <span className="text-sm font-bold text-emerald-400">${lastBonus} Bonus</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 bg-zinc-500/10 rounded-lg px-3 py-2 mt-2">
+              <TrendingDown size={14} className="text-zinc-400" />
+              <span className="text-sm font-medium text-zinc-400">No bonus earned</span>
+            </div>
+          )}
+
+          <p className="text-[10px] text-text-muted mt-2">{getWeekLabel(lastWeekKey)}</p>
+        </div>
       </div>
     </div>
   );

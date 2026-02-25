@@ -29,6 +29,7 @@ const EmbeddedModule = lazyRetry(() => import('./pages/EmbeddedModule'));
 const UploadCenter = lazyRetry(() => import('./pages/UploadCenter'));
 const ModelInfo = lazyRetry(() => import('./pages/ModelInfo'));
 const Tasks = lazyRetry(() => import('./pages/Tasks'));
+const ChatterScore = lazyRetry(() => import('./pages/ChatterScore'));
 const KnowledgeBase = lazyRetry(() => import('./pages/KnowledgeBase'));
 
 class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
@@ -135,6 +136,15 @@ export default function App() {
               element={
                 <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant']}>
                   <Tasks />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/chatter-score"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader']}>
+                  <ChatterScore />
                 </ProtectedRoute>
               }
             />

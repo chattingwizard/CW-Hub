@@ -124,3 +124,12 @@ input[type=number] { -moz-appearance: textfield; }
   background: rgba(26, 144, 200, 0.3);
   color: white;
 }
+
+/* Slide-in animation for drawers */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in-right {
+  animation: slide-in-right 200ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
