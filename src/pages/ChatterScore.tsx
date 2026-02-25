@@ -39,53 +39,57 @@ export default function ChatterScore() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
-    const [configRes, typesRes, chattersRes, eventsRes, reportsRes] = await Promise.all([
-      supabase.from('score_config').select('*').eq('id', 1).single(),
-      supabase.from('score_event_types').select('*').order('sort_order'),
-      supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
-      supabase.from('score_events').select('*, event_type:score_event_types(*)').eq('week', weekKey),
-      supabase.from('score_weekly_reports').select('*').eq('week', weekKey),
-    ]);
+    try {
+      const [configRes, typesRes, chattersRes, eventsRes, reportsRes] = await Promise.all([
+        supabase.from('score_config').select('*').eq('id', 1).single(),
+        supabase.from('score_event_types').select('*').order('sort_order'),
+        supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
+        supabase.from('score_events').select('*, event_type:score_event_types(*)').eq('week', weekKey),
+        supabase.from('score_weekly_reports').select('*').eq('week', weekKey),
+      ]);
 
-    const cfg = configRes.data as ScoreConfigType;
-    const types = (typesRes.data || []) as ScoreEventType[];
-    const chts = (chattersRes.data || []) as Chatter[];
-    const evts = (eventsRes.data || []) as ScoreEvent[];
-    const rpts = (reportsRes.data || []) as ScoreWeeklyReport[];
+      const cfg = configRes.data as ScoreConfigType;
+      const types = (typesRes.data || []) as ScoreEventType[];
+      const chts = (chattersRes.data || []) as Chatter[];
+      const evts = (eventsRes.data || []) as ScoreEvent[];
+      const rpts = (reportsRes.data || []) as ScoreWeeklyReport[];
 
-    setConfig(cfg);
-    setEventTypes(types);
-    setChatters(chts);
-    setEvents(evts);
-    setWeeklyReports(rpts);
+      setConfig(cfg);
+      setEventTypes(types);
+      setChatters(chts);
+      setEvents(evts);
+      setWeeklyReports(rpts);
 
-    if (cfg) {
-      const computed = chts.map(c => {
-        const chatterEvents = evts.filter(e => e.chatter_id === c.id);
-        const eventPoints = chatterEvents.reduce((sum, e) => sum + e.points, 0);
-        const report = rpts.find(r => r.chatter_id === c.id) || null;
-        const reportPoints = report?.weekly_points ?? 0;
-        const total = cfg.base_score + eventPoints + reportPoints;
+      if (cfg) {
+        const computed = chts.map(c => {
+          const chatterEvents = evts.filter(e => e.chatter_id === c.id);
+          const eventPoints = chatterEvents.reduce((sum, e) => sum + e.points, 0);
+          const report = rpts.find(r => r.chatter_id === c.id) || null;
+          const reportPoints = report?.weekly_points ?? 0;
+          const total = cfg.base_score + eventPoints + reportPoints;
 
-        return {
-          chatter_id: c.id,
-          chatter_name: c.full_name,
-          team_name: c.team_name,
-          base_score: cfg.base_score,
-          event_points: eventPoints,
-          weekly_report_points: reportPoints,
-          total,
-          status: calculateStatus(total, cfg),
-          bonus_amount: getBonusAmount(total, cfg),
-          events: chatterEvents,
-          weekly_report: report,
-        };
-      });
-      computed.sort((a, b) => b.total - a.total);
-      setScores(computed);
+          return {
+            chatter_id: c.id,
+            chatter_name: c.full_name,
+            team_name: c.team_name,
+            base_score: cfg.base_score,
+            event_points: eventPoints,
+            weekly_report_points: reportPoints,
+            total,
+            status: calculateStatus(total, cfg),
+            bonus_amount: getBonusAmount(total, cfg),
+            events: chatterEvents,
+            weekly_report: report,
+          };
+        });
+        computed.sort((a, b) => b.total - a.total);
+        setScores(computed);
+      }
+    } catch (err) {
+      console.error('ChatterScore load failed:', err);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }, [weekKey]);
 
   useEffect(() => {

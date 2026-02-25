@@ -70,6 +70,12 @@ export default function App() {
 
   useEffect(() => {
     initialize();
+    const timeout = setTimeout(() => {
+      if (!useAuthStore.getState().initialized) {
+        useAuthStore.setState({ initialized: true });
+      }
+    }, 8000);
+    return () => clearTimeout(timeout);
   }, [initialize]);
 
   if (!initialized) {

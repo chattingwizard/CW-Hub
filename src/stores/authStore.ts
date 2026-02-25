@@ -4,6 +4,7 @@ import type { Profile, UserRole } from '../types';
 import { isManagement, isLeadership, isAdminLevel } from '../lib/roles';
 
 let authSubscription: { unsubscribe: () => void } | null = null;
+let isInitializing = false;
 
 interface AuthState {
   user: { id: string; email: string } | null;
@@ -30,6 +31,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initialized: false,
 
   initialize: async () => {
+    if (isInitializing) return;
+    isInitializing = true;
+
     if (authSubscription) {
       authSubscription.unsubscribe();
       authSubscription = null;
@@ -56,6 +60,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     } catch (err) {
       console.error('Auth init failed:', err);
       set({ user: null, profile: null, initialized: true });
+    } finally {
+      isInitializing = false;
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
