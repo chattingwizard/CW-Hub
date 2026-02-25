@@ -127,7 +127,7 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
       let reportDate: string | null = null;
       let rangeDays = 1;
       const rows: Array<Record<string, unknown>> = [];
-      const unmatchedNames: string[] = [];
+      const skippedInactive: string[] = [];
 
       for (const raw of rawData) {
         const mapped: Record<string, unknown> = {};
@@ -146,10 +146,12 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
           }
         }
 
-        const team = chatterTeamMap.get(employeeName.toLowerCase().trim()) ?? '';
-        if (!team && !chatterTeamMap.has(employeeName.toLowerCase().trim())) {
-          if (!unmatchedNames.includes(employeeName)) unmatchedNames.push(employeeName);
+        const normalizedName = employeeName.toLowerCase().trim().replace(/\s+/g, ' ');
+        if (!chatterTeamMap.has(normalizedName)) {
+          if (!skippedInactive.includes(employeeName)) skippedInactive.push(employeeName);
+          continue;
         }
+        const team = chatterTeamMap.get(normalizedName) ?? '';
 
         const clockedHours = parseNum(mapped.clocked_hours);
         if (clockedHours < 0.5) continue;
@@ -187,7 +189,7 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
 
       if (!rows.length) {
         throw new Error(
-          `No valid rows found (chatters with >= 0.5 clocked hours). ${unmatchedNames.length > 0 ? `Unmatched: ${unmatchedNames.slice(0, 5).join(', ')}` : ''}`
+          `No active chatters found with >= 0.5 clocked hours. ${skippedInactive.length > 0 ? `Skipped (not active): ${skippedInactive.slice(0, 5).join(', ')}` : ''}`
         );
       }
 
@@ -208,9 +210,9 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
       const details: string[] = [];
       details.push(`Date: ${reportDate || 'today'}`);
       if (rangeDays > 1) details.push(`${rangeDays}-day range detected`);
-      details.push(`${rows.length} chatters uploaded`);
-      if (unmatchedNames.length > 0) {
-        details.push(`${unmatchedNames.length} not in system: ${unmatchedNames.join(', ')}`);
+      details.push(`${rows.length} active chatters uploaded`);
+      if (skippedInactive.length > 0) {
+        details.push(`${skippedInactive.length} skipped (not active): ${skippedInactive.slice(0, 5).join(', ')}${skippedInactive.length > 5 ? '...' : ''}`);
       }
 
       setResult({ type: 'success', message: 'Employee Report uploaded!', details });
