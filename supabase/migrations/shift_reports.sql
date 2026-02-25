@@ -4,7 +4,7 @@
 -- 1. shift_reports table
 CREATE TABLE IF NOT EXISTS shift_reports (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  chatter_id text NOT NULL REFERENCES chatters(id),
+  chatter_id uuid NOT NULL REFERENCES chatters(id),
   date date NOT NULL,
   team text NOT NULL,
   model_team int NOT NULL CHECK (model_team BETWEEN 1 AND 8),
@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS shift_reports (
 -- 2. shift_report_alerts table (tracks admin resolutions)
 CREATE TABLE IF NOT EXISTS shift_report_alerts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  chatter_id text NOT NULL REFERENCES chatters(id),
+  chatter_id uuid NOT NULL REFERENCES chatters(id),
   chatter_name text NOT NULL,
   date date NOT NULL,
   shift text NOT NULL,
