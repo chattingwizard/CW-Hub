@@ -30,12 +30,16 @@ export default function Login() {
         }
         await signUp(email, password, fullName, inviteCode);
       }
-      // Wait a tick for profile to load
-      setTimeout(() => {
-        const store = useAuthStore.getState();
-        const path = getDefaultPath(store.profile?.role ?? 'recruit');
-        navigate(path);
-      }, 500);
+
+      const store = useAuthStore.getState();
+      if (store.user && store.profile) {
+        navigate(getDefaultPath(store.profile.role));
+      } else {
+        // Fallback: wait briefly for onAuthStateChange
+        await new Promise(r => setTimeout(r, 800));
+        const retry = useAuthStore.getState();
+        navigate(getDefaultPath(retry.profile?.role ?? 'recruit'));
+      }
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
     }
