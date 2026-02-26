@@ -703,6 +703,7 @@ export async function exportToGoogleSheets(
   period: PeriodType,
   customFrom: string | null,
   customTo: string | null,
+  activeChatters: Set<string>,
   onProgress: (msg: string) => void
 ): Promise<string> {
   const cid = getGsheetClientId();
@@ -729,15 +730,18 @@ export async function exportToGoogleSheets(
   if (!data.length) throw new Error('No data to export');
 
   onProgress('Preparing data...');
-  function hasActivity(r: EmployeeMetrics) {
-    return !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0;
+  function isActiveChatter(r: EmployeeMetrics): boolean {
+    if (activeChatters.size === 0) {
+      return !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0;
+    }
+    return activeChatters.has(String(r.employee).toLowerCase().trim());
   }
   const sorted = [...data].sort((a, b) => {
-    const aa = hasActivity(a), ba = hasActivity(b);
+    const aa = isActiveChatter(a), ba = isActiveChatter(b);
     if (aa !== ba) return aa ? -1 : 1;
     return String(a.employee).localeCompare(String(b.employee));
   });
-  const firstInactiveIdx = sorted.findIndex(r => !hasActivity(r));
+  const firstInactiveIdx = sorted.findIndex(r => !isActiveChatter(r));
 
   const teams: Record<string, EmployeeMetrics[]> = {};
   for (const r of sorted) {

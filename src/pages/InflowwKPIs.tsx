@@ -19,6 +19,7 @@ import {
   Trophy,
   List,
 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import {
   COLUMNS,
   migrateHistory,
@@ -92,6 +93,9 @@ export default function InflowwKPIs() {
   const [exportStatus, setExportStatus] = useState('');
   const [exporting, setExporting] = useState(false);
 
+  // Active chatters from Supabase (for red/normal sorting in export)
+  const [activeChatters, setActiveChatters] = useState<Set<string>>(new Set());
+
   const inflowwRef = useRef<HTMLInputElement>(null);
   const hubstaffRef = useRef<HTMLInputElement>(null);
 
@@ -101,6 +105,17 @@ export default function InflowwKPIs() {
     if (saved) setHubstaffRaw(saved);
     setGsheetCid(getGsheetClientId());
     setGsheetUrl(getGsheetUrl());
+
+    (async () => {
+      const { data } = await supabase
+        .from('chatters')
+        .select('full_name')
+        .eq('status', 'Active')
+        .eq('airtable_role', 'Chatter');
+      if (data) {
+        setActiveChatters(new Set(data.map(c => c.full_name.toLowerCase().trim())));
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -218,7 +233,7 @@ export default function InflowwKPIs() {
     if (!cid) { setShowGsheetSetup(true); return; }
     setExporting(true);
     try {
-      const url = await exportToGoogleSheets(data, hubstaffRaw, period, customFrom, customTo, setExportStatus);
+      const url = await exportToGoogleSheets(data, hubstaffRaw, period, customFrom, customTo, activeChatters, setExportStatus);
       setGsheetUrl(url);
       window.open(url, '_blank');
     } catch (err) {
