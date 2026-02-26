@@ -849,14 +849,16 @@ export async function exportToGoogleSheets(
 
   onProgress('Preparing data...');
   function isActiveChatter(r: EmployeeMetrics): boolean {
-    const hasActivity = !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0;
-    if (activeChatters.size === 0) return hasActivity;
+    if (activeChatters.size === 0) return !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0;
     const name = String(r.employee).toLowerCase().trim().replace(/\s+/g, ' ');
     if (activeChatters.has(name)) return true;
-    const parts = name.split(' ');
-    if (parts.length >= 2 && activeChatters.has(parts[0] + ' ' + parts[parts.length - 1])) return true;
-    if (activeChatters.has(parts[0])) return true;
-    return hasActivity;
+    const nameParts = name.split(' ');
+    for (const ac of activeChatters) {
+      if (ac.includes(name) || name.includes(ac)) return true;
+      const acParts = ac.split(' ');
+      if (acParts[0] === nameParts[0] && acParts[acParts.length - 1] === nameParts[nameParts.length - 1]) return true;
+    }
+    return false;
   }
   const sorted = [...data].sort((a, b) => {
     const aa = isActiveChatter(a), ba = isActiveChatter(b);
@@ -873,12 +875,12 @@ export async function exportToGoogleSheets(
   function resolveTeam(r: EmployeeMetrics): string | null {
     const name = String(r.employee).toLowerCase().trim().replace(/\s+/g, ' ');
     if (chatterTeamMap.has(name)) return chatterTeamMap.get(name)!;
-    const parts = name.split(' ');
-    if (parts.length >= 2) {
-      const fl = parts[0] + ' ' + parts[parts.length - 1];
-      if (chatterTeamMap.has(fl)) return chatterTeamMap.get(fl)!;
+    const nameParts = name.split(' ');
+    for (const [mapName, team] of chatterTeamMap) {
+      if (mapName.includes(name) || name.includes(mapName)) return team;
+      const mapParts = mapName.split(' ');
+      if (mapParts[0] === nameParts[0] && mapParts[mapParts.length - 1] === nameParts[nameParts.length - 1]) return team;
     }
-    if (chatterTeamMap.has(parts[0])) return chatterTeamMap.get(parts[0])!;
     if (isActiveChatter(r)) {
       const csvTeam = extractTeamName(String(r.group));
       if (csvTeam && TL_TEAMS.includes(csvTeam as typeof TL_TEAMS[number])) return csvTeam;

@@ -126,17 +126,8 @@ export default function InflowwKPIs() {
         for (const c of data as { full_name: string; team_name: string | null }[]) {
           const full = c.full_name.toLowerCase().trim().replace(/\s+/g, ' ');
           names.add(full);
-          const parts = full.split(' ');
-          if (parts.length >= 2) {
-            names.add(parts[0] + ' ' + parts[parts.length - 1]);
-          }
-          names.add(parts[0]);
           const team = (c.team_name || '').replace(/^team\s+/i, '').trim().toUpperCase();
-          if (team) {
-            teamMap.set(full, team);
-            if (parts.length >= 2) teamMap.set(parts[0] + ' ' + parts[parts.length - 1], team);
-            teamMap.set(parts[0], team);
-          }
+          if (team) teamMap.set(full, team);
         }
         setActiveChatters(names);
         setChatterTeamMap(teamMap);
@@ -288,18 +279,23 @@ export default function InflowwKPIs() {
   const data = useMemo(() => dataSource === 'hub' ? hubData : csvData, [dataSource, hubData, csvData]);
   const filtered = useMemo(() => hideInactive ? data.filter(r => !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0) : data, [data, hideInactive]);
 
-  const isRowActive = useCallback((row: EmployeeMetrics) => {
-    const empName = String(row.employee).toLowerCase().trim().replace(/\s+/g, ' ');
-    const empParts = empName.split(' ');
-    const nameMatch = activeChatters.size > 0 && (
-      activeChatters.has(empName)
-      || (empParts.length >= 2 && activeChatters.has(empParts[0] + ' ' + empParts[empParts.length - 1]))
-      || activeChatters.has(empParts[0])
-    );
-    const hasTeam = !!row.group && row.group.trim() !== '';
-    const hasAct = !isNaN(Number(row.directMessagesSent)) && Number(row.directMessagesSent) > 0;
-    return nameMatch || (hasTeam && hasAct);
+  const matchesActiveChatter = useCallback((empName: string): boolean => {
+    if (activeChatters.size === 0) return false;
+    const norm = empName.toLowerCase().trim().replace(/\s+/g, ' ');
+    if (activeChatters.has(norm)) return true;
+    for (const ac of activeChatters) {
+      if (ac.includes(norm) || norm.includes(ac)) return true;
+      const acParts = ac.split(' ');
+      const normParts = norm.split(' ');
+      if (acParts[0] === normParts[0] && acParts[acParts.length - 1] === normParts[normParts.length - 1]) return true;
+    }
+    return false;
   }, [activeChatters]);
+
+  const isRowActive = useCallback((row: EmployeeMetrics) => {
+    if (activeChatters.size === 0) return true;
+    return matchesActiveChatter(String(row.employee));
+  }, [activeChatters, matchesActiveChatter]);
 
   const sorted = useMemo(() => {
     const s = sortData(filtered, sortKey, sortDir);
