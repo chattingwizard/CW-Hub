@@ -762,8 +762,10 @@ export async function exportToGoogleSheets(
       if (chatterTeamMap.has(fl)) return chatterTeamMap.get(fl)!;
     }
     if (chatterTeamMap.has(parts[0])) return chatterTeamMap.get(parts[0])!;
-    const csvTeam = extractTeamName(String(r.group));
-    if (csvTeam && TL_TEAMS.includes(csvTeam as typeof TL_TEAMS[number])) return csvTeam;
+    if (isActiveChatter(r)) {
+      const csvTeam = extractTeamName(String(r.group));
+      if (csvTeam && TL_TEAMS.includes(csvTeam as typeof TL_TEAMS[number])) return csvTeam;
+    }
     return null;
   }
 
