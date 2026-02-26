@@ -498,6 +498,36 @@ export interface ScoreConfig {
 
 export type ScoreStatus = 'bonus_20' | 'bonus_10' | 'bonus_5' | 'no_bonus' | 'warning';
 
+// ── Shift Reports ───────────────────────────────────────────
+
+export interface ShiftReport {
+  id: string;
+  chatter_id: string;
+  date: string;
+  team: string;
+  model_team: number;
+  traffic_level: 'low' | 'moderate' | 'high';
+  has_incident: boolean;
+  incident_notes: string | null;
+  has_cover: boolean;
+  cover_notes: string | null;
+  notes: string | null;
+  submitted_by: string;
+  created_at: string;
+  chatter?: Chatter;
+}
+
+export interface ShiftReportAlert {
+  id: string;
+  chatter_id: string;
+  chatter_name: string;
+  date: string;
+  shift: string;
+  action: 'accepted' | 'dismissed';
+  resolved_by: string;
+  created_at: string;
+}
+
 export interface ChatterWeeklyScore {
   chatter_id: string;
   chatter_name: string;
