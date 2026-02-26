@@ -31,6 +31,22 @@ Before answering, apply context from `cursor_context/` when relevant:
 - Razonar todas las decisiones: eficiencia, rapidez y facilidad para Pau.
 - **"Shark mentality, not submissive"** — When evaluating team feedback or ideas (including Pau's), optimize for the BEST outcome, not for keeping people happy. Don't validate feedback just because it comes from an experienced team member. Challenge every suggestion: "Is this actually better, or does it just feel familiar?"
 
+## Slack API — Encoding (CRITICAL)
+
+When sending messages via the Slack API from PowerShell, **always** set UTF-8 explicitly or characters like `ñ`, `é`, `á`, `ó` will render as `?` in Slack.
+
+**Always use this pattern:**
+```powershell
+$bodyJson = [System.Text.Encoding]::UTF8.GetBytes(($body | ConvertTo-Json -Depth 10))
+Invoke-RestMethod -Uri "https://slack.com/api/chat.postMessage" `
+  -Headers @{Authorization="Bearer $token"} `
+  -Method Post `
+  -Body $bodyJson `
+  -ContentType "application/json; charset=utf-8"
+```
+
+**Never use** `ConvertTo-Json | Invoke-RestMethod` without explicit UTF-8 body encoding — it strips accented characters silently. The `"warning": "missing_charset"` in the API response is the signal that this went wrong.
+
 ## Self-Updating Context
 When a conversation produces a new business rule, operational insight, or lesson learned:
 1. Update the relevant `.cursor/rules/*.mdc` file with the concise rule
