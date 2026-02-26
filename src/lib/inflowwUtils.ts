@@ -704,6 +704,7 @@ export async function exportToGoogleSheets(
   customFrom: string | null,
   customTo: string | null,
   activeChatters: Set<string>,
+  chatterTeamMap: Map<string, string>,
   onProgress: (msg: string) => void
 ): Promise<string> {
   const cid = getGsheetClientId();
@@ -747,15 +748,31 @@ export async function exportToGoogleSheets(
   });
   const firstInactiveIdx = sorted.findIndex(r => !isActiveChatter(r));
 
+  const TL_TEAMS = ['DANILYN', 'HUCKLE', 'EZEKIEL'] as const;
   const teams: Record<string, EmployeeMetrics[]> = {};
+  for (const tl of TL_TEAMS) teams[tl] = [];
+
+  function resolveTeam(r: EmployeeMetrics): string | null {
+    const name = String(r.employee).toLowerCase().trim().replace(/\s+/g, ' ');
+    if (chatterTeamMap.has(name)) return chatterTeamMap.get(name)!;
+    const parts = name.split(' ');
+    if (parts.length >= 2) {
+      const fl = parts[0] + ' ' + parts[parts.length - 1];
+      if (chatterTeamMap.has(fl)) return chatterTeamMap.get(fl)!;
+    }
+    if (chatterTeamMap.has(parts[0])) return chatterTeamMap.get(parts[0])!;
+    const csvTeam = extractTeamName(String(r.group));
+    if (csvTeam && TL_TEAMS.includes(csvTeam as typeof TL_TEAMS[number])) return csvTeam;
+    return null;
+  }
+
   for (const r of sorted) {
-    const tn = extractTeamName(String(r.group));
-    if (tn) {
-      if (!teams[tn]) teams[tn] = [];
+    const tn = resolveTeam(r);
+    if (tn && teams[tn]) {
       teams[tn].push(r);
     }
   }
-  const teamNames = Object.keys(teams).sort();
+  const teamNames = [...TL_TEAMS];
 
   const HEADERS = [
     'Employees', 'Duration', 'Sales', 'Direct messages sent', 'Direct PPVs sent',
@@ -824,8 +841,15 @@ export async function exportToGoogleSheets(
   }
   valueRanges.push({ range: "'TL BONUSES'!B2", values: tlRows });
 
+  const teamFirstInactive: Record<string, number> = {};
   for (const tn of teamNames) {
-    const teamData = [...teams[tn]].sort((a, b) => (isNaN(Number(b.sales)) ? -Infinity : Number(b.sales)) - (isNaN(Number(a.sales)) ? -Infinity : Number(a.sales)));
+    const teamData = [...teams[tn]].sort((a, b) => {
+      const aa = isActiveChatter(a), ba = isActiveChatter(b);
+      if (aa !== ba) return aa ? -1 : 1;
+      return (isNaN(Number(b.sales)) ? -Infinity : Number(b.sales)) - (isNaN(Number(a.sales)) ? -Infinity : Number(a.sales));
+    });
+    teams[tn] = teamData;
+    teamFirstInactive[tn] = teamData.findIndex(r => !isActiveChatter(r));
     const teamRows: (string | number)[][] = [];
     teamRows.push(HEADERS);
     for (const r of teamData) teamRows.push(buildEmployeeRow(r));
@@ -1017,6 +1041,15 @@ export async function exportToGoogleSheets(
       backgroundColor: rgb('FFFF00'),
       textFormat: { ...defaultFont, bold: true },
     });
+
+    const tfi = teamFirstInactive[tn];
+    if (tfi >= 0) {
+      const inactiveStart = 1 + tfi;
+      cellFmt(sid, inactiveStart, 1 + cnt, 0, 16, {
+        backgroundColor: rgb('F4CCCC'),
+        textFormat: { ...defaultFont, foregroundColor: rgb('990000') },
+      });
+    }
   }
 
   // Format TL BONUSES sheet

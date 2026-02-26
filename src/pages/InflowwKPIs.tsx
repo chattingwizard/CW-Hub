@@ -95,6 +95,7 @@ export default function InflowwKPIs() {
 
   // Active chatters from Supabase (for red/normal sorting in export)
   const [activeChatters, setActiveChatters] = useState<Set<string>>(new Set());
+  const [chatterTeamMap, setChatterTeamMap] = useState<Map<string, string>>(new Map());
 
   const inflowwRef = useRef<HTMLInputElement>(null);
   const hubstaffRef = useRef<HTMLInputElement>(null);
@@ -109,12 +110,13 @@ export default function InflowwKPIs() {
     (async () => {
       const { data } = await supabase
         .from('chatters')
-        .select('full_name')
+        .select('full_name, team_name')
         .eq('status', 'Active')
         .eq('airtable_role', 'Chatter');
       if (data && data.length > 0) {
         const names = new Set<string>();
-        for (const c of data) {
+        const teamMap = new Map<string, string>();
+        for (const c of data as { full_name: string; team_name: string | null }[]) {
           const full = c.full_name.toLowerCase().trim().replace(/\s+/g, ' ');
           names.add(full);
           const parts = full.split(' ');
@@ -122,8 +124,15 @@ export default function InflowwKPIs() {
             names.add(parts[0] + ' ' + parts[parts.length - 1]);
           }
           names.add(parts[0]);
+          const team = (c.team_name || '').replace(/^team\s+/i, '').trim().toUpperCase();
+          if (team) {
+            teamMap.set(full, team);
+            if (parts.length >= 2) teamMap.set(parts[0] + ' ' + parts[parts.length - 1], team);
+            teamMap.set(parts[0], team);
+          }
         }
         setActiveChatters(names);
+        setChatterTeamMap(teamMap);
       }
     })();
   }, []);
@@ -243,7 +252,7 @@ export default function InflowwKPIs() {
     if (!cid) { setShowGsheetSetup(true); return; }
     setExporting(true);
     try {
-      const url = await exportToGoogleSheets(data, hubstaffRaw, period, customFrom, customTo, activeChatters, setExportStatus);
+      const url = await exportToGoogleSheets(data, hubstaffRaw, period, customFrom, customTo, activeChatters, chatterTeamMap, setExportStatus);
       setGsheetUrl(url);
       window.open(url, '_blank');
     } catch (err) {
