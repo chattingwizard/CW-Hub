@@ -103,6 +103,8 @@ export default function InflowwKPIs() {
   // Active chatters from Supabase (for red/normal sorting in export)
   const [activeChatters, setActiveChatters] = useState<Set<string>>(new Set());
   const [chatterTeamMap, setChatterTeamMap] = useState<Map<string, string>>(new Map());
+  const [chattersLoaded, setChattersLoaded] = useState(false);
+  const [chattersError, setChattersError] = useState(false);
 
   const inflowwRef = useRef<HTMLInputElement>(null);
   const hubstaffRef = useRef<HTMLInputElement>(null);
@@ -115,23 +117,26 @@ export default function InflowwKPIs() {
     setGsheetUrl(getGsheetUrl());
 
     (async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('chatters')
         .select('full_name, team_name')
         .eq('status', 'Active')
         .eq('airtable_role', 'Chatter');
-      if (data && data.length > 0) {
-        const names = new Set<string>();
-        const teamMap = new Map<string, string>();
-        for (const c of data as { full_name: string; team_name: string | null }[]) {
-          const full = c.full_name.toLowerCase().trim().replace(/\s+/g, ' ');
-          names.add(full);
-          const team = (c.team_name || '').replace(/^team\s+/i, '').trim().toUpperCase();
-          if (team) teamMap.set(full, team);
-        }
-        setActiveChatters(names);
-        setChatterTeamMap(teamMap);
+      if (error || !data || data.length === 0) {
+        setChattersError(true);
+        return;
       }
+      const names = new Set<string>();
+      const teamMap = new Map<string, string>();
+      for (const c of data as { full_name: string; team_name: string | null }[]) {
+        const full = c.full_name.toLowerCase().trim().replace(/\s+/g, ' ');
+        names.add(full);
+        const team = (c.team_name || '').replace(/^team\s+/i, '').trim().toUpperCase();
+        if (team) teamMap.set(full, team);
+      }
+      setActiveChatters(names);
+      setChatterTeamMap(teamMap);
+      setChattersLoaded(true);
     })();
   }, []);
 
@@ -293,9 +298,7 @@ export default function InflowwKPIs() {
   }, [activeChatters]);
 
   const isRowActive = useCallback((row: EmployeeMetrics) => {
-    if (activeChatters.size === 0) {
-      return !isNaN(Number(row.directMessagesSent)) && Number(row.directMessagesSent) > 0;
-    }
+    if (activeChatters.size === 0) return true;
     return matchesActiveChatter(String(row.employee));
   }, [activeChatters, matchesActiveChatter]);
 
@@ -360,6 +363,19 @@ export default function InflowwKPIs() {
         </button>
       </div>
 
+      {/* Chatters list failed to load */}
+      {chattersError && (
+        <div className="bg-red-950/40 border border-red-800/50 rounded-xl px-4 py-3 flex items-center justify-between">
+          <span className="text-sm text-red-300">Could not load the active chatters list from Supabase. Data may be inaccurate.</span>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-800/50 text-red-200 hover:bg-red-800/70 transition-colors"
+          >
+            Reload page
+          </button>
+        </div>
+      )}
+
       {/* Hub Data Status */}
       {dataSource === 'hub' && (
         <div className="flex items-center gap-2 bg-surface-1 border border-border rounded-xl px-4 py-2.5">
@@ -368,7 +384,7 @@ export default function InflowwKPIs() {
           ) : hubError ? (
             <><span className="text-xs text-red-400">Error: {hubError}</span></>
           ) : (
-            <><Database size={13} className="text-cw" /><span className="text-xs text-text-muted">{hubData.length} employees loaded from Hub</span></>
+            <><Database size={13} className="text-cw" /><span className="text-xs text-text-muted">{hubData.length} employees loaded from Hub{chattersLoaded ? ` · ${activeChatters.size} active chatters verified` : ''}</span></>
           )}
         </div>
       )}
