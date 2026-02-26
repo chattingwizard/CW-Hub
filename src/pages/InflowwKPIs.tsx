@@ -257,7 +257,30 @@ export default function InflowwKPIs() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const data = useMemo(() => processData(period, customFrom, customTo, hubstaffRaw), [period, customFrom, customTo, hubstaffRaw, dataVersion]);
   const filtered = useMemo(() => hideInactive ? data.filter(r => !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0) : data, [data, hideInactive]);
-  const sorted = useMemo(() => sortData(filtered, sortKey, sortDir), [filtered, sortKey, sortDir]);
+  const sorted = useMemo(() => {
+    const s = sortData(filtered, sortKey, sortDir);
+    if (activeChatters.size === 0) return s;
+    return [...s].sort((a, b) => {
+      const aName = String(a.employee).toLowerCase().trim().replace(/\s+/g, ' ');
+      const aParts = aName.split(' ');
+      const aMatch = activeChatters.has(aName)
+        || (aParts.length >= 2 && activeChatters.has(aParts[0] + ' ' + aParts[aParts.length - 1]))
+        || activeChatters.has(aParts[0]);
+      const aHasAct = !isNaN(Number(a.directMessagesSent)) && Number(a.directMessagesSent) > 0;
+      const aActive = aMatch || aHasAct;
+
+      const bName = String(b.employee).toLowerCase().trim().replace(/\s+/g, ' ');
+      const bParts = bName.split(' ');
+      const bMatch = activeChatters.has(bName)
+        || (bParts.length >= 2 && activeChatters.has(bParts[0] + ' ' + bParts[bParts.length - 1]))
+        || activeChatters.has(bParts[0]);
+      const bHasAct = !isNaN(Number(b.directMessagesSent)) && Number(b.directMessagesSent) > 0;
+      const bActive = bMatch || bHasAct;
+
+      if (aActive === bActive) return 0;
+      return aActive ? -1 : 1;
+    });
+  }, [filtered, sortKey, sortDir, activeChatters]);
   const averages = useMemo(() => computeAverages(filtered), [filtered]);
   const stats = useMemo(() => getHistoryStats(), [dataVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo]);
