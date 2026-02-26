@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { getModulesForRole } from '../../lib/modules';
 import { ROLE_LABELS } from '../../lib/roles';
@@ -34,7 +34,6 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const { profile, signOut } = useAuthStore();
-  const navigate = useNavigate();
 
   if (!profile) return null;
 
@@ -43,7 +42,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
   const handleSignOut = async () => {
     await signOut();
-    navigate('/login');
+    window.location.reload();
   };
 
   const getModulePath = (mod: HubModule) => {

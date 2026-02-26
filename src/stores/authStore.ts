@@ -81,10 +81,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .eq('id', session.user.id)
           .single();
 
-        set({
+        set(state => ({
           user: { id: session.user.id, email: session.user.email ?? '' },
-          profile: profile as Profile | null,
-        });
+          // If the fetch returned null (race condition with auth token),
+          // keep the existing profile if it belongs to the same user.
+          profile: (profile as Profile | null) ??
+            (state.profile?.id === session.user.id ? state.profile : null),
+        }));
       }
     });
     authSubscription = subscription;

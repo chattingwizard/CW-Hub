@@ -548,7 +548,7 @@ export default function Tasks() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

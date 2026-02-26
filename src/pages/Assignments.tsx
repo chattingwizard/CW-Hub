@@ -140,7 +140,7 @@ export default function Assignments() {
   const dayNames = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
   return (
-    <div className="p-4 lg:p-6 h-[calc(100vh-56px)] lg:h-screen flex flex-col">
+    <div className="p-4 lg:p-6 h-[calc(100vh-52px)] flex flex-col">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between mb-4 gap-3 shrink-0">
         <div>

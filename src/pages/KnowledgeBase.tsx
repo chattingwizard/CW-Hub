@@ -397,7 +397,7 @@ export default function KnowledgeBase() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-100px)] overflow-hidden relative">
+    <div className="flex h-[calc(100vh-52px)] overflow-hidden relative">
       {/* Mobile sidebar backdrop */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />

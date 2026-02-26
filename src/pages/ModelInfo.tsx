@@ -62,7 +62,7 @@ export default function ModelInfo() {
   };
 
   return (
-    <div className="p-4 lg:p-6 h-[calc(100vh-56px)] lg:h-screen flex flex-col">
+    <div className="p-4 lg:p-6 h-[calc(100vh-52px)] flex flex-col">
       {/* Header */}
       <div className="mb-4 shrink-0">
         <h1 className="text-2xl font-extrabold text-text-primary">Model Info</h1>

@@ -223,7 +223,7 @@ export default function ChatterPerformance() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-0 p-4 lg:p-6">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div>
