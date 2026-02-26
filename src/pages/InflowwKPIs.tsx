@@ -663,12 +663,12 @@ export default function InflowwKPIs() {
               </thead>
               <tbody>
                 {sorted.map((row, i) => {
-                  const hasActivity = !isNaN(Number(row.directMessagesSent)) && Number(row.directMessagesSent) > 0;
+                  const isActive = activeChatters.size === 0 || activeChatters.has(String(row.employee).toLowerCase().trim());
                   return (
                     <tr
                       key={i}
                       className={`border-b border-border last:border-b-0 transition-colors hover:bg-surface-2/50 ${
-                        !hasActivity ? 'opacity-40' : ''
+                        !isActive ? 'opacity-30' : ''
                       }`}
                     >
                       {COLUMNS.map(col => {
