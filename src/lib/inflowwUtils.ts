@@ -734,7 +734,12 @@ export async function exportToGoogleSheets(
     if (activeChatters.size === 0) {
       return !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0;
     }
-    return activeChatters.has(String(r.employee).toLowerCase().trim());
+    const name = String(r.employee).toLowerCase().trim().replace(/\s+/g, ' ');
+    if (activeChatters.has(name)) return true;
+    const parts = name.split(' ');
+    if (parts.length >= 2 && activeChatters.has(parts[0] + ' ' + parts[parts.length - 1])) return true;
+    if (activeChatters.has(parts[0])) return true;
+    return false;
   }
   const sorted = [...data].sort((a, b) => {
     const aa = isActiveChatter(a), ba = isActiveChatter(b);

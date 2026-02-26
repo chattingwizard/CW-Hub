@@ -112,8 +112,18 @@ export default function InflowwKPIs() {
         .select('full_name')
         .eq('status', 'Active')
         .eq('airtable_role', 'Chatter');
-      if (data) {
-        setActiveChatters(new Set(data.map(c => c.full_name.toLowerCase().trim())));
+      if (data && data.length > 0) {
+        const names = new Set<string>();
+        for (const c of data) {
+          const full = c.full_name.toLowerCase().trim().replace(/\s+/g, ' ');
+          names.add(full);
+          const parts = full.split(' ');
+          if (parts.length >= 2) {
+            names.add(parts[0] + ' ' + parts[parts.length - 1]);
+          }
+          names.add(parts[0]);
+        }
+        setActiveChatters(names);
       }
     })();
   }, []);
@@ -663,7 +673,12 @@ export default function InflowwKPIs() {
               </thead>
               <tbody>
                 {sorted.map((row, i) => {
-                  const isActive = activeChatters.size === 0 || activeChatters.has(String(row.employee).toLowerCase().trim());
+                  const empName = String(row.employee).toLowerCase().trim().replace(/\s+/g, ' ');
+                  const empParts = empName.split(' ');
+                  const isActive = activeChatters.size === 0
+                    || activeChatters.has(empName)
+                    || (empParts.length >= 2 && activeChatters.has(empParts[0] + ' ' + empParts[empParts.length - 1]))
+                    || activeChatters.has(empParts[0]);
                   return (
                     <tr
                       key={i}
