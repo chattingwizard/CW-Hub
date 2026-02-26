@@ -293,7 +293,9 @@ export default function InflowwKPIs() {
   }, [activeChatters]);
 
   const isRowActive = useCallback((row: EmployeeMetrics) => {
-    if (activeChatters.size === 0) return true;
+    if (activeChatters.size === 0) {
+      return !isNaN(Number(row.directMessagesSent)) && Number(row.directMessagesSent) > 0;
+    }
     return matchesActiveChatter(String(row.employee));
   }, [activeChatters, matchesActiveChatter]);
 
