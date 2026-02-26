@@ -288,14 +288,16 @@ export default function InflowwKPIs() {
   const filtered = useMemo(() => hideInactive ? data.filter(r => !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0) : data, [data, hideInactive]);
 
   const isRowActive = useCallback((row: EmployeeMetrics) => {
-    const hasAct = !isNaN(Number(row.directMessagesSent)) && Number(row.directMessagesSent) > 0;
-    if (activeChatters.size === 0) return hasAct;
     const empName = String(row.employee).toLowerCase().trim().replace(/\s+/g, ' ');
     const empParts = empName.split(' ');
-    const nameMatch = activeChatters.has(empName)
+    const nameMatch = activeChatters.size > 0 && (
+      activeChatters.has(empName)
       || (empParts.length >= 2 && activeChatters.has(empParts[0] + ' ' + empParts[empParts.length - 1]))
-      || activeChatters.has(empParts[0]);
-    return nameMatch || hasAct;
+      || activeChatters.has(empParts[0])
+    );
+    const hasTeam = !!row.group && row.group.trim() !== '';
+    const hasAct = !isNaN(Number(row.directMessagesSent)) && Number(row.directMessagesSent) > 0;
+    return nameMatch || (hasTeam && hasAct);
   }, [activeChatters]);
 
   const sorted = useMemo(() => {
@@ -307,14 +309,15 @@ export default function InflowwKPIs() {
       return aActive ? -1 : 1;
     });
   }, [filtered, sortKey, sortDir, isRowActive]);
-  const averages = useMemo(() => computeAverages(filtered), [filtered]);
+  const activeOnly = useMemo(() => filtered.filter(r => isRowActive(r)), [filtered, isRowActive]);
+  const averages = useMemo(() => computeAverages(activeOnly), [activeOnly]);
   const stats = useMemo(() => getHistoryStats(), [dataVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo]);
   const hasData = dataSource === 'hub' ? hubData.length > 0 : ((stats && stats.totalRecords > 0) || hubstaffRaw);
 
-  // Compact view data
-  const compactRanked = useMemo(() => getCompactRanking(filtered), [filtered]);
-  const totalSales = useMemo(() => getTotalSales(filtered), [filtered]);
+  // Compact view data — active employees only
+  const compactRanked = useMemo(() => getCompactRanking(activeOnly), [activeOnly]);
+  const totalSales = useMemo(() => getTotalSales(activeOnly), [activeOnly]);
 
   // Calendar data
   const calRange = pickPhase === 1 && pickStart ? { from: pickStart, to: addDays(pickStart, 1) } : range;
