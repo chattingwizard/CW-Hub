@@ -539,7 +539,7 @@ export default function InflowwKPIs() {
         </div>
       ) : compactView ? (
         /* ═══ COMPACT RANKING VIEW ═══ */
-        <div className="bg-surface-1 border border-border rounded-xl overflow-hidden">
+        <div className="bg-surface-1 border border-border rounded-xl overflow-hidden max-w-xl mx-auto">
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
