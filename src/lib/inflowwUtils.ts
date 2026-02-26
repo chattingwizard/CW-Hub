@@ -751,6 +751,7 @@ export async function exportToGoogleSheets(
   const TL_TEAMS = ['DANILYN', 'HUCKLE', 'EZEKIEL'] as const;
   const teams: Record<string, EmployeeMetrics[]> = {};
   for (const tl of TL_TEAMS) teams[tl] = [];
+  const miscEmployees: EmployeeMetrics[] = [];
 
   function resolveTeam(r: EmployeeMetrics): string | null {
     const name = String(r.employee).toLowerCase().trim().replace(/\s+/g, ' ');
@@ -770,6 +771,8 @@ export async function exportToGoogleSheets(
     const tn = resolveTeam(r);
     if (tn && teams[tn]) {
       teams[tn].push(r);
+    } else if (!isActiveChatter(r)) {
+      miscEmployees.push(r);
     }
   }
   const teamNames = [...TL_TEAMS];
@@ -781,7 +784,7 @@ export async function exportToGoogleSheets(
     'Clocked hours', 'Sales per hour', 'Character count', 'Messages sent per hour',
   ];
 
-  const sheetTitles = ['By employee', 'TL BONUSES', ...teamNames, 'HUBSTAFF HOURS'];
+  const sheetTitles = ['By employee', 'TL BONUSES', ...teamNames, 'MISCELLANEOUS', 'HUBSTAFF HOURS'];
 
   onProgress('Creating spreadsheet...');
   const range = getDateRange(period, customFrom, customTo);
@@ -822,11 +825,12 @@ export async function exportToGoogleSheets(
   const tlRows: (string | number)[][] = [];
   let tlRow = 1;
   for (const tn of teamNames) {
-    const teamData = teams[tn];
-    const teamAvgSph = teamData.reduce((s, r) => s + (isNaN(Number(r.salesPerHour)) ? 0 : Number(r.salesPerHour)), 0) / teamData.length;
-    const cvrs = teamData.filter(r => !isNaN(Number(r.fanCvr)));
-    const teamAvgCvr = cvrs.length ? cvrs.reduce((s, r) => s + Number(r.fanCvr) / 100, 0) / cvrs.length : 0;
-    const rts = teamData.filter(r => !isNaN(Number(r.responseTime)));
+    const activeTeam = teams[tn].filter(r => isActiveChatter(r));
+    const sphData = activeTeam.filter(r => !isNaN(Number(r.salesPerHour)));
+    const teamAvgSph = sphData.length ? sphData.reduce((s, r) => s + Number(r.salesPerHour), 0) / sphData.length : 0;
+    const cvrs = activeTeam.filter(r => !isNaN(Number(r.fanCvr)) && Number(r.fanCvr) > 0);
+    const teamAvgCvr = cvrs.length ? cvrs.reduce((s, r) => s + Number(r.fanCvr), 0) / cvrs.length / 100 : 0;
+    const rts = activeTeam.filter(r => !isNaN(Number(r.responseTime)) && Number(r.responseTime) > 0);
     const avgRtSec = rts.length ? rts.reduce((s, r) => s + Number(r.responseTime), 0) / rts.length : 0;
     const teamAvgRt: string | number = rts.length ? secsToSerial(avgRtSec) : '-';
 
@@ -866,6 +870,16 @@ export async function exportToGoogleSheets(
     teamRows.push(avgTeam);
     valueRanges.push({ range: "'" + tn + "'!A1", values: teamRows });
   }
+
+  // MISCELLANEOUS sheet — unverified / inactive employees
+  const miscRows: (string | number)[][] = [];
+  miscRows.push(HEADERS);
+  const miscSorted = [...miscEmployees].sort((a, b) =>
+    (isNaN(Number(b.sales)) ? -Infinity : Number(b.sales)) - (isNaN(Number(a.sales)) ? -Infinity : Number(a.sales))
+  );
+  for (const r of miscSorted) miscRows.push(buildEmployeeRow(r));
+  if (miscSorted.length === 0) miscRows.push(['(No unverified employees)']);
+  valueRanges.push({ range: "'MISCELLANEOUS'!A1", values: miscRows });
 
   if (hubstaffRaw) {
     const hMap = buildMap(hubstaffRaw.headers, HUBSTAFF_ALIASES);
@@ -1052,6 +1066,18 @@ export async function exportToGoogleSheets(
     }
   }
 
+  // Format MISCELLANEOUS sheet
+  const miscSid = sheetIdMap['MISCELLANEOUS'];
+  if (miscSid != null && miscSorted.length > 0) {
+    const miscTotal = 1 + miscSorted.length;
+    applyNumberFormats(miscSid, miscTotal);
+    applyMainSheetFormat(miscSid, 0, -1, -1, 1, miscTotal, 16);
+    cellFmt(miscSid, 1, miscTotal, 0, 16, {
+      backgroundColor: rgb('F4CCCC'),
+      textFormat: { ...defaultFont, foregroundColor: rgb('990000') },
+    });
+  }
+
   // Format TL BONUSES sheet
   const tlSid = sheetIdMap['TL BONUSES'];
   if (tlSid != null) {
@@ -1065,6 +1091,24 @@ export async function exportToGoogleSheets(
         backgroundColor: rgb('8E7CC3'),
         textFormat: { ...defaultFont, bold: true, foregroundColor: WHITE },
       });
+      // $/hr row — currency format
+      fmtReqs.push({ repeatCell: {
+        range: { sheetId: tlSid, startRowIndex: offset + 2, endRowIndex: offset + 3, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: { numberFormat: { type: 'CURRENCY', pattern: '$#,##0.00' } } },
+        fields: 'userEnteredFormat.numberFormat',
+      }});
+      // CVR row — percentage format
+      fmtReqs.push({ repeatCell: {
+        range: { sheetId: tlSid, startRowIndex: offset + 3, endRowIndex: offset + 4, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: { numberFormat: { type: 'PERCENT', pattern: '0.00%' } } },
+        fields: 'userEnteredFormat.numberFormat',
+      }});
+      // Reply Time row — time format
+      fmtReqs.push({ repeatCell: {
+        range: { sheetId: tlSid, startRowIndex: offset + 4, endRowIndex: offset + 5, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: { numberFormat: { type: 'TIME', pattern: 'mm:ss' } } },
+        fields: 'userEnteredFormat.numberFormat',
+      }});
       cellFmt(tlSid, offset + 5, offset + 6, 1, 4, {
         backgroundColor: rgb('FFE599'),
         textFormat: { ...defaultFont, bold: true },
