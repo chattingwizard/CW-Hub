@@ -645,6 +645,58 @@ function rgb(hex: string) {
   return { red: r, green: g, blue: b };
 }
 
+const EXPORT_VER_KEY = 'infloww_export_ver';
+const EXPORT_DATE_KEY = 'infloww_export_date';
+
+function getExportTitle(range: { from: string; to: string } | null): string {
+  const fmtD = (s: string) => {
+    const d = new Date(s + 'T00:00:00Z');
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  };
+
+  let name = 'KPIs';
+  if (range) {
+    const inclEnd = addDays(range.to, -1);
+    name += ' ' + fmtD(range.from) + ' - ' + fmtD(inclEnd);
+  } else {
+    name += ' ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  const today = new Date().toLocaleDateString();
+  const lastDate = localStorage.getItem(EXPORT_DATE_KEY);
+  let ver = parseInt(localStorage.getItem(EXPORT_VER_KEY) || '0', 10);
+  if (lastDate === today) {
+    ver++;
+  } else {
+    ver = 0;
+  }
+  localStorage.setItem(EXPORT_DATE_KEY, today);
+  localStorage.setItem(EXPORT_VER_KEY, String(ver));
+  if (ver > 0) name += ' - v' + ver;
+
+  return name;
+}
+
+const COL_WIDTHS = [160, 90, 85, 100, 90, 80, 85, 80, 85, 100, 70, 130, 85, 85, 100, 100];
+
+const COL_FORMATS: ({ col: number; fmt: string } | null)[] = [
+  { col: 1, fmt: '[h]:mm:ss' },
+  { col: 2, fmt: '$#,##0.00' },
+  { col: 3, fmt: '#,##0' },
+  { col: 4, fmt: '#,##0' },
+  { col: 5, fmt: '0.00%' },
+  { col: 6, fmt: '#,##0' },
+  { col: 7, fmt: '0.00%' },
+  { col: 8, fmt: '#,##0' },
+  { col: 9, fmt: '#,##0' },
+  { col: 10, fmt: '0.00%' },
+  { col: 11, fmt: '[h]:mm:ss' },
+  null,
+  { col: 13, fmt: '$#,##0.00' },
+  { col: 14, fmt: '#,##0' },
+  { col: 15, fmt: '0.00' },
+];
+
 export async function exportToGoogleSheets(
   data: EmployeeMetrics[],
   hubstaffRaw: ParsedCSV | null,
@@ -707,8 +759,8 @@ export async function exportToGoogleSheets(
   const sheetTitles = ['By employee', 'TL BONUSES', ...teamNames, 'HUBSTAFF HOURS'];
 
   onProgress('Creating spreadsheet...');
-  const today = new Date().toLocaleDateString();
-  const title = 'KPI Dashboard Export – ' + today;
+  const range = getDateRange(period, customFrom, customTo);
+  const title = getExportTitle(range);
   const createBody = {
     properties: { title },
     sheets: sheetTitles.map(t => ({ properties: { title: t } })),
@@ -783,11 +835,28 @@ export async function exportToGoogleSheets(
     valueRanges.push({ range: "'" + tn + "'!A1", values: teamRows });
   }
 
-  valueRanges.push({
-    range: "'HUBSTAFF HOURS'!A1",
-    values: [['Organization', 'Time Zone', 'Member', 'TOTAL HOURS', 'Activity', 'Spent total', 'Currency'],
-    hubstaffRaw ? ['(Data included)'] : ['(No Hubstaff data loaded)']],
-  });
+  if (hubstaffRaw) {
+    const hMap = buildMap(hubstaffRaw.headers, HUBSTAFF_ALIASES);
+    const hRows: (string | number)[][] = [['Organization', 'Time Zone', 'Member', 'TOTAL HOURS', 'Activity', 'Spent total', 'Currency']];
+    const dateIdx = hMap.date;
+    const hRange = getDateRange(period, customFrom, customTo);
+    const rows = hRange && dateIdx != null ? hubstaffRaw.rows.filter(r => {
+      const d = r[dateIdx] ? String(r[dateIdx]).trim().slice(0, 10) : null;
+      return d && d >= hRange.from && d < hRange.to;
+    }) : hubstaffRaw.rows;
+    for (const row of rows) {
+      const name = hMap.employee != null ? (row[hMap.employee] || '').trim() : '';
+      if (!name) continue;
+      hRows.push(['Chatting Wizard ENG', 'UTC', name, fmtClockedExport(parseHoursExport(row[hMap.hours])), row[4] || '', row[5] || '', row[6] || 'USD']);
+    }
+    valueRanges.push({ range: "'HUBSTAFF HOURS'!A1", values: hRows });
+  } else {
+    valueRanges.push({
+      range: "'HUBSTAFF HOURS'!A1",
+      values: [['Organization', 'Time Zone', 'Member', 'TOTAL HOURS', 'Activity', 'Spent total', 'Currency'],
+      ['(No Hubstaff data loaded)']],
+    });
+  }
 
   await sheetsApi('/' + spreadsheetId + '/values:batchUpdate', 'POST', {
     valueInputOption: 'USER_ENTERED',
@@ -813,34 +882,179 @@ export async function exportToGoogleSheets(
     }});
   }
 
-  const byEmpSid = sheetIdMap['By employee'];
-  if (byEmpSid != null) {
-    const totalRows = 3 + sorted.length;
-    cellFmt(byEmpSid, 0, totalRows, 0, 16, {
+  function applyNumberFormats(sid: number, totalRows: number) {
+    for (const cf of COL_FORMATS) {
+      if (!cf) continue;
+      const fmtType = cf.fmt.includes('$') ? 'CURRENCY' : cf.fmt.includes('%') ? 'PERCENT' : cf.fmt.includes(':') ? 'TIME' : 'NUMBER';
+      cellFmt(sid, 1, totalRows, cf.col, cf.col + 1, {
+        numberFormat: { type: fmtType, pattern: cf.fmt },
+      });
+    }
+  }
+
+  function setColumnWidths(sid: number, widths: number[]) {
+    for (let i = 0; i < widths.length; i++) {
+      fmtReqs.push({ updateDimensionProperties: {
+        range: { sheetId: sid, dimension: 'COLUMNS', startIndex: i, endIndex: i + 1 },
+        properties: { pixelSize: widths[i] }, fields: 'pixelSize',
+      }});
+    }
+  }
+
+  function applyMainSheetFormat(sid: number, headerRow: number, avgRow: number, scoreRow: number, dStart: number, dEnd: number, totalCols: number) {
+    cellFmt(sid, 0, dEnd, 0, totalCols, {
       textFormat: { ...defaultFont, foregroundColor: BLACK },
       horizontalAlignment: 'CENTER',
       verticalAlignment: 'MIDDLE',
+      wrapStrategy: 'CLIP',
     });
-    cellFmt(byEmpSid, 0, 1, 0, 16, {
+
+    cellFmt(sid, headerRow, headerRow + 1, 0, totalCols, {
       backgroundColor: rgb('F1C232'),
       textFormat: { ...defaultFont, bold: true, foregroundColor: rgb('5B0F00'), fontSize: 9 },
+      horizontalAlignment: 'CENTER',
+      wrapStrategy: 'WRAP',
     });
-    cellFmt(byEmpSid, 1, 2, 0, 1, {
-      backgroundColor: rgb('FF9900'),
-      textFormat: { ...defaultFont, bold: true, foregroundColor: WHITE },
+
+    if (avgRow >= 0) {
+      cellFmt(sid, avgRow, avgRow + 1, 0, 1, {
+        backgroundColor: rgb('FF9900'),
+        textFormat: { ...defaultFont, bold: true, foregroundColor: WHITE },
+      });
+      cellFmt(sid, avgRow, avgRow + 1, 1, totalCols, {
+        backgroundColor: rgb('FFFF00'),
+        textFormat: { ...defaultFont, bold: true },
+      });
+    }
+
+    if (scoreRow >= 0) {
+      cellFmt(sid, scoreRow, scoreRow + 1, 0, 1, {
+        backgroundColor: rgb('1155CC'),
+        textFormat: { ...defaultFont, bold: true, foregroundColor: WHITE },
+      });
+      cellFmt(sid, scoreRow, scoreRow + 1, 1, totalCols, {
+        backgroundColor: rgb('00FFFF'),
+        textFormat: { ...defaultFont, bold: true },
+      });
+    }
+
+    cellFmt(sid, dStart, dEnd, 0, 1, {
+      textFormat: { ...defaultFont, bold: false },
+      horizontalAlignment: 'LEFT',
     });
-    cellFmt(byEmpSid, 1, 2, 1, 16, {
-      backgroundColor: rgb('FFFF00'),
-      textFormat: { ...defaultFont, bold: true },
+
+    cellFmt(sid, dStart, dEnd, 1, 2, {
+      backgroundColor: rgb('EFEFEF'),
+      textFormat: { ...defaultFont, bold: true, foregroundColor: rgb('B45F06') },
     });
-    cellFmt(byEmpSid, 3, totalRows, 2, 3, { backgroundColor: rgb('D9EAD3') });
+
+    const cyanCols = [10, 13, 15];
+    for (const ci of cyanCols) {
+      cellFmt(sid, headerRow, headerRow + 1, ci, ci + 1, {
+        backgroundColor: rgb('00FFFF'),
+        textFormat: { ...defaultFont, bold: true, foregroundColor: rgb('5B0F00') },
+      });
+    }
+
+    cellFmt(sid, dStart, dEnd, 2, 3, { backgroundColor: rgb('D9EAD3') });
+
+    fmtReqs.push({ updateBorders: {
+      range: { sheetId: sid, startRowIndex: headerRow, endRowIndex: dEnd, startColumnIndex: 0, endColumnIndex: totalCols },
+      top: { style: 'SOLID', width: 1, color: rgb('999999') },
+      bottom: { style: 'SOLID', width: 1, color: rgb('999999') },
+      left: { style: 'SOLID', width: 1, color: rgb('999999') },
+      right: { style: 'SOLID', width: 1, color: rgb('999999') },
+      innerHorizontal: { style: 'SOLID', width: 1, color: rgb('D9D9D9') },
+      innerVertical: { style: 'SOLID', width: 1, color: rgb('D9D9D9') },
+    }});
+
+    setColumnWidths(sid, COL_WIDTHS);
+
+    fmtReqs.push({ updateDimensionProperties: {
+      range: { sheetId: sid, dimension: 'ROWS', startIndex: headerRow, endIndex: headerRow + 1 },
+      properties: { pixelSize: 50 }, fields: 'pixelSize',
+    }});
+    fmtReqs.push({ updateDimensionProperties: {
+      range: { sheetId: sid, dimension: 'ROWS', startIndex: dStart, endIndex: dEnd },
+      properties: { pixelSize: 24 }, fields: 'pixelSize',
+    }});
+  }
+
+  // Format "By employee" sheet
+  const byEmpSid = sheetIdMap['By employee'];
+  if (byEmpSid != null) {
+    const totalRows = 3 + sorted.length;
+    applyNumberFormats(byEmpSid, totalRows);
+    applyMainSheetFormat(byEmpSid, 0, 1, 2, 3, totalRows, 16);
 
     if (firstInactiveIdx >= 0) {
-      cellFmt(byEmpSid, 3 + firstInactiveIdx, totalRows, 0, 16, {
+      const inactiveStart = 3 + firstInactiveIdx;
+      cellFmt(byEmpSid, inactiveStart, totalRows, 0, 16, {
         backgroundColor: rgb('F4CCCC'),
         textFormat: { ...defaultFont, foregroundColor: rgb('990000') },
       });
     }
+  }
+
+  // Format team sheets
+  for (const tn of teamNames) {
+    const sid = sheetIdMap[tn];
+    if (sid == null) continue;
+    const cnt = teams[tn].length;
+    const totalRows = 1 + cnt + 1;
+    applyNumberFormats(sid, totalRows);
+    applyMainSheetFormat(sid, 0, -1, -1, 1, 1 + cnt, 16);
+
+    cellFmt(sid, 1 + cnt, 1 + cnt + 1, 10, 16, {
+      backgroundColor: rgb('FFFF00'),
+      textFormat: { ...defaultFont, bold: true },
+    });
+  }
+
+  // Format TL BONUSES sheet
+  const tlSid = sheetIdMap['TL BONUSES'];
+  if (tlSid != null) {
+    let offset = 1;
+    for (let ti = 0; ti < teamNames.length; ti++) {
+      cellFmt(tlSid, offset, offset + 1, 1, 4, {
+        backgroundColor: rgb('D9D2E9'),
+        textFormat: { ...defaultFont, bold: true, foregroundColor: rgb('20124D') },
+      });
+      cellFmt(tlSid, offset + 1, offset + 2, 1, 4, {
+        backgroundColor: rgb('8E7CC3'),
+        textFormat: { ...defaultFont, bold: true, foregroundColor: WHITE },
+      });
+      cellFmt(tlSid, offset + 5, offset + 6, 1, 4, {
+        backgroundColor: rgb('FFE599'),
+        textFormat: { ...defaultFont, bold: true },
+      });
+      fmtReqs.push({ updateBorders: {
+        range: { sheetId: tlSid, startRowIndex: offset, endRowIndex: offset + 6, startColumnIndex: 1, endColumnIndex: 4 },
+        top: { style: 'SOLID', width: 1, color: rgb('999999') },
+        bottom: { style: 'SOLID', width: 1, color: rgb('999999') },
+        left: { style: 'SOLID', width: 1, color: rgb('999999') },
+        right: { style: 'SOLID', width: 1, color: rgb('999999') },
+        innerHorizontal: { style: 'SOLID', width: 1, color: rgb('D9D9D9') },
+        innerVertical: { style: 'SOLID', width: 1, color: rgb('D9D9D9') },
+      }});
+      offset += 7;
+    }
+    fmtReqs.push({ autoResizeDimensions: { dimensions: { sheetId: tlSid, dimension: 'COLUMNS', startIndex: 0, endIndex: 5 } } });
+  }
+
+  // Format HUBSTAFF HOURS sheet
+  const hSid = sheetIdMap['HUBSTAFF HOURS'];
+  if (hSid != null) {
+    cellFmt(hSid, 0, 1, 0, 7, {
+      backgroundColor: rgb('F1C232'),
+      textFormat: { ...defaultFont, bold: true, foregroundColor: rgb('5B0F00') },
+      horizontalAlignment: 'CENTER',
+    });
+    fmtReqs.push({ updateBorders: {
+      range: { sheetId: hSid, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 7 },
+      bottom: { style: 'SOLID', width: 2, color: rgb('B45F06') },
+    }});
+    fmtReqs.push({ autoResizeDimensions: { dimensions: { sheetId: hSid, dimension: 'COLUMNS', startIndex: 0, endIndex: 7 } } });
   }
 
   if (fmtReqs.length > 0) {
@@ -849,6 +1063,17 @@ export async function exportToGoogleSheets(
 
   const sheetUrl = 'https://docs.google.com/spreadsheets/d/' + spreadsheetId;
   return sheetUrl;
+}
+
+function parseHoursExport(v: unknown): number {
+  if (v == null || v === '' || v === '-') return NaN;
+  const s = String(v).trim().replace(/,/g, '.');
+  const hmin = s.match(/^(\d+)h\s*(\d+)\s*min/i);
+  if (hmin) return parseInt(hmin[1]) + parseInt(hmin[2]) / 60;
+  const hm = s.match(/^(\d+):(\d{2})(?::(\d{2}))?$/);
+  if (hm) return parseInt(hm[1]) + parseInt(hm[2]) / 60 + (hm[3] ? parseInt(hm[3]) / 3600 : 0);
+  const n = parseFloat(s);
+  return isNaN(n) ? NaN : n;
 }
 
 // ── Calendar helpers ──
