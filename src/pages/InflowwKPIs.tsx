@@ -540,23 +540,29 @@ export default function InflowwKPIs() {
       ) : compactView ? (
         /* ═══ COMPACT RANKING VIEW ═══ */
         <div className="bg-surface-1 border border-border rounded-xl overflow-hidden">
-          {/* Total Sales Header */}
-          <div className="px-6 py-4 border-b border-border text-center">
-            <p className="text-xs text-text-muted font-semibold uppercase tracking-wider mb-1">Total Sales</p>
-            <p className="text-2xl font-bold bg-gradient-to-r from-emerald-500 via-emerald-300 to-emerald-100 bg-clip-text text-transparent">
-              ${Math.round(totalSales * 100) / 100}
-            </p>
-          </div>
-
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>
+                {/* Total Sales banner */}
+                <tr>
+                  <th colSpan={5} className="px-3 py-2 text-center text-sm font-bold border-b-2 border-cw/20">
+                    TOTAL SALES{' '}
+                    <span className="text-base inline-block border-b-2 border-emerald-400 pb-px" style={{
+                      background: 'linear-gradient(90deg, #166534, #4ade80, #bbf7d0)',
+                      WebkitBackgroundClip: 'text',
+                      WebkitTextFillColor: 'transparent',
+                      backgroundClip: 'text',
+                    }}>
+                      ${Math.round(totalSales * 100) / 100}
+                    </span>
+                  </th>
+                </tr>
                 <tr className="border-b border-border">
-                  <th className="px-4 py-2.5 text-center font-semibold text-text-muted w-16">Rank</th>
-                  <th className="px-4 py-2.5 text-left font-semibold text-text-muted">Top Chatters</th>
-                  <th className="px-4 py-2.5 text-right font-semibold text-text-muted">Sales</th>
-                  <th className="px-4 py-2.5 text-center font-semibold text-emerald-400">$$ BONUS $$</th>
-                  <th className="px-4 py-2.5 text-center font-semibold text-amber-400">JACKPOT +$50k</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-text-muted w-12">Rank</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-text-muted">Top Chatters</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-text-muted">Sales</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-emerald-400">$$ BONUS $$</th>
+                  <th className="px-2 py-1.5 text-center font-semibold text-amber-400">JACKPOT +$50k total sales BONUS $$</th>
                 </tr>
               </thead>
               <tbody>
@@ -565,15 +571,15 @@ export default function InflowwKPIs() {
                   const firstName = String(r.employee || '').split(' ')[0];
                   return (
                     <tr key={i} className="border-b border-border last:border-b-0 hover:bg-surface-2/50 transition-colors">
-                      <td className="px-4 py-2.5 text-center font-bold text-text-muted">
+                      <td className="px-2 py-1 text-center font-bold text-text-muted text-xs">
                         {i + 1}{i < RANK_MEDALS.length ? ' ' + RANK_MEDALS[i] : ''}
                       </td>
-                      <td className="px-4 py-2.5 font-semibold text-text-primary">{firstName}</td>
-                      <td className="px-4 py-2.5 text-right text-emerald-400 font-semibold">{formatValue(r.sales, 'currency')}</td>
-                      <td className={`px-4 py-2.5 text-center font-bold ${hasBonus ? 'text-emerald-400' : 'text-text-muted/40 italic'}`}>
+                      <td className="px-2 py-1 text-center font-semibold text-text-primary">{firstName}</td>
+                      <td className="px-2 py-1 text-center text-emerald-400 font-semibold">{formatValue(r.sales, 'currency')}</td>
+                      <td className={`px-2 py-1 text-center font-bold ${hasBonus ? 'text-emerald-400' : 'text-text-muted/40 italic'}`}>
                         {hasBonus ? `$${COMPACT_BONUS[i].toFixed(2)}` : 'Keep pushing'}
                       </td>
-                      <td className={`px-4 py-2.5 text-center font-bold ${hasBonus ? 'text-amber-400' : 'text-text-muted/40 italic'}`}>
+                      <td className={`px-2 py-1 text-center font-bold ${hasBonus ? 'text-amber-400' : 'text-text-muted/40 italic'}`}>
                         {hasBonus ? `$${COMPACT_JACKPOT[i].toFixed(2)}` : 'Keep pushing'}
                       </td>
                     </tr>
@@ -586,13 +592,13 @@ export default function InflowwKPIs() {
           {compactRanked.length > COMPACT_VISIBLE && (
             <button
               onClick={() => setShowExpanded(!showExpanded)}
-              className="w-full py-2.5 text-xs text-text-muted hover:text-text-primary hover:bg-surface-2/50 border-t border-border transition-colors"
+              className="w-full py-1.5 text-xs text-text-muted hover:text-text-primary hover:bg-surface-2/50 border-t border-border transition-colors"
             >
               {showExpanded ? `Hide ${compactRanked.length - COMPACT_VISIBLE} more` : `Show ${compactRanked.length - COMPACT_VISIBLE} more`}
             </button>
           )}
 
-          <div className="px-4 py-2 border-t border-border text-[10px] text-text-muted">
+          <div className="px-3 py-1.5 border-t border-border text-[10px] text-text-muted">
             {compactRanked.length} employee{compactRanked.length !== 1 ? 's' : ''} ranked
           </div>
         </div>
