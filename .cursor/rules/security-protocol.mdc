@@ -1,0 +1,69 @@
+---
+description: CRITICAL - Security rules for all CW public repos (GitHub Pages, secrets, credentials)
+alwaysApply: true
+---
+
+# GitHub & Security — Chatting Wizard Repos
+
+## GitHub Pages — ALWAYS PUBLIC
+
+After EVERY `git push` to any CW GitHub Pages repo:
+1. **Verify visibility**: `gh repo view chattingwizard/<repo> --json visibility`
+2. **If not PUBLIC**: `gh repo edit chattingwizard/<repo> --visibility public --accept-visibility-change-consequences`
+
+**Why:** GitHub Pages on free org accounts requires public repos.
+
+## SECURITY PROTOCOL (CRITICAL — incident Feb 16, 2026)
+
+All CW repos (CW-Hub, CW-ChattingSchool, cw-coaching) are **PUBLIC**. Every file committed is visible to the entire internet. Security is non-negotiable.
+
+### 3 Layers of Protection (all active)
+
+| Layer | What | Status |
+|---|---|---|
+| **1. Pre-commit hook** | `.githooks/pre-commit` scans every commit for secret patterns BEFORE it's created. Blocks the commit if found. | Active on CW-Hub |
+| **2. GitHub Push Protection** | GitHub scans every push and REJECTS it if secrets are detected (like it did with the Slack token). | Active on ALL CW repos |
+| **3. GitHub Secret Scanning** | Continuously scans repo history for exposed secrets and alerts via email. | Active on ALL CW repos |
+
+### Before EVERY git commit — MANDATORY checklist:
+
+1. Run `git diff --cached --name-only` — review EVERY file being committed
+2. **NO file from `tools/`** — this directory is gitignored and LOCAL ONLY
+3. **NO `.env`, `.key`, `.secret`, `.pem`, `.credentials` files**
+4. **NO hardcoded passwords, tokens, or API keys** in any source file
+5. **ALL credentials** live in `.env` (gitignored) or `tools/.service_key` (gitignored)
+6. The pre-commit hook runs automatically — if it blocks, FIX the issue, don't bypass
+
+### Credential Storage Rules:
+
+| Credential | Where it lives | Gitignored? |
+|---|---|---|
+| Supabase anon key | `src/lib/supabase.ts` (hardcoded) | No — **this is safe**, anon key is designed to be public |
+| Supabase service_role key | `tools/.service_key` | YES |
+| Slack token | `.env` → `SLACK_USER_TOKEN` | YES |
+| Airtable token | `.env` → `AIRTABLE_TOKEN` | YES |
+| Hub owner password | Supabase Auth only (never in code) | N/A |
+| Any new credential | `.env` file ONLY | YES |
+
+### NEVER in committed code:
+- `xoxp-*`, `xoxb-*` (Slack tokens)
+- `eyJhbGci...` with `service_role` (Supabase service key)
+- `ntn_*` (Notion tokens)
+- `ghp_*`, `gho_*` (GitHub tokens)
+- `sk-*` (OpenAI/API keys)
+- Any `password = "..."` or `PASSWORD = "..."`
+- Any email + password combination
+
+### If a secret IS accidentally committed:
+1. `git rm --cached <file>` immediately
+2. `git commit --amend` to rewrite
+3. `git push --force` to clean remote history
+4. **ROTATE the compromised credential** — change password, regenerate token
+5. Verify no GitGuardian/GitHub alerts remain
+
+### Security Features Enabled (Feb 16, 2026):
+- Secret Scanning: ON (all 3 repos)
+- Push Protection: ON (all 3 repos)
+- Dependabot Security Updates: ON (CW-Hub)
+- Pre-commit hook: ON (CW-Hub)
+- Hardened `.gitignore`: all repos

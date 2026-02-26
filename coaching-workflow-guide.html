@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>New Coaching Workflow — CW Hub</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0a; color: #fff; padding: 40px 20px; }
+  .container { max-width: 720px; margin: 0 auto; }
+  .header { text-align: center; margin-bottom: 48px; }
+  .header .logo { display: inline-flex; align-items: center; justify-content: center; width: 56px; height: 56px; border-radius: 16px; background: rgba(29,155,240,0.2); margin-bottom: 16px; }
+  .header .logo span { color: #1d9bf0; font-weight: 800; font-size: 20px; }
+  .header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  .header p { color: #888; font-size: 15px; }
+  .section { margin-bottom: 40px; }
+  .section-title { font-size: 13px; text-transform: uppercase; letter-spacing: 1.5px; color: #1d9bf0; font-weight: 700; margin-bottom: 16px; }
+  .card { background: #111; border: 1px solid #2a2a2a; border-radius: 16px; padding: 24px; margin-bottom: 12px; }
+  .card h3 { font-size: 17px; font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 10px; }
+  .card p { color: #aaa; font-size: 14px; line-height: 1.6; }
+  .emoji { font-size: 22px; }
+  .flow { display: flex; flex-direction: column; gap: 0; }
+  .flow-step { display: flex; gap: 16px; padding: 16px 0; }
+  .flow-line { display: flex; flex-direction: column; align-items: center; width: 32px; flex-shrink: 0; }
+  .flow-dot { width: 32px; height: 32px; border-radius: 50%; background: #1d9bf0; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px; flex-shrink: 0; }
+  .flow-connector { width: 2px; flex: 1; background: #2a2a2a; min-height: 20px; }
+  .flow-content { flex: 1; padding-top: 4px; }
+  .flow-content h4 { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .flow-content p { color: #888; font-size: 13px; line-height: 1.5; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-new { background: rgba(34,197,94,0.15); color: #22c55e; }
+  .badge-removed { background: rgba(239,68,68,0.15); color: #ef4444; }
+  .badge-kept { background: rgba(234,179,8,0.15); color: #eab308; }
+  .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  .comp-card { background: #1a1a1a; border-radius: 12px; padding: 16px; }
+  .comp-card h4 { font-size: 13px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+  .comp-card ul { list-style: none; }
+  .comp-card ul li { font-size: 13px; padding: 4px 0; color: #ccc; }
+  .comp-card ul li::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 8px; }
+  .old li::before { background: #ef4444; }
+  .new li::before { background: #22c55e; }
+  .alert { background: rgba(29,155,240,0.1); border: 1px solid rgba(29,155,240,0.3); border-radius: 12px; padding: 20px; text-align: center; }
+  .alert h3 { color: #1d9bf0; font-size: 16px; margin-bottom: 8px; }
+  .alert p { color: #aaa; font-size: 14px; }
+  .alert a { color: #1d9bf0; text-decoration: none; font-weight: 600; }
+  .alert a:hover { text-decoration: underline; }
+  .role-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .role-card { background: #1a1a1a; border-radius: 12px; padding: 16px; border-left: 3px solid; }
+  .role-card.tl { border-color: #1d9bf0; }
+  .role-card.mgr { border-color: #a855f7; }
+  .role-card h4 { font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  .role-card p { font-size: 12px; color: #888; line-height: 1.5; }
+  @media (max-width: 600px) {
+    .comparison, .role-grid { grid-template-columns: 1fr; }
+    body { padding: 24px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="logo"><span>CW</span></div>
+    <h1>New Coaching Workflow</h1>
+    <p>Everything you need to know about the updated coaching system</p>
+  </div>
+
+  <!-- What Changed -->
+  <div class="section">
+    <div class="section-title">What Changed</div>
+    <div class="comparison">
+      <div class="comp-card">
+        <h4>Before <span class="badge badge-removed">Removed</span></h4>
+        <ul class="old">
+          <li>Coaching instructions sent via Slack messages</li>
+          <li>TLs received a text wall before each shift</li>
+          <li>No way to track if coaching was actually done</li>
+          <li>Compliance checked manually at end of shift</li>
+          <li>No interactive feedback</li>
+        </ul>
+      </div>
+      <div class="comp-card">
+        <h4>Now <span class="badge badge-new">New</span></h4>
+        <ul class="new">
+          <li>Coaching queue lives inside the CW Hub</li>
+          <li>TLs see a clean checklist with priorities</li>
+          <li>Checkmarks to mark coaching as done</li>
+          <li>Automatic compliance tracking in real-time</li>
+          <li>Management can monitor everything live</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- How It Works -->
+  <div class="section">
+    <div class="section-title">How It Works — Daily Flow</div>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot">1</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h4>Queue Generated Automatically</h4>
+          <p>Every day at 11:00 PM UTC, the system analyzes all chatters' performance, checks who needs coaching, and creates a prioritized queue for each Team Leader.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot">2</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h4>TL Opens the Hub → Coaching Queue</h4>
+          <p>When the TL starts their shift, they go to the <strong>Coaching Queue</strong> page. They see their chatters listed by priority — who needs coaching the most is at the top.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot">3</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h4>TL Does the Coaching Call</h4>
+          <p>Each chatter shows: performance score, red flag KPIs, specific talking points (what to discuss), and any active goals. The TL clicks on a chatter to see all the details they need for the call.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot">4</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h4>TL Marks It Done ✓</h4>
+          <p>After the coaching call, the TL clicks the checkmark, fills in a quick form (Focus KPI, Target, Notes), and marks it complete. Takes 10 seconds.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot">5</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h4>Management Monitors in Real-Time</h4>
+          <p>The <strong>Coaching Overview</strong> page shows completion rates for all TLs, live. No waiting for end-of-shift reports — you can see progress as it happens.</p>
+        </div>
+      </div>
+      <div class="flow-step">
+        <div class="flow-line">
+          <div class="flow-dot">6</div>
+          <div class="flow-connector"></div>
+        </div>
+        <div class="flow-content">
+          <h4>Missed Coaching → Slack Alert</h4>
+          <p>If a TL ends their shift with coaching sessions still pending, an automatic alert is sent to <strong>#0-management-chatter</strong> tagging the TL and you. This is the only Slack notification now.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Who Sees What -->
+  <div class="section">
+    <div class="section-title">Who Sees What</div>
+    <div class="role-grid">
+      <div class="role-card tl">
+        <h4>Team Leaders (Huckle, Danilyn, Ezekiel)</h4>
+        <p>
+          <strong>Coaching Queue</strong> — their personal checklist for the day.<br>
+          • Chatters sorted by priority<br>
+          • KPIs, red flags, talking points<br>
+          • Checkmarks to mark complete<br>
+          • Progress bar showing completion %
+        </p>
+      </div>
+      <div class="role-card mgr">
+        <h4>Management (Rycel, Pau)</h4>
+        <p>
+          <strong>Coaching Overview</strong> — bird's eye view of all teams.<br>
+          • Completion rate per TL (with visual rings)<br>
+          • Which chatters were coached vs missed<br>
+          • Red flag counts per team<br>
+          • Can check any past date
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- What You Need to Do -->
+  <div class="section">
+    <div class="alert">
+      <h3>🔍 Please Test Everything</h3>
+      <p>
+        Log into the Hub and check both pages:<br><br>
+        <a href="https://chattingwizard.github.io/CW-Hub/#/coaching-queue">→ Coaching Queue</a> (click on chatters, expand details, try marking one complete)<br>
+        <a href="https://chattingwizard.github.io/CW-Hub/#/coaching-overview">→ Coaching Overview</a> (check all TL cards, expand tables)<br><br>
+        Report any issues or feedback directly to management.
+      </p>
+    </div>
+  </div>
+
+  <div style="text-align:center; color:#555; font-size:12px; margin-top:40px;">
+    Chatting Wizard — CW Hub &middot; Updated Feb 2026
+  </div>
+
+</div>
+</body>
+</html>

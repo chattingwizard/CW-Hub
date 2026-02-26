@@ -1,0 +1,109 @@
+name: CW Hub Data Pipeline
+
+on:
+  schedule:
+    # Airtable sync: every 6 hours (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 0,6,12,18 * * *'
+    # Hubstaff hours: every 6 hours offset by 1h (01:00, 07:00, 13:00, 19:00 UTC)
+    - cron: '0 1,7,13,19 * * *'
+    # Coaching tasks: 30 min before each TL shift
+    #   Danilyn/Huckle (00:00 UTC shift) → generate at 23:30
+    #   Ezekiel (08:00 UTC shift) → generate at 07:30
+    #   Compliance check: 15:30 UTC (Danilyn end-of-shift)
+    - cron: '30 23 * * *'
+    - cron: '30 7 * * *'
+    - cron: '30 15 * * *'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'Which pipeline to run'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - airtable
+          - hubstaff
+          - coaching
+
+jobs:
+  determine-task:
+    runs-on: ubuntu-latest
+    outputs:
+      run_airtable: ${{ steps.check.outputs.run_airtable }}
+      run_hubstaff: ${{ steps.check.outputs.run_hubstaff }}
+      run_coaching: ${{ steps.check.outputs.run_coaching }}
+    steps:
+      - id: check
+        run: |
+          CRON="${{ github.event.schedule }}"
+          INPUT="${{ github.event.inputs.task }}"
+
+          if [ "$INPUT" = "all" ] || [ "$INPUT" = "airtable" ] || [ "$CRON" = "0 0,6,12,18 * * *" ]; then
+            echo "run_airtable=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_airtable=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$INPUT" = "all" ] || [ "$INPUT" = "hubstaff" ] || [ "$CRON" = "0 1,7,13,19 * * *" ]; then
+            echo "run_hubstaff=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_hubstaff=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$INPUT" = "all" ] || [ "$INPUT" = "coaching" ] || [ "$CRON" = "30 23 * * *" ] || [ "$CRON" = "30 7 * * *" ] || [ "$CRON" = "30 15 * * *" ]; then
+            echo "run_coaching=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_coaching=false" >> $GITHUB_OUTPUT
+          fi
+
+  sync-airtable:
+    needs: determine-task
+    if: needs.determine-task.outputs.run_airtable == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r pipeline/requirements.txt
+      - name: Sync Airtable → Supabase
+        env:
+          AIRTABLE_TOKEN: ${{ secrets.AIRTABLE_TOKEN }}
+          AIRTABLE_BASE_ID: ${{ secrets.AIRTABLE_BASE_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python pipeline/sync_airtable.py
+
+  sync-hubstaff:
+    needs: determine-task
+    if: needs.determine-task.outputs.run_hubstaff == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r pipeline/requirements.txt
+      - name: Sync Hubstaff hours → Supabase
+        env:
+          HUBSTAFF_TOKEN: ${{ secrets.HUBSTAFF_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python pipeline/sync_hubstaff.py
+
+  generate-coaching:
+    needs: determine-task
+    if: needs.determine-task.outputs.run_coaching == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r pipeline/requirements.txt
+      - name: Generate coaching tasks + notify TLs
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python pipeline/generate_coaching.py

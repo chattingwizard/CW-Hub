@@ -1,0 +1,100 @@
+---
+description: Business logic and operational rules for the Chatting Wizard coaching/performance system
+alwaysApply: true
+---
+
+# Coaching System — Business Rules
+
+## Sources of Truth
+
+| Data | Source | Notes |
+|---|---|---|
+| Hours worked | **Hubstaff API** | The ONLY authority on whether a chatter worked. < 1h = didn't work (day off). |
+| Sales, CVR, Unlock, Golden Ratio, Msg/hr, Reply Time, Fans | **Inflow CSV** (exported daily by Daniela) | Daniela uploads to Slack DM. System downloads and parses. |
+| Chatter names & team assignments | **Airtable "Chatters" table** | Canonical names. Inflow names must match these. |
+| Daily aggregated performance | **Airtable "Daily Performance" table** | Merged Inflow + Hubstaff data per chatter per day. |
+| Weekly aggregated performance | **Airtable "Performance" table** | Historical weekly data. |
+| Model traffic (new fans/day, active fans) | **Infloww Creator Reports** (.xlsx) | Exported by Rycel daily. Uploaded via CW Hub or ingested via Slack. |
+| Model account type (Free/Paid/Mixed) | **Airtable "Models" table → `Page Type`** | Synced to Supabase as `page_type`. Determines workload weighting. |
+
+## Key Rules
+
+- **Hubstaff hours < 1 = chatter didn't work.** Don't calculate scores, don't flag KPI alarms, show as "Day off".
+- **Name matching**: Inflow names may differ from Airtable. Use normalization (lowercase, collapse spaces) + fuzzy alias mapping. When mismatch is unresolvable, ask Daniela to fix in Inflow.
+- **Mondays**: Daniela can't export before ~2pm UTC. Daily ingest defers to 15:30 UTC cron on Mondays.
+- **TL briefings**: Sent 30min before each TL's shift start (not after). 3 briefings/day.
+- **Dashboard**: GitHub Pages at chattingwizard.github.io/cw-coaching/. Auto-switches to daily view. Inactive chatters go to bottom.
+
+## Team Structure
+
+Each TL starts 1 hour before their chatters' shift to prepare the handoff (login, dashboards, review).
+
+| TL | TL Hours (UTC) | Covers Chatter Shift (UTC) | Color |
+|---|---|---|---|
+| Huckle | 23:00–07:00 | 00:00–08:00 (Night) | Orange |
+| Danilyn | 07:00–15:00 | 08:00–16:00 (Day) | Blue |
+| Ezekiel | 15:00–23:00 | 16:00–00:00 (Evening) | Purple |
+
+**All TLs manage the SAME models.** The difference is how each TL distributes THEIR chatters across those models. Within each TL team, chatters are grouped into "assignment groups" — each group handles specific models. High-traffic models may get 2+ chatters; low-traffic models can be grouped together for 1 chatter.
+
+**Team 0 = Management team (NOT chatters).** Members of Team 0 in Airtable are managers, executives, VAs, and other non-chatter staff (CEO, COO, CHM, Content Manager, etc.). They must be EXCLUDED from all chatter-related systems: schedules, assignments, chatter dashboards, coaching, KPIs. Only the named TL teams above (Danilyn, Huckle, Ezekiel) contain actual chatters.
+
+## Pipeline Flow
+
+```
+Daniela exports Inflow CSV → Slack DM → ingest_daily.py downloads
+  ↓
+Hubstaff API → fetch hours per chatter
+  ↓
+Merge Inflow + Hubstaff → store in Airtable Daily Performance
+  ↓
+generate_dashboard.py → HTML dashboard (GitHub Pages)
+send_briefings.py --tl <key> → Slack briefings to TLs (30min before shift)
+send_briefings.py --compliance <key> → End-of-shift coaching compliance report
+send_briefings.py --pau → Daily summary to management
+```
+
+## Coaching Compliance Tracking
+
+- **At end of each TL's shift**, the system checks which recommended coaching calls were completed.
+- Compares chatters who were overdue (days_since ≥ 2) vs coaching logs for today.
+- Report sent to `#0-management-chatter` tagging **Rycel** (chatter manager, `U08SZB25CJV`).
+- Schedule: Huckle checked at 06:30 UTC, Danilyn at 14:30 UTC, Ezekiel at 22:30 UTC.
+- Shows: completion rate, completed list, missed list (with red flags + days since last coaching).
+- Missed chatters are automatically re-assigned in the next briefing.
+
+## Traffic / Workload
+
+- **Fans/hr** = proxy for traffic per chatter (fans_chatted / hours_worked). More fans/hr = more traffic.
+- Traffic is determined by the models/accounts assigned to each chatter.
+- **TL action on imbalance**: move chatters between models/accounts, or adjust shifts.
+- **Imbalance alert**: ratio max/min > 2x = yellow warning, > 3x = critical.
+- Dashboard shows traffic distribution bars per TL team, ranked by Fans/hr.
+
+### Traffic Measurement (from Infloww Creator Reports)
+
+| Data | Column | Notes |
+|---|---|---|
+| Gross new fans/day | `New fans` + `Change in expired fan count` | "New fans" is NET (can be negative). GROSS = NET + expired. Always ≥ 0. |
+| Active fans | `Active fans` | Snapshot — total currently active |
+| Account type | Airtable `Page Type` field | `Free Page`, `Paid Page`, `Mixed` |
+
+**CRITICAL: "New fans" column in Infloww is NET change, NOT gross new subscribers.** It equals (new subscribers - lost fans) and CAN be negative. To get actual new subscriber traffic: `GROSS = "New fans" + "Change in expired fan count"`, floored at 0.
+
+### Account Type Affects Workload
+
+- **Free Page:** High traffic volume, low fan quality. Chatter must manually filter/qualify fans. More work per fan.
+- **Paid Page:** Lower traffic, higher quality. Paywall pre-filters fans. Less work per fan, more fluid conversations.
+- **Mixed:** Both streams. Check subscription revenue to understand the split.
+- **Rule:** Raw fan count alone is misleading. 100 free fans ≠ 100 paid fans in workload. Free traffic should be weighted higher when balancing chatter assignments.
+
+## Decision Principle
+
+When making ANY technical decision about this system, always ask: "What is the source of truth for this data?" Use the table above. Don't invent heuristics when a single authoritative signal exists.
+
+## Self-Updating Rule
+
+When a conversation produces a new business rule, operational insight, or source-of-truth clarification:
+1. Update THIS file (`.cursor/rules/coaching-system.mdc`) with the concise rule
+2. Update `cursor_context/04_COACHING_OPS.md` with the detailed explanation
+3. Confirm to the user what was added
