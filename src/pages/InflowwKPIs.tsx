@@ -159,6 +159,7 @@ export default function InflowwKPIs() {
   useEffect(() => {
     if (dataSource !== 'hub') return;
     let cancelled = false;
+    setHubData([]);
     setHubLoading(true);
     setHubError(null);
     loadFromSupabase(period, customFrom, customTo, hubstaffRaw)
@@ -284,7 +285,7 @@ export default function InflowwKPIs() {
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const csvData = useMemo(() => processData(period, customFrom, customTo, hubstaffRaw), [period, customFrom, customTo, hubstaffRaw, dataVersion]);
-  const data = dataSource === 'hub' ? hubData : csvData;
+  const data = useMemo(() => dataSource === 'hub' ? hubData : csvData, [dataSource, hubData, csvData]);
   const filtered = useMemo(() => hideInactive ? data.filter(r => !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0) : data, [data, hideInactive]);
 
   const isRowActive = useCallback((row: EmployeeMetrics) => {
