@@ -675,10 +675,11 @@ export default function InflowwKPIs() {
                 {sorted.map((row, i) => {
                   const empName = String(row.employee).toLowerCase().trim().replace(/\s+/g, ' ');
                   const empParts = empName.split(' ');
-                  const isActive = activeChatters.size === 0
-                    || activeChatters.has(empName)
+                  const nameMatch = activeChatters.has(empName)
                     || (empParts.length >= 2 && activeChatters.has(empParts[0] + ' ' + empParts[empParts.length - 1]))
                     || activeChatters.has(empParts[0]);
+                  const hasActivity = !isNaN(Number(row.directMessagesSent)) && Number(row.directMessagesSent) > 0;
+                  const isActive = activeChatters.size === 0 || nameMatch || hasActivity;
                   return (
                     <tr
                       key={i}
