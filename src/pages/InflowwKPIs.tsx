@@ -28,6 +28,7 @@ import {
   saveHubstaffData,
   loadHubstaffData,
   processData,
+  loadFromSupabase,
   sortData,
   formatValue,
   computeAverages,
@@ -60,7 +61,13 @@ const PERIODS: { id: PeriodType; label: string }[] = [
   { id: 'all', label: 'All Data' },
 ];
 
+type DataSource = 'hub' | 'csv';
+
 export default function InflowwKPIs() {
+  const [dataSource, setDataSource] = useState<DataSource>('hub');
+  const [hubData, setHubData] = useState<EmployeeMetrics[]>([]);
+  const [hubLoading, setHubLoading] = useState(false);
+  const [hubError, setHubError] = useState<string | null>(null);
   const [hubstaffRaw, setHubstaffRaw] = useState<ParsedCSV | null>(null);
   const [period, setPeriod] = useState<PeriodType>('current');
   const [customFrom, setCustomFrom] = useState<string | null>(null);
@@ -148,6 +155,18 @@ export default function InflowwKPIs() {
   }, [calOpen]);
 
   const reload = useCallback(() => setDataVersion(v => v + 1), []);
+
+  useEffect(() => {
+    if (dataSource !== 'hub') return;
+    let cancelled = false;
+    setHubLoading(true);
+    setHubError(null);
+    loadFromSupabase(period, customFrom, customTo, hubstaffRaw)
+      .then(result => { if (!cancelled) setHubData(result); })
+      .catch(err => { if (!cancelled) setHubError(err instanceof Error ? err.message : 'Load failed'); })
+      .finally(() => { if (!cancelled) setHubLoading(false); });
+    return () => { cancelled = true; };
+  }, [dataSource, period, customFrom, customTo, hubstaffRaw, dataVersion]);
 
   async function handleInflowwUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -264,7 +283,8 @@ export default function InflowwKPIs() {
   }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const data = useMemo(() => processData(period, customFrom, customTo, hubstaffRaw), [period, customFrom, customTo, hubstaffRaw, dataVersion]);
+  const csvData = useMemo(() => processData(period, customFrom, customTo, hubstaffRaw), [period, customFrom, customTo, hubstaffRaw, dataVersion]);
+  const data = dataSource === 'hub' ? hubData : csvData;
   const filtered = useMemo(() => hideInactive ? data.filter(r => !isNaN(Number(r.directMessagesSent)) && Number(r.directMessagesSent) > 0) : data, [data, hideInactive]);
 
   const isRowActive = useCallback((row: EmployeeMetrics) => {
@@ -290,7 +310,7 @@ export default function InflowwKPIs() {
   const averages = useMemo(() => computeAverages(filtered), [filtered]);
   const stats = useMemo(() => getHistoryStats(), [dataVersion]); // eslint-disable-line react-hooks/exhaustive-deps
   const range = useMemo(() => getDateRange(period, customFrom, customTo), [period, customFrom, customTo]);
-  const hasData = (stats && stats.totalRecords > 0) || hubstaffRaw;
+  const hasData = dataSource === 'hub' ? hubData.length > 0 : ((stats && stats.totalRecords > 0) || hubstaffRaw);
 
   // Compact view data
   const compactRanked = useMemo(() => getCompactRanking(filtered), [filtered]);
@@ -312,29 +332,66 @@ export default function InflowwKPIs() {
           Infloww KPIs
         </h1>
         <p className="text-sm text-text-muted mt-1">
-          Upload Infloww + Hubstaff files to view employee performance
+          {dataSource === 'hub' ? 'Using daily data uploaded to the Hub' : 'Upload Infloww + Hubstaff files manually'}
         </p>
       </div>
 
-      {/* Upload Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <label className="bg-surface-1 border border-border rounded-xl p-4 cursor-pointer hover:border-cw/30 transition-colors">
-          <input ref={inflowwRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleInflowwUpload} className="hidden" />
-          <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60 mb-1.5">1. Infloww (Marketing Analytics)</p>
-          <div className="flex items-center gap-2">
-            {uploadingInfloww ? <Loader2 size={14} className="animate-spin text-cw" /> : <Upload size={14} className="text-cw" />}
-            <span className="text-sm text-text-primary font-medium truncate">{inflowwLabel}</span>
-          </div>
-        </label>
-        <label className="bg-surface-1 border border-border rounded-xl p-4 cursor-pointer hover:border-cw/30 transition-colors">
-          <input ref={hubstaffRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleHubstaffUpload} className="hidden" />
-          <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60 mb-1.5">2. Hubstaff (Timesheets)</p>
-          <div className="flex items-center gap-2">
-            {uploadingHubstaff ? <Loader2 size={14} className="animate-spin text-cw" /> : <Upload size={14} className="text-cw" />}
-            <span className="text-sm text-text-primary font-medium truncate">{hubstaffLabel}</span>
-          </div>
-        </label>
+      {/* Data Source Toggle */}
+      <div className="flex items-center gap-1 bg-surface-1 border border-border rounded-xl p-1 w-fit">
+        <button
+          onClick={() => setDataSource('hub')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            dataSource === 'hub' ? 'bg-cw text-white' : 'text-text-muted hover:text-text-primary'
+          }`}
+        >
+          <Database size={12} />
+          Hub Data
+        </button>
+        <button
+          onClick={() => setDataSource('csv')}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            dataSource === 'csv' ? 'bg-cw text-white' : 'text-text-muted hover:text-text-primary'
+          }`}
+        >
+          <Upload size={12} />
+          Manual CSV
+        </button>
       </div>
+
+      {/* Hub Data Status */}
+      {dataSource === 'hub' && (
+        <div className="flex items-center gap-2 bg-surface-1 border border-border rounded-xl px-4 py-2.5">
+          {hubLoading ? (
+            <><Loader2 size={13} className="animate-spin text-cw" /><span className="text-xs text-text-muted">Loading data from Hub...</span></>
+          ) : hubError ? (
+            <><span className="text-xs text-red-400">Error: {hubError}</span></>
+          ) : (
+            <><Database size={13} className="text-cw" /><span className="text-xs text-text-muted">{hubData.length} employees loaded from Hub</span></>
+          )}
+        </div>
+      )}
+
+      {/* Upload Cards — only for Manual CSV mode */}
+      {dataSource === 'csv' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="bg-surface-1 border border-border rounded-xl p-4 cursor-pointer hover:border-cw/30 transition-colors">
+            <input ref={inflowwRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleInflowwUpload} className="hidden" />
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60 mb-1.5">1. Infloww (Marketing Analytics)</p>
+            <div className="flex items-center gap-2">
+              {uploadingInfloww ? <Loader2 size={14} className="animate-spin text-cw" /> : <Upload size={14} className="text-cw" />}
+              <span className="text-sm text-text-primary font-medium truncate">{inflowwLabel}</span>
+            </div>
+          </label>
+          <label className="bg-surface-1 border border-border rounded-xl p-4 cursor-pointer hover:border-cw/30 transition-colors">
+            <input ref={hubstaffRef} type="file" accept=".csv,.xlsx,.xls" onChange={handleHubstaffUpload} className="hidden" />
+            <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted/60 mb-1.5">2. Hubstaff (Timesheets)</p>
+            <div className="flex items-center gap-2">
+              {uploadingHubstaff ? <Loader2 size={14} className="animate-spin text-cw" /> : <Upload size={14} className="text-cw" />}
+              <span className="text-sm text-text-primary font-medium truncate">{hubstaffLabel}</span>
+            </div>
+          </label>
+        </div>
+      )}
 
       {/* Google Sheets Export */}
       <div className="flex flex-wrap items-center gap-2">
@@ -386,8 +443,8 @@ export default function InflowwKPIs() {
         </div>
       )}
 
-      {/* History info */}
-      {stats && (
+      {/* History info — CSV mode only */}
+      {dataSource === 'csv' && stats && (
         <div className="flex items-center justify-between bg-surface-1 border border-border rounded-xl px-4 py-2.5">
           <div className="flex items-center gap-2">
             <Database size={13} className="text-text-muted" />

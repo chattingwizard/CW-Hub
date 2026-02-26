@@ -1,5 +1,6 @@
 // Infloww + Hubstaff CSV processing utilities
 // Ported from chattingwizard/infloww-kpi-dashboard
+import { supabase } from './supabase';
 
 const HISTORY_KEY = 'infloww_history';
 const HUBSTAFF_KEY = 'infloww_hubstaff';
@@ -465,6 +466,122 @@ export function processData(period: PeriodType, customFrom?: string | null, cust
   }
 
   return Object.values(employees).map(computeMetrics);
+}
+
+// ── Load from Supabase (Hub daily uploads) ──
+
+interface ChatterDailyRow {
+  date: string;
+  employee_name: string;
+  team: string | null;
+  sales: number;
+  messages_sent: number;
+  ppvs_sent: number;
+  ppvs_unlocked: number;
+  golden_ratio: number;
+  unlock_rate: number;
+  fan_cvr: number;
+  fans_chatted: number;
+  fans_who_spent: number;
+  character_count: number;
+  response_time_clocked: string | null;
+  clocked_hours: number;
+  sales_per_hour: number;
+  messages_per_hour: number;
+  scheduled_hours: number;
+}
+
+export async function loadFromSupabase(
+  period: PeriodType,
+  customFrom?: string | null,
+  customTo?: string | null,
+  hubstaffRaw?: ParsedCSV | null
+): Promise<EmployeeMetrics[]> {
+  const range = getDateRange(period, customFrom, customTo);
+
+  let query = supabase
+    .from('chatter_daily_stats')
+    .select('*')
+    .order('date', { ascending: true });
+
+  if (range) {
+    query = query.gte('date', range.from).lt('date', range.to);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error('Supabase query failed: ' + error.message);
+  if (!data || data.length === 0) return [];
+
+  const rows = data as ChatterDailyRow[];
+  const grouped: Record<string, { name: string; group: string; days: ChatterDailyRow[]; hubstaffHours: number }> = {};
+
+  for (const row of rows) {
+    const key = row.employee_name.toLowerCase().trim();
+    if (!grouped[key]) {
+      grouped[key] = { name: row.employee_name, group: row.team || '', days: [], hubstaffHours: 0 };
+    }
+    if (row.team) grouped[key].group = row.team;
+    grouped[key].days.push(row);
+  }
+
+  if (hubstaffRaw) {
+    const map = buildMap(hubstaffRaw.headers, HUBSTAFF_ALIASES);
+    const dateIdx = map.date;
+    const hRows = range && dateIdx != null ? filterRows(hubstaffRaw.rows, dateIdx, range) : hubstaffRaw.rows;
+    for (const row of hRows) {
+      const name = map.employee != null ? (row[map.employee] || '').trim() : '';
+      if (!name) continue;
+      const key = name.toLowerCase();
+      if (!grouped[key]) grouped[key] = { name, group: '', days: [], hubstaffHours: 0 };
+      const h = parseHours(row[map.hours]);
+      if (!isNaN(h)) grouped[key].hubstaffHours += h;
+    }
+  }
+
+  return Object.values(grouped).map(emp => {
+    const m: EmployeeMetrics = { employee: emp.name, group: emp.group };
+    const numDays = emp.days.length;
+    if (numDays === 0) {
+      m.duration = emp.hubstaffHours || NaN;
+      return m;
+    }
+
+    m.sales = emp.days.reduce((s, d) => s + (Number(d.sales) || 0), 0);
+    m.directMessagesSent = emp.days.reduce((s, d) => s + (Number(d.messages_sent) || 0), 0);
+    m.directPpvsSent = emp.days.reduce((s, d) => s + (Number(d.ppvs_sent) || 0), 0);
+    m.ppvsUnlocked = emp.days.reduce((s, d) => s + (Number(d.ppvs_unlocked) || 0), 0);
+    m.fansChatted = emp.days.reduce((s, d) => s + (Number(d.fans_chatted) || 0), 0);
+    m.fansWhoSpentMoney = emp.days.reduce((s, d) => s + (Number(d.fans_who_spent) || 0), 0);
+    m.characterCount = emp.days.reduce((s, d) => s + (Number(d.character_count) || 0), 0);
+    m.clockedHours = emp.days.reduce((s, d) => s + (Number(d.clocked_hours) || 0), 0);
+
+    const grs = emp.days.map(d => Number(d.golden_ratio)).filter(v => !isNaN(v) && v > 0);
+    m.goldenRatio = grs.length ? grs.reduce((s, v) => s + v, 0) / grs.length : NaN;
+    const urs = emp.days.map(d => Number(d.unlock_rate)).filter(v => !isNaN(v) && v > 0);
+    m.unlockRate = urs.length ? urs.reduce((s, v) => s + v, 0) / urs.length : NaN;
+    const cvrs = emp.days.map(d => Number(d.fan_cvr)).filter(v => !isNaN(v) && v > 0);
+    m.fanCvr = cvrs.length ? cvrs.reduce((s, v) => s + v, 0) / cvrs.length : NaN;
+    const sphs = emp.days.map(d => Number(d.sales_per_hour)).filter(v => !isNaN(v) && v > 0);
+    m.salesPerHour = sphs.length ? sphs.reduce((s, v) => s + v, 0) / sphs.length : NaN;
+    const mphs = emp.days.map(d => Number(d.messages_per_hour)).filter(v => !isNaN(v) && v > 0);
+    m.messagesSentPerHour = mphs.length ? mphs.reduce((s, v) => s + v, 0) / mphs.length : NaN;
+
+    const rts = emp.days.map(d => parseResponseTime(d.response_time_clocked)).filter(v => !isNaN(v) && v > 0);
+    m.responseTime = rts.length ? rts.reduce((s, v) => s + v, 0) / rts.length : NaN;
+
+    m.duration = emp.hubstaffHours || NaN;
+
+    return m;
+  });
+}
+
+export async function getAvailableDatesFromSupabase(): Promise<string[]> {
+  const { data } = await supabase
+    .from('chatter_daily_stats')
+    .select('date')
+    .order('date', { ascending: false });
+  if (!data) return [];
+  return [...new Set(data.map(d => d.date as string))];
 }
 
 // ── Sorting ──
