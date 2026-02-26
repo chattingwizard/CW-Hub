@@ -113,9 +113,9 @@ export function parseCSV(text: string): ParsedCSV {
   const lines = text.split(/\r?\n/).filter(l => l.trim());
   if (!lines.length) return { headers: [], rows: [] };
   const delimiter = (text.match(/;/g) || []).length > (text.match(/,/g) || []).length ? ';' : ',';
-  const headers = parseLine(lines[0], delimiter);
+  const headers = parseLine(lines[0]!, delimiter);
   const rows: string[][] = [];
-  for (let i = 1; i < lines.length; i++) rows.push(parseLine(lines[i], delimiter));
+  for (let i = 1; i < lines.length; i++) rows.push(parseLine(lines[i]!, delimiter));
   return { headers, rows };
 }
 
@@ -134,12 +134,13 @@ export async function readUploadedFile(file: File): Promise<ParsedCSV> {
           const workbook = new XLSX.Workbook();
           await workbook.xlsx.load(e.target?.result as ArrayBuffer);
           const sheet = workbook.worksheets[0];
+          if (!sheet) { resolve({ headers: [], rows: [] }); return; }
           const rows: string[][] = [];
           sheet.eachRow((row) => {
-            rows.push(row.values.slice(1).map((v: unknown) => String(v ?? '')));
+            rows.push(((row.values as unknown[]) ?? []).slice(1).map((v) => String(v ?? '')));
           });
           if (rows.length === 0) { resolve({ headers: [], rows: [] }); return; }
-          resolve({ headers: rows[0], rows: rows.slice(1) });
+          resolve({ headers: rows[0]!, rows: rows.slice(1) });
         } else {
           reject(new Error('Unsupported file format'));
         }
@@ -191,13 +192,13 @@ function parseHours(v: unknown): number {
   if (v == null || v === '' || v === '-') return NaN;
   const s = String(v).trim().replace(/,/g, '.');
   const hmin = s.match(/^(\d+)h\s*(\d+)\s*min/i);
-  if (hmin) return parseInt(hmin[1]) + parseInt(hmin[2]) / 60;
+  if (hmin) return parseInt(hmin[1]!) + parseInt(hmin[2]!) / 60;
   const hOnly = s.match(/^(\d+)h$/i);
-  if (hOnly) return parseInt(hOnly[1]);
+  if (hOnly) return parseInt(hOnly[1]!);
   const minOnly = s.match(/^(\d+)\s*min$/i);
-  if (minOnly) return parseInt(minOnly[1]) / 60;
+  if (minOnly) return parseInt(minOnly[1]!) / 60;
   const hm = s.match(/^(\d+):(\d{2})(?::(\d{2}))?$/);
-  if (hm) return parseInt(hm[1]) + parseInt(hm[2]) / 60 + (hm[3] ? parseInt(hm[3]) / 3600 : 0);
+  if (hm) return parseInt(hm[1]!) + parseInt(hm[2]!) / 60 + (hm[3] ? parseInt(hm[3]) / 3600 : 0);
   const n = parseFloat(s);
   return isNaN(n) ? NaN : n;
 }
@@ -206,15 +207,15 @@ function parseResponseTime(v: unknown): number {
   if (v == null || v === '' || v === '-') return NaN;
   const s = String(v).trim();
   const mSec = s.match(/^(\d+)m\s*(\d+)\s*s$/i);
-  if (mSec) return parseInt(mSec[1]) * 60 + parseInt(mSec[2]);
+  if (mSec) return parseInt(mSec[1]!) * 60 + parseInt(mSec[2]!);
   const mOnly = s.match(/^(\d+)m$/i);
-  if (mOnly) return parseInt(mOnly[1]) * 60;
+  if (mOnly) return parseInt(mOnly[1]!) * 60;
   const sOnly = s.match(/^(\d+)\s*s$/i);
-  if (sOnly) return parseInt(sOnly[1]);
+  if (sOnly) return parseInt(sOnly[1]!);
   const hms = s.match(/^(\d+):(\d{2}):(\d{2})$/);
-  if (hms) return parseInt(hms[1]) * 3600 + parseInt(hms[2]) * 60 + parseInt(hms[3]);
+  if (hms) return parseInt(hms[1]!) * 3600 + parseInt(hms[2]!) * 60 + parseInt(hms[3]!);
   const ms = s.match(/^(\d+):(\d{2})$/);
-  if (ms) return parseInt(ms[1]) * 60 + parseInt(ms[2]);
+  if (ms) return parseInt(ms[1]!) * 60 + parseInt(ms[2]!);
   const n = parseFloat(String(v).replace(/,/g, '.'));
   return isNaN(n) ? NaN : n;
 }
@@ -228,7 +229,7 @@ function parseDate(s: string): string | null {
   if (iso) return str.slice(0, 10);
   const dmy = str.match(/^(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})/);
   if (dmy) {
-    const a = parseInt(dmy[1]), b = parseInt(dmy[2]), y = dmy[3];
+    const a = parseInt(dmy[1]!), b = parseInt(dmy[2]!), y = dmy[3]!;
     if (a > 12) return `${y}-${String(b).padStart(2, '0')}-${String(a).padStart(2, '0')}`;
     return `${y}-${String(a).padStart(2, '0')}-${String(b).padStart(2, '0')}`;
   }
@@ -252,8 +253,8 @@ function parsePeriodString(str: string): { start: string; end: string } | null {
   const s = String(str).trim();
   const parts = s.split(/\s+-\s+/);
   if (parts.length === 2) {
-    const start = parseFullDatetime(parts[0]);
-    const end = parseFullDatetime(parts[1]);
+    const start = parseFullDatetime(parts[0]!);
+    const end = parseFullDatetime(parts[1]!);
     if (start && end) return { start, end };
   }
   const single = parseFullDatetime(s);
@@ -327,14 +328,14 @@ export function mergeIntoHistory(parsedData: ParsedCSV): number {
     const name = (row[employeeIdx] || '').trim();
     if (!name) continue;
 
-    let period = dateIdx != null ? parsePeriodString(row[dateIdx]) : null;
+    let period = dateIdx != null ? parsePeriodString(row[dateIdx] ?? '') : null;
     if (!period) period = { start: 'unknown', end: 'unknown' };
 
     const values: Record<string, string> = {};
     for (const key of DATA_KEYS) {
-      if (map[key] != null) values[key] = row[map[key]] || '';
+      if (map[key] != null) values[key] = row[map[key]!] ?? '';
     }
-    const grp = map.group != null ? (row[map.group] || '').trim() : '';
+    const grp = map.group != null ? (row[map.group] ?? '').trim() : '';
 
     newRecords.push({
       periodStart: period.start,
@@ -352,7 +353,7 @@ export function mergeIntoHistory(parsedData: ParsedCSV): number {
       r => r.employee === rec.employee && r.periodStart === rec.periodStart && r.periodEnd === rec.periodEnd
     );
     if (idx !== -1) {
-      if (rec.uploadedAt >= history[idx].uploadedAt) history[idx] = rec;
+      if (rec.uploadedAt >= history[idx]!.uploadedAt) history[idx]! = rec;
     } else {
       history.push(rec);
     }
@@ -398,7 +399,7 @@ export function loadHubstaffData(): ParsedCSV | null {
 function filterRows(rows: string[][], dateIdx: number, range: { from: string; to: string }): string[][] {
   if (dateIdx < 0) return rows;
   return rows.filter(r => {
-    const d = parseDate(r[dateIdx]);
+    const d = parseDate(r[dateIdx] ?? '');
     return d && d >= range.from && d < range.to;
   });
 }
@@ -412,20 +413,22 @@ function computeMetrics(emp: { name: string; group: string; inflowwRows: { row: 
 
   for (const { row, map } of emp.inflowwRows) {
     for (const k of SUM_KEYS) {
-      if (map[k] == null) continue;
-      const v = k === 'clockedHours' ? parseHours(row[map[k]]) : parseNum(row[map[k]]);
-      if (!isNaN(v)) { sums[k].total += v; sums[k].count++; }
+      const idx = map[k];
+      if (idx == null) continue;
+      const v = k === 'clockedHours' ? parseHours(row[idx] ?? '') : parseNum(row[idx] ?? '');
+      if (!isNaN(v)) { sums[k]!.total += v; sums[k]!.count++; }
     }
     for (const k of DERIVED_RATE_KEYS) {
-      if (map[k] == null) continue;
-      const v = k === 'responseTime' ? parseResponseTime(row[map[k]]) : parseNum(row[map[k]]);
-      if (!isNaN(v)) rateVals[k].push(v);
+      const idx = map[k];
+      if (idx == null) continue;
+      const v = k === 'responseTime' ? parseResponseTime(row[idx] ?? '') : parseNum(row[idx] ?? '');
+      if (!isNaN(v)) rateVals[k]!.push(v);
     }
   }
 
   m.duration = emp.hubstaffHours || NaN;
-  for (const k of SUM_KEYS) m[k] = sums[k].count ? sums[k].total : NaN;
-  for (const k of DERIVED_RATE_KEYS) m[k] = rateVals[k].length === 1 ? rateVals[k][0] : NaN;
+  for (const k of SUM_KEYS) m[k] = sums[k]!.count ? sums[k]!.total : NaN;
+  for (const k of DERIVED_RATE_KEYS) m[k] = rateVals[k]!.length === 1 ? rateVals[k]![0] ?? NaN : NaN;
 
   return m;
 }
@@ -460,8 +463,8 @@ export function processData(period: PeriodType, customFrom?: string | null, cust
       if (!name) continue;
       const key = name.toLowerCase();
       if (!employees[key]) employees[key] = { name, group: '', inflowwRows: [], hubstaffHours: 0 };
-      const h = parseHours(row[map.hours]);
-      if (!isNaN(h)) employees[key].hubstaffHours += h;
+      const h = parseHours(map.hours != null ? (row[map.hours] ?? '') : '');
+      if (!isNaN(h)) employees[key]!.hubstaffHours += h;
     }
   }
 
@@ -533,8 +536,8 @@ export async function loadFromSupabase(
       if (!name) continue;
       const key = name.toLowerCase();
       if (!grouped[key]) grouped[key] = { name, group: '', days: [], hubstaffHours: 0 };
-      const h = parseHours(row[map.hours]);
-      if (!isNaN(h)) grouped[key].hubstaffHours += h;
+      const h = parseHours(map.hours != null ? (row[map.hours] ?? '') : '');
+      if (!isNaN(h)) grouped[key]!.hubstaffHours += h;
     }
   }
 
@@ -946,7 +949,7 @@ export async function exportToGoogleSheets(
   const tlRows: (string | number)[][] = [];
   let tlRow = 1;
   for (const tn of teamNames) {
-    const activeTeam = teams[tn].filter(r => isActiveChatter(r));
+    const activeTeam = teams[tn]!.filter(r => isActiveChatter(r));
     const sphData = activeTeam.filter(r => !isNaN(Number(r.salesPerHour)));
     const teamAvgSph = sphData.length ? sphData.reduce((s, r) => s + Number(r.salesPerHour), 0) / sphData.length : 0;
     const cvrs = activeTeam.filter(r => !isNaN(Number(r.fanCvr)) && Number(r.fanCvr) > 0);
@@ -968,7 +971,7 @@ export async function exportToGoogleSheets(
 
   const teamFirstInactive: Record<string, number> = {};
   for (const tn of teamNames) {
-    const teamData = [...teams[tn]].sort((a, b) => {
+    const teamData = [...teams[tn]!].sort((a, b) => {
       const aa = isActiveChatter(a), ba = isActiveChatter(b);
       if (aa !== ba) return aa ? -1 : 1;
       return (isNaN(Number(b.sales)) ? -Infinity : Number(b.sales)) - (isNaN(Number(a.sales)) ? -Infinity : Number(a.sales));
@@ -1014,7 +1017,7 @@ export async function exportToGoogleSheets(
     for (const row of rows) {
       const name = hMap.employee != null ? (row[hMap.employee] || '').trim() : '';
       if (!name) continue;
-      hRows.push(['Chatting Wizard ENG', 'UTC', name, fmtClockedExport(parseHoursExport(row[hMap.hours])), row[4] || '', row[5] || '', row[6] || 'USD']);
+      hRows.push(['Chatting Wizard ENG', 'UTC', name, fmtClockedExport(parseHoursExport(hMap.hours != null ? row[hMap.hours] ?? '' : '')), row[4] ?? '', row[5] ?? '', row[6] ?? 'USD']);
     }
     valueRanges.push({ range: "'HUBSTAFF HOURS'!A1", values: hRows });
   } else {
@@ -1167,7 +1170,7 @@ export async function exportToGoogleSheets(
   for (const tn of teamNames) {
     const sid = sheetIdMap[tn];
     if (sid == null) continue;
-    const cnt = teams[tn].length;
+    const cnt = teams[tn]!.length;
     const totalRows = 1 + cnt + 1;
     applyNumberFormats(sid, totalRows);
     applyMainSheetFormat(sid, 0, -1, -1, 1, 1 + cnt, 16);
@@ -1178,7 +1181,7 @@ export async function exportToGoogleSheets(
     });
 
     const tfi = teamFirstInactive[tn];
-    if (tfi >= 0) {
+    if (tfi != null && tfi >= 0) {
       const inactiveStart = 1 + tfi;
       cellFmt(sid, inactiveStart, 1 + cnt, 0, 16, {
         backgroundColor: rgb('F4CCCC'),
@@ -1275,9 +1278,9 @@ function parseHoursExport(v: unknown): number {
   if (v == null || v === '' || v === '-') return NaN;
   const s = String(v).trim().replace(/,/g, '.');
   const hmin = s.match(/^(\d+)h\s*(\d+)\s*min/i);
-  if (hmin) return parseInt(hmin[1]) + parseInt(hmin[2]) / 60;
+  if (hmin) return parseInt(hmin[1]!) + parseInt(hmin[2]!) / 60;
   const hm = s.match(/^(\d+):(\d{2})(?::(\d{2}))?$/);
-  if (hm) return parseInt(hm[1]) + parseInt(hm[2]) / 60 + (hm[3] ? parseInt(hm[3]) / 3600 : 0);
+  if (hm) return parseInt(hm[1]!) + parseInt(hm[2]!) / 60 + (hm[3] ? parseInt(hm[3]) / 3600 : 0);
   const n = parseFloat(s);
   return isNaN(n) ? NaN : n;
 }

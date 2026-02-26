@@ -706,10 +706,10 @@ export default function InflowwKPIs() {
                       <td className="px-2 py-1 text-center font-semibold text-text-primary">{firstName}</td>
                       <td className="px-2 py-1 text-center text-emerald-400 font-semibold">{formatValue(r.sales, 'currency')}</td>
                       <td className={`px-2 py-1 text-center font-bold ${hasBonus ? 'text-emerald-400' : 'text-text-muted/40 italic'}`}>
-                        {hasBonus ? `$${COMPACT_BONUS[i].toFixed(2)}` : 'Keep pushing'}
+                        {hasBonus ? `$${COMPACT_BONUS[i]!.toFixed(2)}` : 'Keep pushing'}
                       </td>
                       <td className={`px-2 py-1 text-center font-bold ${hasBonus ? 'text-amber-400' : 'text-text-muted/40 italic'}`}>
-                        {hasBonus ? `$${COMPACT_JACKPOT[i].toFixed(2)}` : 'Keep pushing'}
+                        {hasBonus ? `$${COMPACT_JACKPOT[i]!.toFixed(2)}` : 'Keep pushing'}
                       </td>
                     </tr>
                   );
