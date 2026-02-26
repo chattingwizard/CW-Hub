@@ -266,14 +266,23 @@ export default function CoachingQueue() {
   return (
     <div className="max-w-4xl mx-auto p-4 lg:p-6 space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-extrabold text-text-primary">Coaching Queue</h1>
-        <p className="text-text-secondary text-sm mt-1">
-          Daily coaching checklist. Complete each session and log the focus area.
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-extrabold text-text-primary">Coaching Queue</h1>
+          <p className="text-text-secondary text-sm mt-1">
+            Daily coaching checklist. Complete each session and log the focus area.
+          </p>
+        </div>
+        <button
+          onClick={fetchTasks}
+          className="p-2 rounded-lg hover:bg-surface-2 text-text-secondary hover:text-white shrink-0 self-start sm:self-auto"
+          title="Refresh"
+        >
+          <RefreshCw size={16} />
+        </button>
       </div>
 
-      {/* TL Selector + Stats */}
+      {/* TL Selector */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex bg-surface-2 rounded-lg p-0.5 border border-border">
           {TL_OPTIONS.map((tl) => {
@@ -301,17 +310,7 @@ export default function CoachingQueue() {
 
         <div className="flex-1" />
 
-        <div className="flex items-center gap-3 text-xs text-text-secondary">
-          <span className="text-text-muted">{currentTl?.shift}</span>
-        </div>
-
-        <button
-          onClick={fetchTasks}
-          className="p-2 rounded-lg hover:bg-surface-2 text-text-secondary hover:text-white"
-          title="Refresh"
-        >
-          <RefreshCw size={16} />
-        </button>
+        <span className="text-xs text-text-muted">{currentTl?.shift}</span>
       </div>
 
       {/* Progress Bar */}
