@@ -367,10 +367,11 @@ function MyScoreCard({
           <div className="h-2 bg-surface-3 rounded-full overflow-hidden mb-3">
             <div
               className={`h-full rounded-full transition-all ${
-                status === 'warning' ? 'bg-red-500' :
-                status === 'no_bonus' ? 'bg-zinc-500' :
-                status === 'bonus_5' ? 'bg-cyan-400' :
-                status === 'bonus_10' ? 'bg-blue-400' : 'bg-emerald-400'
+                status === 'bronze' ? 'bg-red-500' :
+                status === 'neutral' ? 'bg-zinc-500' :
+                status === 'silver' ? 'bg-slate-400' :
+                status === 'gold' ? 'bg-amber-400' :
+                status === 'platinum' ? 'bg-violet-400' : 'bg-cyan-400'
               }`}
               style={{ width: `${progress}%` }}
             />

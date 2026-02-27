@@ -7,7 +7,8 @@ import type {
   TrafficLevel,
   TrafficTrend,
   Model,
-  ModelChatterAssignment,
+  AssignmentGroupModel,
+  AssignmentGroupChatter,
   PageType,
 } from '../types';
 import { WORKLOAD_WEIGHTS } from '../types';
@@ -65,32 +66,44 @@ export function useTrafficData(): UseTrafficDataReturn {
       fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
       const dateStr = fourteenDaysAgo.toISOString().split('T')[0];
 
-      const [statsRes, modelsRes, assignRes] = await Promise.all([
+      const [statsRes, modelsRes, gmRes, gcRes] = await Promise.all([
         supabase
           .from('model_daily_stats')
           .select('*')
           .gte('date', dateStr)
           .order('date', { ascending: false }),
         supabase.from('models').select('id, name, status, team_names, page_type'),
-        supabase
-          .from('model_chatter_assignments')
-          .select('model_id, chatter_id')
-          .eq('active', true),
+        supabase.from('assignment_group_models').select('group_id, model_id'),
+        supabase.from('assignment_group_chatters').select('group_id, chatter_id'),
       ]);
 
       if (statsRes.error) throw statsRes.error;
       if (modelsRes.error) throw modelsRes.error;
-      if (assignRes.error) throw assignRes.error;
+      if (gmRes.error) throw gmRes.error;
+      if (gcRes.error) throw gcRes.error;
 
       const stats = (statsRes.data ?? []) as ModelDailyStat[];
       const models = (modelsRes.data ?? []) as Model[];
-      const assignments = (assignRes.data ?? []) as ModelChatterAssignment[];
+      const gModels = (gmRes.data ?? []) as AssignmentGroupModel[];
+      const gChatters = (gcRes.data ?? []) as AssignmentGroupChatter[];
 
       const modelMap = new Map(models.map((m) => [m.id, m]));
 
+      // Build model→group and group→chatters maps to derive chatters-per-model
+      const modelToGroup = new Map<string, string>();
+      for (const gm of gModels) modelToGroup.set(gm.model_id, gm.group_id);
+
+      const chattersPerGroup = new Map<string, Set<string>>();
+      for (const gc of gChatters) {
+        const set = chattersPerGroup.get(gc.group_id) ?? new Set<string>();
+        set.add(gc.chatter_id);
+        chattersPerGroup.set(gc.group_id, set);
+      }
+
       const chattersPerModel = new Map<string, number>();
-      for (const a of assignments) {
-        chattersPerModel.set(a.model_id, (chattersPerModel.get(a.model_id) ?? 0) + 1);
+      for (const gm of gModels) {
+        const groupChatters = chattersPerGroup.get(gm.group_id);
+        chattersPerModel.set(gm.model_id, groupChatters?.size ?? 0);
       }
 
       const statsByModel = new Map<string, ModelDailyStat[]>();
@@ -265,12 +278,16 @@ export function useTrafficData(): UseTrafficDataReturn {
         }
       }
 
-      for (const a of assignments) {
-        const model = modelMap.get(a.model_id);
+      for (const gm of gModels) {
+        const model = modelMap.get(gm.model_id);
         if (!model) continue;
+        const groupChattersSet = chattersPerGroup.get(gm.group_id);
+        if (!groupChattersSet) continue;
         for (const teamName of model.team_names ?? []) {
           const team = teamMap.get(teamName);
-          if (team) team.chatters.add(a.chatter_id);
+          if (team) {
+            for (const cId of groupChattersSet) team.chatters.add(cId);
+          }
         }
       }
 

@@ -1,0 +1,34 @@
+name: Sync Hubstaff Hours
+
+on:
+  schedule:
+    - cron: '15 0 * * *' # 00:15 UTC daily
+  workflow_dispatch:
+    inputs:
+      backfill_days:
+        description: 'Number of days to backfill (default: 1 = yesterday only)'
+        required: false
+        default: '1'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Sync Hubstaff hours to Supabase
+        env:
+          HUBSTAFF_TOKEN: ${{ secrets.HUBSTAFF_TOKEN }}
+          HUBSTAFF_ORG_ID: ${{ secrets.HUBSTAFF_ORG_ID }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          BACKFILL="${{ github.event.inputs.backfill_days || '1' }}"
+          if [ "$BACKFILL" -gt 1 ]; then
+            node scripts/sync-hubstaff-hours.mjs --backfill "$BACKFILL"
+          else
+            node scripts/sync-hubstaff-hours.mjs
+          fi

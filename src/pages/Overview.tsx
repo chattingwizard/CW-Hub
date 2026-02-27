@@ -9,13 +9,14 @@ import ModelAvatar from '../components/ModelAvatar';
 import { TeamTrafficBar, ModelTrafficRow, PageTypeBadge } from '../components/TrafficBadge';
 import { AnnouncementBanner, AnnouncementComposer } from '../components/Announcements';
 import { useTrafficData } from '../hooks/useTrafficData';
-import type { Model, Chatter, ModelChatterAssignment, Schedule } from '../types';
+import type { Model, Chatter, AssignmentGroupModel, AssignmentGroupChatter, Schedule } from '../types';
 
 export default function Overview() {
   const navigate = useNavigate();
   const [models, setModels] = useState<Model[]>([]);
   const [chatters, setChatters] = useState<Chatter[]>([]);
-  const [assignments, setAssignments] = useState<ModelChatterAssignment[]>([]);
+  const [groupModels, setGroupModels] = useState<AssignmentGroupModel[]>([]);
+  const [groupChatters, setGroupChatters] = useState<AssignmentGroupChatter[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
   const { modelTraffic, teamTraffic, getModelTraffic, globalAvg } = useTrafficData();
@@ -31,15 +32,17 @@ export default function Overview() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [modelsRes, chattersRes, assignRes, schedRes] = await Promise.all([
+      const [modelsRes, chattersRes, gmRes, gcRes, schedRes] = await Promise.all([
         supabase.from('models').select('*'),
         supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
-        supabase.from('model_chatter_assignments').select('*').eq('active', true),
+        supabase.from('assignment_group_models').select('*'),
+        supabase.from('assignment_group_chatters').select('*'),
         supabase.from('schedules').select('*').eq('week_start', weekStart),
       ]);
       setModels((modelsRes.data ?? []) as Model[]);
       setChatters((chattersRes.data ?? []) as Chatter[]);
-      setAssignments((assignRes.data ?? []) as ModelChatterAssignment[]);
+      setGroupModels((gmRes.data ?? []) as AssignmentGroupModel[]);
+      setGroupChatters((gcRes.data ?? []) as AssignmentGroupChatter[]);
       setSchedules((schedRes.data ?? []) as Schedule[]);
     } catch (err) {
       console.error('Overview fetch error:', err);
@@ -55,15 +58,28 @@ export default function Overview() {
   const activeChatters = chatters.length;
   const totalRevenuePerDay = modelTraffic.filter((t) => t.model_status === 'Live').reduce((s, t) => s + t.earnings_per_day, 0);
 
+  // Build group-based model-chatter relationships
+  const modelToGroup = new Map(groupModels.map((gm) => [gm.model_id, gm.group_id]));
+  const chattersPerGroupMap = new Map<string, Set<string>>();
+  for (const gc of groupChatters) {
+    const set = chattersPerGroupMap.get(gc.group_id) ?? new Set<string>();
+    set.add(gc.chatter_id);
+    chattersPerGroupMap.set(gc.group_id, set);
+  }
+
   // Team breakdown
   const teams = [...new Set(chatters.map((c) => c.team_name).filter(Boolean))] as string[];
   const teamStats = teams.map((team) => {
     const members = chatters.filter((c) => c.team_name === team);
     const memberIds = new Set(members.map((m) => m.id));
-    const teamAssignments = assignments.filter((a) => memberIds.has(a.chatter_id));
-    const teamModels = new Set(teamAssignments.map((a) => a.model_id));
+    const memberGroupIds = new Set(
+      groupChatters.filter((gc) => memberIds.has(gc.chatter_id)).map((gc) => gc.group_id),
+    );
+    const teamModelIds = new Set(
+      groupModels.filter((gm) => memberGroupIds.has(gm.group_id)).map((gm) => gm.model_id),
+    );
     const teamSchedules = schedules.filter((s) => memberIds.has(s.chatter_id));
-    return { team, members: members.length, models: teamModels.size, shifts: teamSchedules.length };
+    return { team, members: members.length, models: teamModelIds.size, shifts: teamSchedules.length };
   });
 
   // Shift coverage
@@ -75,9 +91,11 @@ export default function Overview() {
   });
 
   // Unassigned
-  const chattersWithNoModels = chatters.filter((c) => !assignments.some((a) => a.chatter_id === c.id));
+  const assignedChatterIds = new Set(groupChatters.map((gc) => gc.chatter_id));
+  const assignedModelIds = new Set(groupModels.map((gm) => gm.model_id));
+  const chattersWithNoModels = chatters.filter((c) => !assignedChatterIds.has(c.id));
   const chattersWithNoSchedule = chatters.filter((c) => !schedules.some((s) => s.chatter_id === c.id));
-  const modelsWithNoChatters = liveModels.filter((m) => !assignments.some((a) => a.model_id === m.id));
+  const modelsWithNoChatters = liveModels.filter((m) => !assignedModelIds.has(m.id));
 
   // Alerts
   const alerts: { type: 'warning' | 'danger'; message: string; action: string; path: string }[] = [];
@@ -174,8 +192,8 @@ export default function Overview() {
             <span className="text-xs text-text-secondary">Total Assignments</span>
             <div className="w-8 h-8 rounded-lg bg-warning/10 flex items-center justify-center"><Calendar size={16} className="text-warning" /></div>
           </div>
-          <p className="text-2xl font-bold text-white">{assignments.length}</p>
-          <p className="text-[10px] text-text-muted mt-1">chatter-model pairs</p>
+          <p className="text-2xl font-bold text-white">{groupModels.length}</p>
+          <p className="text-[10px] text-text-muted mt-1">models in groups</p>
         </div>
       </div>
 

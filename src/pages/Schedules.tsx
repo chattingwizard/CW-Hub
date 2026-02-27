@@ -1,194 +1,47 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import {
-  DndContext, DragOverlay, closestCenter, useSensor, useSensors, PointerSensor,
-  type DragStartEvent, type DragEndEvent,
-} from '@dnd-kit/core';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
-import { SHIFTS, SHIFT_LABELS, getDayName, formatDate } from '../lib/utils';
-import { getTLForShift, getTeamColor } from '../lib/roles';
+import { getDayName, formatDate } from '../lib/utils';
 import { cn } from '../lib/utils';
 import {
-  ChevronLeft, ChevronRight, Save, X, Copy, Plus,
-  AlertTriangle, GripVertical, Search, Filter,
+  ChevronLeft, ChevronRight, Save, Copy, Users, AlertTriangle, X, GripVertical, ChevronDown,
 } from 'lucide-react';
-import type { Chatter, Schedule, ShiftSlot } from '../types';
+import type { Chatter, Schedule, ShiftSlot, AssignmentGroup, AssignmentGroupChatter, AssignmentGroupModel, Model } from '../types';
 
-// ── Draggable Chip ───────────────────────────────────────────
+/* ── TL config ────────────────────────────────────────────────── */
 
-function ChatterChip({ chatter, onRemove, isDragging }: {
-  chatter?: Chatter;
-  onRemove?: () => void;
-  isDragging?: boolean;
-}) {
-  const teamColor = chatter?.team_name ? getTeamColor(chatter.team_name) : '';
-  const dotColor = chatter?.team_name?.includes('Huckle') ? 'bg-orange-400'
-    : chatter?.team_name?.includes('Danilyn') ? 'bg-blue-400'
-    : chatter?.team_name?.includes('Ezekiel') ? 'bg-purple-400'
-    : 'bg-zinc-500';
+const TL_CONFIG = [
+  { key: 'huckle',  label: 'Huckle',  shift: '00:00-08:00' as ShiftSlot, hours: '12AM – 8AM',  dot: 'bg-orange-400', bg: 'bg-orange-500/10', text: 'text-orange-400', border: 'border-orange-500/25', activeBg: 'bg-orange-500/15', ring: 'ring-orange-400/20', cell: 'bg-orange-500/8',  chipBg: 'bg-orange-500/12', chipBorder: 'border-orange-500/20' },
+  { key: 'danilyn', label: 'Danilyn', shift: '08:00-16:00' as ShiftSlot, hours: '8AM – 4PM',   dot: 'bg-blue-400',   bg: 'bg-blue-500/10',   text: 'text-blue-400',   border: 'border-blue-500/25',   activeBg: 'bg-blue-500/15',   ring: 'ring-blue-400/20',   cell: 'bg-blue-500/8',    chipBg: 'bg-blue-500/12',   chipBorder: 'border-blue-500/20' },
+  { key: 'ezekiel', label: 'Ezekiel', shift: '16:00-00:00' as ShiftSlot, hours: '4PM – 12AM',  dot: 'bg-purple-400', bg: 'bg-purple-500/10', text: 'text-purple-400', border: 'border-purple-500/25', activeBg: 'bg-purple-500/15', ring: 'ring-purple-400/20', cell: 'bg-purple-500/8',  chipBg: 'bg-purple-500/12', chipBorder: 'border-purple-500/20' },
+] as const;
 
-  return (
-    <div className={cn(
-      'group flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-all border',
-      isDragging ? 'opacity-50 scale-95' : '',
-      teamColor || 'bg-surface-2 text-text-secondary border-border',
-    )}>
-      <div className={cn('w-2 h-2 rounded-full shrink-0', dotColor)} />
-      <span className="truncate flex-1">{chatter?.full_name ?? '?'}</span>
-      {onRemove && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          className="opacity-0 group-hover:opacity-100 shrink-0 hover:text-danger transition-opacity"
-        >
-          <X size={12} />
-        </button>
-      )}
-    </div>
-  );
-}
-
-// ── Schedule Cell ────────────────────────────────────────────
-
-function ScheduleCell({ schedules, dayIdx, shift, onAdd, onRemove, isToday }: {
-  schedules: Schedule[];
-  dayIdx: number;
-  shift: string;
-  onAdd: () => void;
-  onRemove: (id: string) => void;
-  isToday: boolean;
-}) {
-  return (
-    <div className={cn(
-      'min-h-[120px] rounded-xl border p-2 flex flex-col gap-1 transition-colors',
-      isToday ? 'bg-cw/[0.03] border-cw/20' : 'bg-surface-1 border-border hover:border-border-light',
-    )}>
-      {schedules.map((s) => (
-        <ChatterChip
-          key={s.id}
-          chatter={s.chatter}
-          onRemove={() => onRemove(s.id)}
-        />
-      ))}
-      <button
-        onClick={onAdd}
-        className="mt-auto flex items-center justify-center py-1 rounded-lg text-text-muted hover:text-cw hover:bg-cw/5 transition-colors"
-      >
-        <Plus size={14} />
-      </button>
-    </div>
-  );
-}
-
-// ── Chatter Picker Modal ─────────────────────────────────────
-
-function ChatterPicker({ chatters, existingIds, onSelect, onClose }: {
-  chatters: Chatter[];
-  existingIds: Set<string>;
-  onSelect: (id: string) => void;
-  onClose: () => void;
-}) {
-  const [search, setSearch] = useState('');
-  const [teamFilter, setTeamFilter] = useState<string>('all');
-
-  const teams = useMemo(() =>
-    [...new Set(chatters.map(c => c.team_name).filter(Boolean))] as string[],
-    [chatters]
-  );
-
-  const filtered = chatters.filter(c => {
-    if (existingIds.has(c.id)) return false;
-    if (search && !c.full_name.toLowerCase().includes(search.toLowerCase())) return false;
-    if (teamFilter !== 'all' && c.team_name !== teamFilter) return false;
-    return true;
-  });
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-surface-1 border border-border rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-        <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-text-primary">Add Chatter</h3>
-            <button onClick={onClose} className="p-1 rounded-lg hover:bg-surface-2 text-text-muted hover:text-text-primary">
-              <X size={16} />
-            </button>
-          </div>
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
-            <input
-              type="text"
-              placeholder="Search chatters..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-8 pr-3 py-2 bg-surface-2 border border-border rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cw/50"
-              autoFocus
-            />
-          </div>
-          <div className="flex gap-1.5 mt-3 flex-wrap">
-            <button
-              onClick={() => setTeamFilter('all')}
-              className={cn(
-                'px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors',
-                teamFilter === 'all' ? 'bg-cw/15 text-cw' : 'bg-surface-2 text-text-muted hover:text-text-secondary'
-              )}
-            >
-              All
-            </button>
-            {teams.map(t => (
-              <button
-                key={t}
-                onClick={() => setTeamFilter(t)}
-                className={cn(
-                  'px-2.5 py-1 rounded-md text-[11px] font-semibold transition-colors',
-                  teamFilter === t ? 'bg-cw/15 text-cw' : 'bg-surface-2 text-text-muted hover:text-text-secondary'
-                )}
-              >
-                {t.replace('Team ', '')}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="max-h-64 overflow-y-auto p-2">
-          {filtered.length === 0 ? (
-            <p className="text-center text-text-muted text-sm py-6">No chatters available</p>
-          ) : (
-            filtered.map(c => {
-              const dotColor = c.team_name?.includes('Huckle') ? 'bg-orange-400'
-                : c.team_name?.includes('Danilyn') ? 'bg-blue-400'
-                : c.team_name?.includes('Ezekiel') ? 'bg-purple-400'
-                : 'bg-zinc-500';
-
-              return (
-                <button
-                  key={c.id}
-                  onClick={() => { onSelect(c.id); onClose(); }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-surface-2 transition-colors text-left"
-                >
-                  <div className={cn('w-2.5 h-2.5 rounded-full', dotColor)} />
-                  <span className="text-sm text-text-primary font-medium flex-1">{c.full_name}</span>
-                  <span className="text-[10px] text-text-muted">{c.team_name?.replace('Team ', '')}</span>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Main Page ────────────────────────────────────────────────
+/* ── main component ──────────────────────────────────────────── */
 
 export default function Schedules() {
   const { profile } = useAuthStore();
   const [chatters, setChatters] = useState<Chatter[]>([]);
+  const [models, setModels] = useState<Model[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
+  const [groups, setGroups] = useState<AssignmentGroup[]>([]);
+  const [groupChatters, setGroupChatters] = useState<AssignmentGroupChatter[]>([]);
+  const [groupModels, setGroupModels] = useState<AssignmentGroupModel[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
-  const [pickerTarget, setPickerTarget] = useState<{ dayIdx: number; shift: string } | null>(null);
+  const [activeTL, setActiveTL] = useState(TL_CONFIG[0]!.key);
+  const [modelPopover, setModelPopover] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  const [weekPickerOpen, setWeekPickerOpen] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  const weekPickerRef = useRef<HTMLDivElement>(null);
+
+  // Coverage map: `${groupId}-${dayIdx}` → chatterId (overrides defaults)
+  const [coverageMap, setCoverageMap] = useState<Map<string, string>>(new Map());
+  // Canonical shift reference: chatter→shift from the latest available week
+  const [shiftRef, setShiftRef] = useState<Map<string, ShiftSlot>>(new Map());
 
   const getWeekStart = (offset: number) => {
     const d = new Date();
@@ -211,43 +64,275 @@ export default function Schedules() {
     return `${formatDate(s, 'short')} – ${formatDate(e, 'short')}`;
   }, [weekDates]);
 
+  const today = new Date().toISOString().split('T')[0];
+
+  /* ── fetch ──────────────────────────────────────────────────── */
+
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [chattersRes, schedulesRes] = await Promise.all([
-      supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
+    const [chattersRes, modelsRes, schedulesRes, groupsRes, gcRes, gmRes, shiftRefRes] = await Promise.all([
+      supabase.from('chatters').select('*').eq('status', 'Active').order('full_name'),
+      supabase.from('models').select('*').eq('status', 'Live').order('name'),
       supabase.from('schedules').select('*, chatter:chatters!schedules_chatter_id_fkey(*)').eq('week_start', weekStart),
+      supabase.from('assignment_groups').select('*').eq('active', true).order('sort_order'),
+      supabase.from('assignment_group_chatters').select('*'),
+      supabase.from('assignment_group_models').select('*'),
+      // Fetch shifts from ALL weeks to build canonical chatter→shift mapping
+      supabase.from('schedules').select('chatter_id, shift').order('week_start', { ascending: false }).limit(500),
     ]);
     setChatters((chattersRes.data ?? []) as Chatter[]);
+    setModels((modelsRes.data ?? []) as Model[]);
     setSchedules((schedulesRes.data ?? []) as Schedule[]);
+    setGroups((groupsRes.data ?? []) as AssignmentGroup[]);
+    setGroupChatters((gcRes.data ?? []) as AssignmentGroupChatter[]);
+    setGroupModels((gmRes.data ?? []) as AssignmentGroupModel[]);
+
+    // Build canonical shift reference (most recent entry wins)
+    const refMap = new Map<string, ShiftSlot>();
+    for (const r of (shiftRefRes.data ?? []) as { chatter_id: string; shift: ShiftSlot }[]) {
+      if (!refMap.has(r.chatter_id)) refMap.set(r.chatter_id, r.shift);
+    }
+    setShiftRef(refMap);
+
+    setCoverageMap(new Map());
     setLoading(false);
     setDirty(false);
   }, [weekStart]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const getSchedulesForCell = (dayIdx: number, shift: string) =>
-    schedules.filter(s => s.day_of_week === dayIdx && s.shift === shift);
+  // Close popover on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setModelPopover(null);
+      }
+    }
+    if (modelPopover) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [modelPopover]);
 
-  const addToCell = (dayIdx: number, shift: string, chatterId: string) => {
-    if (schedules.some(s => s.chatter_id === chatterId && s.day_of_week === dayIdx && s.shift === shift)) return;
-    setSchedules(prev => [...prev, {
-      id: crypto.randomUUID(),
-      chatter_id: chatterId,
-      week_start: weekStart,
-      day_of_week: dayIdx,
-      shift: shift as ShiftSlot,
-      created_by: profile?.id ?? null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      chatter: chatters.find(c => c.id === chatterId),
-    }]);
-    setDirty(true);
-  };
+  // Close week picker on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (weekPickerRef.current && !weekPickerRef.current.contains(e.target as Node)) {
+        setWeekPickerOpen(false);
+      }
+    }
+    if (weekPickerOpen) document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [weekPickerOpen]);
 
-  const removeFromCell = (scheduleId: string) => {
-    setSchedules(prev => prev.filter(s => s.id !== scheduleId));
+  // Generate week options: 4 past + current + 8 future
+  const weekOptions = useMemo(() => {
+    const options: { offset: number; label: string; isCurrent: boolean }[] = [];
+    for (let o = -4; o <= 8; o++) {
+      const ws = getWeekStart(o);
+      const d = new Date(ws + 'T00:00:00Z');
+      const end = new Date(d);
+      end.setUTCDate(end.getUTCDate() + 6);
+      const label = `${formatDate(d, 'short')} – ${formatDate(end, 'short')}`;
+      options.push({ offset: o, label, isCurrent: o === 0 });
+    }
+    return options;
+  }, []);
+
+  /* ── derived ────────────────────────────────────────────────── */
+
+  const chatterShiftMap = useMemo(() => {
+    const map = new Map<string, ShiftSlot>();
+    // 1. Current week schedules (highest priority)
+    for (const s of schedules) {
+      if (!map.has(s.chatter_id)) map.set(s.chatter_id, s.shift);
+    }
+    // 2. Canonical reference from any week
+    for (const [id, shift] of shiftRef) {
+      if (!map.has(id)) map.set(id, shift);
+    }
+    return map;
+  }, [schedules, shiftRef]);
+
+  const chatterMap = useMemo(() => {
+    const m = new Map<string, Chatter>();
+    for (const c of chatters) m.set(c.id, c);
+    return m;
+  }, [chatters]);
+
+  const modelMap = useMemo(() => {
+    const m = new Map<string, Model>();
+    for (const md of models) m.set(md.id, md);
+    return m;
+  }, [models]);
+
+  const currentTL = TL_CONFIG.find(t => t.key === activeTL)!;
+
+  const groupDefaultForTL = useMemo(() => {
+    const map = new Map<string, string | null>();
+    for (const g of groups) {
+      const gcForGroup = groupChatters.filter(gc => gc.group_id === g.id);
+      const match = gcForGroup.find(gc => chatterShiftMap.get(gc.chatter_id) === currentTL.shift);
+      map.set(g.id, match?.chatter_id ?? null);
+    }
+    return map;
+  }, [groups, groupChatters, chatterShiftMap, currentTL]);
+
+  const tlChatters = useMemo(() => {
+    const ids = new Set<string>();
+    // From current week schedules
+    for (const s of schedules) {
+      if (s.shift === currentTL.shift) ids.add(s.chatter_id);
+    }
+    // From canonical shift reference (covers future weeks with no schedules)
+    for (const [id, shift] of chatterShiftMap) {
+      if (shift === currentTL.shift) ids.add(id);
+    }
+    return [...ids].map(id => chatterMap.get(id)).filter(Boolean) as Chatter[];
+  }, [schedules, currentTL, chatterMap, chatterShiftMap]);
+
+  const isChatterScheduled = useCallback((chatterId: string, dayIdx: number) => {
+    return schedules.some(s => s.chatter_id === chatterId && s.day_of_week === dayIdx && s.shift === currentTL.shift);
+  }, [schedules, currentTL]);
+
+  const modelsForGroup = useCallback((groupId: string) => {
+    return groupModels
+      .filter(gm => gm.group_id === groupId)
+      .map(gm => modelMap.get(gm.model_id))
+      .filter(Boolean) as Model[];
+  }, [groupModels, modelMap]);
+
+  // Reverse map: chatterId → their default groupId (for this TL)
+  const chatterDefaultGroup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const [groupId, chatterId] of groupDefaultForTL) {
+      if (chatterId) map.set(chatterId, groupId);
+    }
+    return map;
+  }, [groupDefaultForTL]);
+
+  // Does this week have any schedule entries for the current TL?
+  const weekHasScheduleData = useMemo(
+    () => schedules.some(s => s.shift === currentTL.shift),
+    [schedules, currentTL],
+  );
+
+  // Get who covers a cell: manual override > default > day off
+  type CellState = 'default' | 'cover' | 'dayoff';
+  const getCoverChatter = useCallback((groupId: string, dayIdx: number): { chatter: Chatter | null; state: CellState } => {
+    const key = `${groupId}-${dayIdx}`;
+
+    // 1. Manual override (drag & drop)
+    const overrideId = coverageMap.get(key);
+    if (overrideId === '__clear__') {
+      return { chatter: null, state: 'dayoff' };
+    }
+    if (overrideId) {
+      const c = chatterMap.get(overrideId);
+      const isTheirDefault = chatterDefaultGroup.get(overrideId) === groupId;
+      return { chatter: c ?? null, state: isTheirDefault ? 'default' : 'cover' };
+    }
+
+    // 2. Check default chatter for this group+TL
+    const defaultId = groupDefaultForTL.get(groupId);
+    if (!defaultId) return { chatter: null, state: 'dayoff' };
+
+    const c = chatterMap.get(defaultId);
+    if (!c) return { chatter: null, state: 'dayoff' };
+
+    // 3. If week has schedule data → only show on scheduled days
+    if (weekHasScheduleData) {
+      if (isChatterScheduled(defaultId, dayIdx)) {
+        return { chatter: c, state: 'default' };
+      }
+      return { chatter: null, state: 'dayoff' };
+    }
+
+    // 4. No schedule data for this week → auto-populate all 7 days
+    return { chatter: c, state: 'default' };
+  }, [coverageMap, groupDefaultForTL, isChatterScheduled, chatterMap, chatterDefaultGroup, weekHasScheduleData]);
+
+  /* ── drag & drop ────────────────────────────────────────────── */
+
+  const [dragging, setDragging] = useState<string | null>(null);
+
+  const handleDragStart = useCallback((e: React.DragEvent, chatterId: string, sourceKey: string) => {
+    e.dataTransfer.setData('chatterId', chatterId);
+    e.dataTransfer.setData('sourceKey', sourceKey);
+    e.dataTransfer.effectAllowed = 'move';
+    setDragging(sourceKey);
+  }, []);
+
+  const handleDragEnd = useCallback((e: React.DragEvent) => {
+    // If dropped outside any valid target (dropEffect is 'none'), remove from source
+    if (e.dataTransfer.dropEffect === 'none' && dragging && dragging !== 'panel') {
+      setCoverageMap(prev => {
+        const next = new Map(prev);
+        // Set a special "cleared" marker to force the cell back to default/dayoff
+        next.set(dragging, '__clear__');
+        return next;
+      });
+      setDirty(true);
+    }
+    setDragging(null);
+    setDragOver(null);
+  }, [dragging]);
+
+  const handleDragOver = useCallback((e: React.DragEvent, targetKey: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOver(targetKey);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOver(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetGroupId: string, targetDay: number) => {
+    e.preventDefault();
+    setDragOver(null);
+    const chatterId = e.dataTransfer.getData('chatterId');
+    const sourceKey = e.dataTransfer.getData('sourceKey');
+    if (!chatterId) return;
+
+    const targetKey = `${targetGroupId}-${targetDay}`;
+    if (sourceKey === targetKey) return;
+
+    // Get current occupant of target cell
+    const targetCover = getCoverChatter(targetGroupId, targetDay);
+    const targetChatterId = targetCover.chatter?.id;
+
+    setCoverageMap(prev => {
+      const next = new Map(prev);
+      // Place dragged chatter in target
+      next.set(targetKey, chatterId);
+      // If source had this chatter, swap: put target's chatter in source (or clear)
+      if (sourceKey && targetChatterId) {
+        next.set(sourceKey, targetChatterId);
+      } else if (sourceKey) {
+        // Source becomes empty/default
+        next.delete(sourceKey);
+      }
+      return next;
+    });
     setDirty(true);
-  };
+  }, [getCoverChatter]);
+
+  // Drop from bottom panel (no source cell)
+  const handleDropFromPanel = useCallback((e: React.DragEvent, targetGroupId: string, targetDay: number) => {
+    e.preventDefault();
+    setDragOver(null);
+    const chatterId = e.dataTransfer.getData('chatterId');
+    if (!chatterId) return;
+
+    const targetKey = `${targetGroupId}-${targetDay}`;
+    setCoverageMap(prev => {
+      const next = new Map(prev);
+      next.set(targetKey, chatterId);
+      return next;
+    });
+    setDirty(true);
+  }, []);
+
+  /* ── save ────────────────────────────────────────────────────── */
 
   const handleCopyPreviousWeek = async () => {
     const prevWeekStart = getWeekStart(weekOffset - 1);
@@ -276,6 +361,7 @@ export default function Schedules() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      // Save schedules
       await supabase.from('schedules').delete().eq('week_start', weekStart);
       const rows = schedules.map(s => ({
         chatter_id: s.chatter_id,
@@ -288,29 +374,44 @@ export default function Schedules() {
         const { error } = await supabase.from('schedules').insert(rows);
         if (error) throw error;
       }
+
+      // Save overrides
+      if (coverageMap.size > 0) {
+        const overrideRows: { group_id: string; chatter_id: string; date: string; created_by: string | undefined }[] = [];
+        for (const [key, chatterId] of coverageMap) {
+          const [groupId, dayIdxStr] = key.split('-');
+          if (!groupId || !dayIdxStr) continue;
+          const dayIdx = parseInt(dayIdxStr, 10);
+          const date = weekDates[dayIdx];
+          if (!date) continue;
+          overrideRows.push({
+            group_id: groupId,
+            chatter_id: chatterId,
+            date: date.toISOString().split('T')[0]!,
+            created_by: profile?.id,
+          });
+        }
+        if (overrideRows.length > 0) {
+          for (const row of overrideRows) {
+            await supabase.from('assignment_group_overrides')
+              .upsert(row, { onConflict: 'chatter_id,date' });
+          }
+        }
+      }
+
       setSaveMsg('Saved!');
       setDirty(false);
       setTimeout(() => setSaveMsg(''), 2000);
       fetchData();
-    } catch (err: any) {
-      setSaveMsg(`Error: ${err.message}`);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      setSaveMsg(`Error: ${msg}`);
     } finally {
       setSaving(false);
     }
   };
 
-  // Stats
-  const totalSlots = schedules.length;
-  const uniqueChatters = new Set(schedules.map(s => s.chatter_id)).size;
-  const assignedIds = new Set(schedules.map(s => s.chatter_id));
-  const unassignedChatters = chatters.filter(c => !assignedIds.has(c.id));
-
-  const shiftStats = SHIFTS.map(shift => {
-    const count = schedules.filter(s => s.shift === shift).length;
-    return { shift, count, avg: (count / 7).toFixed(1) };
-  });
-
-  const today = new Date().toISOString().split('T')[0];
+  /* ── render ─────────────────────────────────────────────────── */
 
   if (loading) {
     return (
@@ -323,6 +424,8 @@ export default function Schedules() {
     );
   }
 
+  const tlScheduleCount = schedules.filter(s => s.shift === currentTL.shift).length;
+
   return (
     <div className="p-4 lg:p-6 max-w-full">
       {/* Header */}
@@ -330,13 +433,7 @@ export default function Schedules() {
         <div>
           <h1 className="text-2xl font-extrabold text-text-primary">Weekly Schedule</h1>
           <p className="text-sm text-text-secondary mt-0.5">
-            {uniqueChatters} chatters · {totalSlots} shifts assigned
-            {unassignedChatters.length > 0 && (
-              <span className="text-warning ml-2">
-                <AlertTriangle size={12} className="inline -mt-0.5 mr-0.5" />
-                {unassignedChatters.length} unassigned
-              </span>
-            )}
+            {tlChatters.length} chatters · {tlScheduleCount} shifts · {groups.length} teams
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -355,14 +452,73 @@ export default function Schedules() {
             <Copy size={14} />
             <span className="hidden sm:inline">Copy Prev Week</span>
           </button>
-          <div className="flex items-center gap-1 bg-surface-1 border border-border rounded-lg px-2 py-1.5">
-            <button onClick={() => setWeekOffset(w => w - 1)} className="p-1 hover:text-cw text-text-muted rounded-md hover:bg-surface-2">
-              <ChevronLeft size={16} />
-            </button>
-            <span className="text-sm text-text-primary font-semibold min-w-[170px] text-center">{weekLabel}</span>
-            <button onClick={() => setWeekOffset(w => w + 1)} className="p-1 hover:text-cw text-text-muted rounded-md hover:bg-surface-2">
-              <ChevronRight size={16} />
-            </button>
+          <div className="relative">
+            <div className="flex items-center gap-1 bg-surface-1 border border-border rounded-lg px-2 py-1.5">
+              <button onClick={() => setWeekOffset(w => w - 1)} className="p-1 hover:text-cw text-text-muted rounded-md hover:bg-surface-2">
+                <ChevronLeft size={16} />
+              </button>
+              <button
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={() => setWeekPickerOpen(p => !p)}
+                className={cn(
+                  'text-sm font-semibold min-w-[170px] text-center px-2 py-0.5 rounded-md transition-all cursor-pointer flex items-center justify-center gap-1.5',
+                  weekPickerOpen
+                    ? 'bg-cw/10 text-cw'
+                    : 'text-text-primary hover:bg-surface-2 hover:text-cw',
+                )}
+              >
+                {weekLabel}
+                <ChevronDown size={11} className={cn(
+                  'transition-transform duration-200',
+                  weekPickerOpen && 'rotate-180',
+                )} />
+              </button>
+              <button onClick={() => setWeekOffset(w => w + 1)} className="p-1 hover:text-cw text-text-muted rounded-md hover:bg-surface-2">
+                <ChevronRight size={16} />
+              </button>
+            </div>
+
+            {/* Week picker dropdown */}
+            {weekPickerOpen && (
+              <div
+                ref={weekPickerRef}
+                className="absolute top-full mt-1.5 left-1/2 -translate-x-1/2 z-50 w-64 bg-surface-1 border border-border rounded-xl shadow-2xl overflow-hidden"
+              >
+                <div className="px-3 py-2 border-b border-border">
+                  <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Select Week</span>
+                </div>
+                <div className="max-h-72 overflow-y-auto p-1">
+                  {weekOptions.map(opt => {
+                    const isSelected = opt.offset === weekOffset;
+                    return (
+                      <button
+                        key={opt.offset}
+                        onClick={() => { setWeekOffset(opt.offset); setWeekPickerOpen(false); }}
+                        className={cn(
+                          'w-full text-left px-3 py-2 rounded-lg text-sm transition-all flex items-center justify-between',
+                          isSelected
+                            ? 'bg-cw/15 text-cw font-bold'
+                            : 'text-text-secondary hover:bg-surface-2 hover:text-text-primary',
+                        )}
+                      >
+                        <span>{opt.label}</span>
+                        <div className="flex items-center gap-1.5">
+                          {opt.isCurrent && (
+                            <span className={cn(
+                              'text-[9px] px-1.5 py-0.5 rounded-md font-bold uppercase',
+                              isSelected ? 'bg-cw/20 text-cw' : 'bg-surface-2 text-text-muted',
+                            )}>
+                              Now
+                            </span>
+                          )}
+                          {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-cw" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
           <button
             onClick={handleSave}
@@ -375,178 +531,251 @@ export default function Schedules() {
         </div>
       </div>
 
-      <div className="flex flex-col xl:flex-row gap-5">
-        {/* Grid */}
-        <div className="flex-1 overflow-x-auto">
-          <div className="min-w-[900px]">
-            {/* Column headers */}
-            <div className="grid grid-cols-[100px_repeat(7,1fr)] gap-1.5 mb-1.5">
-              <div /> {/* spacer */}
-              {weekDates.map((date, i) => {
-                const dateStr = date.toISOString().split('T')[0];
-                const isToday = dateStr === today;
-                return (
-                  <div key={i} className={cn(
-                    'text-center py-2 rounded-lg',
-                    isToday ? 'bg-cw/10' : ''
-                  )}>
-                    <div className={cn('text-[11px] font-bold uppercase tracking-wider', isToday ? 'text-cw' : 'text-text-muted')}>
-                      {getDayName(i)}
-                    </div>
-                    <div className={cn('text-lg font-extrabold', isToday ? 'text-cw' : 'text-text-secondary')}>
-                      {date.getUTCDate()}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+      {/* TL Tabs */}
+      <div className="flex gap-2 mb-5">
+        {TL_CONFIG.map(tl => {
+          const isActive = activeTL === tl.key;
+          const count = schedules.filter(s => s.shift === tl.shift).length;
+          return (
+            <button
+              key={tl.key}
+              onClick={() => { setActiveTL(tl.key); setCoverageMap(new Map()); }}
+              className={cn(
+                'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border',
+                isActive
+                  ? `${tl.activeBg} ${tl.text} ${tl.border} ring-1 ${tl.ring}`
+                  : 'bg-surface-1 text-text-muted border-border hover:text-text-secondary hover:bg-surface-2',
+              )}
+            >
+              <div className={cn('w-2.5 h-2.5 rounded-full', tl.dot)} />
+              <span>{tl.label}</span>
+              <span className={cn('text-[10px] px-1.5 py-0.5 rounded-md', isActive ? `${tl.bg}` : 'bg-surface-2')}>
+                {tl.hours}
+              </span>
+              <span className={cn('text-[10px] ml-auto', isActive ? tl.text : 'text-text-muted')}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
 
-            {/* Shift rows */}
-            {SHIFTS.map((shift) => {
-              const tl = getTLForShift(shift);
-              const stat = shiftStats.find(s => s.shift === shift);
-
-              return (
-                <div key={shift} className="grid grid-cols-[100px_repeat(7,1fr)] gap-1.5 mb-1.5">
-                  {/* Row label */}
-                  <div className="flex flex-col justify-center px-2 py-3">
-                    <div className="text-[11px] font-bold text-text-muted uppercase tracking-wider">
-                      {SHIFT_LABELS[shift]?.split('·')[0]?.trim()}
-                    </div>
-                    <div className="text-[10px] text-text-muted mt-0.5">
-                      {shift}
-                    </div>
-                    {tl && (
-                      <div className={cn('text-[10px] font-bold mt-1', tl.colorClass.split(' ')[0])}>
-                        {tl.tl}
-                      </div>
-                    )}
-                    <div className="text-[9px] text-text-muted mt-0.5">
-                      avg {stat?.avg}/day
-                    </div>
-                  </div>
-
-                  {/* Day cells */}
-                  {weekDates.map((date, dayIdx) => {
-                    const dateStr = date.toISOString().split('T')[0];
-                    const isToday = dateStr === today;
-                    const cellSchedules = getSchedulesForCell(dayIdx, shift);
-
-                    return (
-                      <ScheduleCell
-                        key={`${dayIdx}-${shift}`}
-                        schedules={cellSchedules}
-                        dayIdx={dayIdx}
-                        shift={shift}
-                        isToday={isToday}
-                        onAdd={() => setPickerTarget({ dayIdx, shift })}
-                        onRemove={removeFromCell}
-                      />
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Right Panel */}
-        <div className="xl:w-64 shrink-0 space-y-4">
-          {/* Shift Balance */}
-          <div className="bg-surface-1 border border-border rounded-xl p-4">
-            <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">Shift Balance</h3>
-            <div className="space-y-3">
-              {shiftStats.map(({ shift, count, avg }) => {
-                const tl = getTLForShift(shift);
-                const pct = Math.min((count / Math.max(totalSlots, 1)) * 300, 100);
-                return (
-                  <div key={shift}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-[11px] font-semibold text-text-secondary">
-                        {tl?.tl || shift}
-                      </span>
-                      <span className="text-xs font-bold text-text-primary">{count}</span>
-                    </div>
-                    <div className="w-full h-1.5 bg-surface-3 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${pct}%`,
-                          backgroundColor: tl?.color || '#1a90c8',
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Unassigned */}
-          {unassignedChatters.length > 0 && (
-            <div className="bg-surface-1 border border-warning/30 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <AlertTriangle size={14} className="text-warning" />
-                <h3 className="text-xs font-bold text-warning uppercase tracking-wider">
-                  Unassigned ({unassignedChatters.length})
-                </h3>
-              </div>
-              <div className="space-y-1 max-h-48 overflow-y-auto">
-                {unassignedChatters.map(c => {
-                  const dotColor = c.team_name?.includes('Huckle') ? 'bg-orange-400'
-                    : c.team_name?.includes('Danilyn') ? 'bg-blue-400'
-                    : c.team_name?.includes('Ezekiel') ? 'bg-purple-400'
-                    : 'bg-zinc-500';
-
+      {/* Schedule Grid */}
+      <div className="overflow-x-auto">
+        <div className="min-w-[800px]">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr>
+                <th className="w-[160px] text-left px-3 py-3">
+                  <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider">Team</span>
+                </th>
+                {weekDates.map((date, i) => {
+                  const dateStr = date.toISOString().split('T')[0];
+                  const isToday = dateStr === today;
                   return (
-                    <div key={c.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-surface-2 text-xs">
-                      <div className={cn('w-2 h-2 rounded-full', dotColor)} />
-                      <span className="text-text-primary font-medium flex-1 truncate">{c.full_name}</span>
-                      <span className="text-[9px] text-text-muted">{c.team_name?.replace('Team ', '')}</span>
-                    </div>
+                    <th key={i} className={cn('text-center px-2 py-2', isToday && 'bg-cw/5 rounded-t-xl')}>
+                      <div className={cn('text-[10px] font-bold uppercase tracking-wider', isToday ? 'text-cw' : 'text-text-muted')}>
+                        {getDayName(i).slice(0, 3)}
+                      </div>
+                      <div className={cn('text-base font-extrabold', isToday ? 'text-cw' : 'text-text-secondary')}>
+                        {date.getUTCDate()}
+                      </div>
+                    </th>
                   );
                 })}
-              </div>
-            </div>
-          )}
+              </tr>
+            </thead>
+            <tbody>
+              {groups.map((group, gIdx) => {
+                const groupModelsList = modelsForGroup(group.id);
+                const isPopoverOpen = modelPopover === group.id;
 
-          {/* Team Legend */}
-          <div className="bg-surface-1 border border-border rounded-xl p-4">
-            <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2">Teams</h3>
-            {['Team Huckle', 'Team Danilyn', 'Team Ezekiel'].map(team => {
-              const tl = getTLForShift(
-                team.includes('Huckle') ? '00:00-08:00'
-                  : team.includes('Danilyn') ? '08:00-16:00'
-                  : '16:00-00:00'
-              );
-              const dotColor = team.includes('Huckle') ? 'bg-orange-400'
-                : team.includes('Danilyn') ? 'bg-blue-400'
-                : 'bg-purple-400';
-              const count = chatters.filter(c => c.team_name === team).length;
+                return (
+                  <tr key={group.id} className={cn(gIdx % 2 === 0 ? 'bg-surface-1/50' : '')}>
+                    {/* Team label with model popover */}
+                    <td className="px-3 py-2.5 border-b border-border/50 relative">
+                      <button
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={() => setModelPopover(isPopoverOpen ? null : group.id)}
+                        className={cn(
+                          'w-full flex items-center gap-2.5 group/team rounded-lg px-1.5 py-1 -mx-1.5 transition-all cursor-pointer',
+                          isPopoverOpen
+                            ? `${currentTL.activeBg} ring-1 ${currentTL.ring}`
+                            : 'hover:bg-surface-2',
+                        )}
+                      >
+                        <div className={cn(
+                          'w-8 h-8 rounded-lg flex items-center justify-center text-sm font-extrabold shrink-0 transition-all',
+                          isPopoverOpen
+                            ? `${currentTL.activeBg} ${currentTL.text} ring-2 ${currentTL.ring}`
+                            : `${currentTL.bg} ${currentTL.text} group-hover/team:ring-1 ${currentTL.ring}`,
+                        )}>
+                          {group.sort_order}
+                        </div>
+                        <div className="flex-1 text-left">
+                          <div className="text-xs font-bold text-text-primary">{group.name}</div>
+                          <div className={cn(
+                            'text-[10px] flex items-center gap-1 transition-colors',
+                            isPopoverOpen ? currentTL.text : 'text-text-muted group-hover/team:text-text-secondary',
+                          )}>
+                            <Users size={9} />
+                            <span className={cn(isPopoverOpen ? '' : 'group-hover/team:underline')}>
+                              {groupModelsList.length} models
+                            </span>
+                          </div>
+                        </div>
+                        <ChevronDown size={12} className={cn(
+                          'shrink-0 transition-all duration-200',
+                          isPopoverOpen
+                            ? `${currentTL.text} rotate-180`
+                            : 'text-text-muted/40 group-hover/team:text-text-muted',
+                        )} />
+                      </button>
 
-              return (
-                <div key={team} className="flex items-center gap-2 py-1">
-                  <div className={cn('w-2.5 h-2.5 rounded-full', dotColor)} />
-                  <span className="text-xs text-text-secondary flex-1">{team}</span>
-                  <span className="text-[10px] text-text-muted">{count}</span>
-                </div>
-              );
-            })}
-          </div>
+                      {/* Models popover */}
+                      {isPopoverOpen && (
+                        <div
+                          ref={popoverRef}
+                          className="absolute left-2 top-full mt-1 z-50 w-56 bg-surface-1 border border-border rounded-xl shadow-2xl overflow-hidden"
+                        >
+                          <div className={cn('px-3 py-2 flex items-center justify-between', currentTL.bg)}>
+                            <span className={cn('text-[11px] font-bold uppercase tracking-wider', currentTL.text)}>
+                              {group.name} — Models
+                            </span>
+                            <button onClick={() => setModelPopover(null)} className="text-text-muted hover:text-text-primary">
+                              <X size={12} />
+                            </button>
+                          </div>
+                          <div className="max-h-48 overflow-y-auto p-1.5">
+                            {groupModelsList.length === 0 ? (
+                              <p className="text-xs text-text-muted text-center py-3">No models assigned</p>
+                            ) : (
+                              groupModelsList.map(m => (
+                                <div key={m.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-surface-2 transition-colors">
+                                  {m.profile_picture_url ? (
+                                    <img src={m.profile_picture_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                                  ) : (
+                                    <div className="w-5 h-5 rounded-full bg-surface-3 flex items-center justify-center text-[8px] font-bold text-text-muted">
+                                      {m.name[0]}
+                                    </div>
+                                  )}
+                                  <span className="text-xs text-text-primary font-medium truncate">{m.name}</span>
+                                  {m.page_type && (
+                                    <span className="text-[9px] text-text-muted ml-auto shrink-0">{m.page_type}</span>
+                                  )}
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Day cells */}
+                    {weekDates.map((date, dayIdx) => {
+                      const dateStr = date.toISOString().split('T')[0];
+                      const isToday = dateStr === today;
+                      const isPast = dateStr! < today!;
+                      const cellKey = `${group.id}-${dayIdx}`;
+                      const isDragTarget = dragOver === cellKey;
+
+                      const { chatter: coverChatter, state: cellState } = getCoverChatter(group.id, dayIdx);
+                      const firstName = coverChatter?.full_name.split(' ')[0] ?? '';
+
+                      return (
+                        <td
+                          key={dayIdx}
+                          className={cn(
+                            'text-center px-1 py-1.5 border-b border-border/50 transition-all',
+                            isToday && 'bg-cw/5',
+                            isDragTarget && 'bg-cw/10 ring-1 ring-inset ring-cw/30',
+                          )}
+                          onDragOver={(e) => handleDragOver(e, cellKey)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, group.id, dayIdx)}
+                        >
+                          {coverChatter ? (
+                            <div
+                              draggable
+                              onDragStart={(e) => handleDragStart(e, coverChatter.id, cellKey)}
+                              onDragEnd={handleDragEnd}
+                              className={cn(
+                                'mx-auto px-2 py-1.5 rounded-lg text-xs font-semibold transition-all max-w-[110px] truncate cursor-grab active:cursor-grabbing flex items-center gap-1 justify-center border',
+                                cellState === 'default'
+                                  ? isToday
+                                    ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25 ring-1 ring-emerald-400/20'
+                                    : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                  : isToday
+                                    ? 'bg-amber-500/15 text-amber-300 border-amber-500/25 ring-1 ring-amber-400/20'
+                                    : 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+                              )}
+                            >
+                              <GripVertical size={8} className="shrink-0 opacity-30" />
+                              {firstName}
+                            </div>
+                          ) : cellState === 'dayoff' ? (
+                            <div
+                              className="mx-auto px-2 py-1.5 rounded-lg text-[11px] font-medium max-w-[110px] bg-amber-500/10 text-amber-400 border border-dashed border-amber-500/25"
+                            >
+                              Day off
+                            </div>
+                          ) : (
+                            <div className="mx-auto px-2 py-1.5 rounded-lg text-[11px] text-text-muted/30 max-w-[110px]">
+                              —
+                            </div>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Chatter Picker Modal */}
-      {pickerTarget && (
-        <ChatterPicker
-          chatters={chatters}
-          existingIds={new Set(
-            getSchedulesForCell(pickerTarget.dayIdx, pickerTarget.shift).map(s => s.chatter_id)
-          )}
-          onSelect={(id) => addToCell(pickerTarget.dayIdx, pickerTarget.shift, id)}
-          onClose={() => setPickerTarget(null)}
-        />
-      )}
+      {/* Chatters panel — draggable */}
+      <div className="mt-6">
+        <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">
+          {currentTL.label}'s Chatters — drag to assign
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {tlChatters.map(c => {
+            const gc = groupChatters.find(gc2 => gc2.chatter_id === c.id);
+            const group = gc ? groups.find(g => g.id === gc.group_id) : null;
+            const daysWorking = schedules.filter(s => s.chatter_id === c.id && s.shift === currentTL.shift).length;
+            const isDefault = !!gc;
+
+            return (
+              <div
+                key={c.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, c.id, 'panel')}
+                className={cn(
+                  'flex items-center gap-2 px-3 py-2 rounded-lg border text-xs cursor-grab active:cursor-grabbing select-none transition-all hover:ring-1',
+                  isDefault
+                    ? `${currentTL.bg} ${currentTL.border} ${currentTL.ring}`
+                    : `bg-surface-1 border-border hover:ring-zinc-500/20`,
+                )}
+              >
+                <GripVertical size={10} className="text-text-muted/40 shrink-0" />
+                <div className={cn('w-2 h-2 rounded-full', currentTL.dot)} />
+                <span className="font-semibold text-text-primary">{c.full_name.split(' ')[0]}</span>
+                {group && (
+                  <span className={cn('text-[10px] px-1.5 py-0.5 rounded', currentTL.bg, currentTL.text)}>
+                    T{group.sort_order}
+                  </span>
+                )}
+                {!isDefault && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">
+                    Sub
+                  </span>
+                )}
+                <span className="text-text-muted">{daysWorking}d</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

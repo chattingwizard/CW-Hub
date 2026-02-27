@@ -2,7 +2,21 @@ function normalizeCellValue(val: unknown): unknown {
   if (val === null || val === undefined) return '';
   if (typeof val === 'number' || typeof val === 'boolean') return val;
   if (typeof val === 'string') return val;
-  if (val instanceof Date) return val.toISOString().split('T')[0];
+  if (val instanceof Date) {
+    if (val.getUTCFullYear() <= 1900) {
+      const ms = val.getTime() - new Date('1899-12-30T00:00:00Z').getTime();
+      const totalSeconds = Math.round(ms / 1000);
+      const h = Math.floor(totalSeconds / 3600);
+      const m = Math.floor((totalSeconds % 3600) / 60);
+      const s = totalSeconds % 60;
+      if (h > 0 && m > 0) return `${h}h ${m}min`;
+      if (h > 0) return `${h}h`;
+      if (m > 0 && s > 0) return `${m}m ${s}s`;
+      if (m > 0) return `${m}m`;
+      return `${s}s`;
+    }
+    return val.toISOString().split('T')[0];
+  }
 
   if (typeof val === 'object') {
     const obj = val as Record<string, unknown>;

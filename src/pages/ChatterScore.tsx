@@ -10,12 +10,12 @@ import type {
   Chatter, ChatterWeeklyScore,
 } from '../types';
 import ScoreLogEvent from '../components/score/ScoreLogEvent';
-import ScoreWeeklyReports from '../components/score/ScoreWeeklyReports';
+import ScoreEndOfWeek from '../components/score/ScoreEndOfWeek';
 import ScoreConfigPanel from '../components/score/ScoreConfig';
 import ScoreDrawer from '../components/score/ScoreDrawer';
 import { Star, ChevronLeft, ChevronRight, Plus, Trophy, AlertTriangle, FileText, DollarSign } from 'lucide-react';
 
-type Tab = 'leaderboard' | 'log-event' | 'weekly-reports' | 'config';
+type Tab = 'leaderboard' | 'log-event' | 'end-of-week' | 'config';
 
 export default function ChatterScore() {
   const { profile } = useAuthStore();
@@ -26,7 +26,6 @@ export default function ChatterScore() {
   const [eventTypes, setEventTypes] = useState<ScoreEventType[]>([]);
   const [chatters, setChatters] = useState<Chatter[]>([]);
   const [events, setEvents] = useState<ScoreEvent[]>([]);
-  const [weeklyReports, setWeeklyReports] = useState<ScoreWeeklyReport[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [scores, setScores] = useState<ChatterWeeklyScore[]>([]);
@@ -58,8 +57,6 @@ export default function ChatterScore() {
       setEventTypes(types);
       setChatters(chts);
       setEvents(evts);
-      setWeeklyReports(rpts);
-
       if (cfg) {
         const computed = chts.map(c => {
           const chatterEvents = evts.filter(e => e.chatter_id === c.id);
@@ -103,8 +100,8 @@ export default function ChatterScore() {
   });
 
   const bonusEarners = scores.filter(s => s.bonus_amount > 0).length;
-  const warnings = scores.filter(s => s.status === 'warning').length;
-  const pendingReports = chatters.length - weeklyReports.length;
+  const warnings = scores.filter(s => s.status === 'bronze').length;
+  const avgScore = scores.length > 0 ? Math.round(scores.reduce((sum, s) => sum + s.total, 0) / scores.length) : 0;
   const totalBonuses = scores.reduce((sum, s) => sum + s.bonus_amount, 0);
 
   const teams = [...new Set(chatters.map(c => c.team_name).filter(Boolean))] as string[];
@@ -112,12 +109,12 @@ export default function ChatterScore() {
   const TABS: { id: Tab; label: string; adminOnly?: boolean }[] = [
     { id: 'leaderboard', label: 'Leaderboard' },
     { id: 'log-event', label: 'Log Event' },
-    { id: 'weekly-reports', label: 'Weekly Reports' },
+    { id: 'end-of-week', label: 'End of Week' },
     { id: 'config', label: 'Score Config', adminOnly: true },
   ];
 
   return (
-    <div className="space-y-5">
+    <div className="p-4 lg:p-6 space-y-5">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -163,8 +160,8 @@ export default function ChatterScore() {
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard icon={<Trophy size={15} />} label="Bonus Earners" value={bonusEarners} color="text-emerald-400" bg="bg-emerald-500/10" />
-        <StatCard icon={<AlertTriangle size={15} />} label="Warnings" value={warnings} color="text-red-400" bg="bg-red-500/10" />
-        <StatCard icon={<FileText size={15} />} label="Pending Reports" value={pendingReports} color="text-amber-400" bg="bg-amber-500/10" />
+        <StatCard icon={<AlertTriangle size={15} />} label="Bronze (Low)" value={warnings} color="text-red-400" bg="bg-red-500/10" />
+        <StatCard icon={<FileText size={15} />} label="Avg Score" value={avgScore} color="text-amber-400" bg="bg-amber-500/10" />
         <StatCard icon={<DollarSign size={15} />} label="Total Bonuses" value={`$${totalBonuses}`} color="text-cw" bg="bg-cw/10" />
       </div>
 
@@ -208,11 +205,12 @@ export default function ChatterScore() {
                   className="bg-surface-1 border border-border rounded-lg px-3 py-1.5 text-xs text-text-primary"
                 >
                   <option value="all">All Status</option>
-                  <option value="bonus_20">$20 Bonus</option>
-                  <option value="bonus_10">$10 Bonus</option>
-                  <option value="bonus_5">$5 Bonus</option>
-                  <option value="no_bonus">No Bonus</option>
-                  <option value="warning">Warning</option>
+                  <option value="diamond">Diamond</option>
+                  <option value="platinum">Platinum</option>
+                  <option value="gold">Gold</option>
+                  <option value="silver">Silver</option>
+                  <option value="neutral">Neutral</option>
+                  <option value="bronze">Bronze</option>
                 </select>
               </div>
 
@@ -237,7 +235,7 @@ export default function ChatterScore() {
                       {filteredScores.map((s, i) => {
                         const badge = getStatusBadge(s.status);
                         return (
-                          <tr key={s.chatter_id} className="border-b border-border/50 hover:bg-surface-2/50 transition-colors cursor-pointer" onClick={() => setDrawerChatterId(s.chatter_id)}>
+                          <tr key={s.chatter_id} className={`border-b border-border/50 hover:bg-surface-2/50 transition-colors cursor-pointer ${s.status === 'bronze' ? 'bg-red-500/5' : ''}`} onClick={() => setDrawerChatterId(s.chatter_id)}>
                             <td className="px-4 py-2.5 text-xs text-text-muted font-medium">
                               {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
                             </td>
@@ -253,7 +251,12 @@ export default function ChatterScore() {
                             </td>
                             <td className="px-4 py-2.5">
                               {s.team_name && (
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-3 text-text-muted font-medium">
+                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                  s.team_name.includes('Huckle') ? 'bg-orange-500/15 text-orange-400' :
+                                  s.team_name.includes('Danilyn') ? 'bg-blue-500/15 text-blue-400' :
+                                  s.team_name.includes('Ezekiel') ? 'bg-purple-500/15 text-purple-400' :
+                                  'bg-surface-3 text-text-muted'
+                                }`}>
                                   {s.team_name.replace('Team ', '')}
                                 </span>
                               )}
@@ -304,9 +307,10 @@ export default function ChatterScore() {
             <ScoreLogEvent weekKey={weekKey} eventTypes={eventTypes} chatters={chatters} />
           )}
 
-          {tab === 'weekly-reports' && config && (
-            <ScoreWeeklyReports weekKey={weekKey} chatters={chatters} config={config} onDataChange={loadData} />
+          {tab === 'end-of-week' && config && (
+            <ScoreEndOfWeek weekKey={weekKey} chatters={chatters} events={events} eventTypes={eventTypes} scores={scores} config={config} onDataChange={loadData} />
           )}
+
 
           {tab === 'config' && isAdmin && config && (
             <ScoreConfigPanel config={config} eventTypes={eventTypes} onSave={loadData} />

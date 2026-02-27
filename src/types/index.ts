@@ -86,6 +86,45 @@ export interface ModelChatterAssignment {
   chatter?: Chatter;
 }
 
+// ── Assignment Groups ────────────────────────────────────────
+
+export interface AssignmentGroup {
+  id: string;
+  name: string;
+  sort_order: number;
+  created_by: string | null;
+  created_at: string;
+  active: boolean;
+}
+
+export interface AssignmentGroupModel {
+  id: string;
+  group_id: string;
+  model_id: string;
+  assigned_by: string | null;
+  assigned_at: string;
+  model?: Model;
+}
+
+export interface AssignmentGroupChatter {
+  id: string;
+  group_id: string;
+  chatter_id: string;
+  assigned_by: string | null;
+  assigned_at: string;
+  chatter?: Chatter;
+}
+
+export interface AssignmentGroupOverride {
+  id: string;
+  group_id: string;
+  chatter_id: string;
+  date: string;
+  assigned_by: string | null;
+  created_at: string;
+  chatter?: Chatter;
+}
+
 // ── Metrics ──────────────────────────────────────────────────
 
 export interface ModelMetric {
@@ -348,6 +387,7 @@ export interface CsvUpload {
   row_count: number;
   upload_type: UploadType;
   uploaded_at: string;
+  report_date: string | null;
   uploader?: Profile;
 }
 
@@ -478,6 +518,25 @@ export interface ScoreWeeklyReport {
   chatter?: Chatter;
 }
 
+export interface KPIRuleTier {
+  threshold: number;
+  pts: number;
+}
+
+export interface KPIRule {
+  t1: KPIRuleTier;
+  t2: KPIRuleTier;
+  t3: KPIRuleTier;
+  below_pts: number;
+}
+
+export interface KPIRules {
+  golden_ratio: KPIRule;
+  fan_cvr: KPIRule;
+  unlock_rate: KPIRule;
+  reply_time: KPIRule;
+}
+
 export interface ScoreConfig {
   id: number;
   base_score: number;
@@ -492,11 +551,14 @@ export interface ScoreConfig {
   tier_20_amount: number;
   tier_10_amount: number;
   tier_5_amount: number;
+  silver_threshold?: number;
+  silver_amount?: number;
+  kpi_rules?: KPIRules;
   updated_by: string | null;
   updated_at: string;
 }
 
-export type ScoreStatus = 'bonus_20' | 'bonus_10' | 'bonus_5' | 'no_bonus' | 'warning';
+export type ScoreStatus = 'diamond' | 'platinum' | 'gold' | 'silver' | 'neutral' | 'bronze';
 
 // ── Shift Reports ───────────────────────────────────────────
 

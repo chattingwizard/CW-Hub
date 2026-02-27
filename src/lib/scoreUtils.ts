@@ -1,4 +1,6 @@
-import type { ScoreConfig, ScoreStatus, ScoreWeeklyReport } from '../types';
+import type { ScoreConfig, ScoreStatus, ScoreWeeklyReport, KPIRules, KPIRule } from '../types';
+
+// ── Week key helpers ────────────────────────────────────────
 
 export function getWeekKey(date: Date): string {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
@@ -63,6 +65,8 @@ export function getNextWeekKey(weekKey: string): string {
   return getWeekKey(monday);
 }
 
+// ── Weekly report points (legacy manual system) ─────────────
+
 export function calculateWeeklyReportPoints(
   report: Pick<ScoreWeeklyReport, 'reply_time_bucket' | 'no_shift_incidence' | 'all_reports_sent'> | null,
   config: ScoreConfig,
@@ -79,40 +83,54 @@ export function calculateWeeklyReportPoints(
   return pts;
 }
 
+// ── Tier system (Diamond → Platinum → Gold → Silver → Neutral → Bronze) ─
+
+const SILVER_THRESHOLD_DEFAULT = 110;
+const SILVER_AMOUNT_DEFAULT = 5;
+
+function silverThreshold(config: ScoreConfig): number {
+  return config.silver_threshold ?? SILVER_THRESHOLD_DEFAULT;
+}
+
 export function calculateStatus(total: number, config: ScoreConfig): ScoreStatus {
-  if (total >= config.tier_20_threshold) return 'bonus_20';
-  if (total >= config.tier_10_threshold) return 'bonus_10';
-  if (total >= config.tier_5_threshold) return 'bonus_5';
-  if (total >= config.warning_threshold) return 'no_bonus';
-  return 'warning';
+  if (total >= config.tier_20_threshold) return 'diamond';
+  if (total >= config.tier_10_threshold) return 'platinum';
+  if (total >= config.tier_5_threshold) return 'gold';
+  if (total >= silverThreshold(config)) return 'silver';
+  if (total >= config.warning_threshold) return 'neutral';
+  return 'bronze';
 }
 
 export function getBonusAmount(total: number, config: ScoreConfig): number {
   if (total >= config.tier_20_threshold) return Number(config.tier_20_amount);
   if (total >= config.tier_10_threshold) return Number(config.tier_10_amount);
   if (total >= config.tier_5_threshold) return Number(config.tier_5_amount);
+  if (total >= silverThreshold(config)) return Number(config.silver_amount ?? SILVER_AMOUNT_DEFAULT);
   return 0;
 }
 
 export function getStatusBadge(status: ScoreStatus): { label: string; colorClass: string } {
   switch (status) {
-    case 'bonus_20':
-      return { label: '$20 Bonus', colorClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' };
-    case 'bonus_10':
-      return { label: '$10 Bonus', colorClass: 'bg-blue-500/15 text-blue-400 border-blue-500/20' };
-    case 'bonus_5':
-      return { label: '$5 Bonus', colorClass: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20' };
-    case 'no_bonus':
-      return { label: 'No Bonus', colorClass: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20' };
-    case 'warning':
-      return { label: 'Warning', colorClass: 'bg-red-500/15 text-red-400 border-red-500/20' };
+    case 'diamond':
+      return { label: 'Diamond', colorClass: 'bg-cyan-400/15 text-cyan-300 border-cyan-400/20' };
+    case 'platinum':
+      return { label: 'Platinum', colorClass: 'bg-violet-500/15 text-violet-400 border-violet-500/20' };
+    case 'gold':
+      return { label: 'Gold', colorClass: 'bg-amber-500/15 text-amber-400 border-amber-500/20' };
+    case 'silver':
+      return { label: 'Silver', colorClass: 'bg-slate-400/15 text-slate-300 border-slate-400/20' };
+    case 'neutral':
+      return { label: 'Neutral', colorClass: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20' };
+    case 'bronze':
+      return { label: 'Bronze', colorClass: 'bg-red-500/15 text-red-400 border-red-500/20' };
   }
 }
 
 export function getScoreColor(total: number, config: ScoreConfig): string {
-  if (total >= config.tier_20_threshold) return 'text-emerald-400';
-  if (total >= config.tier_10_threshold) return 'text-blue-400';
-  if (total >= config.tier_5_threshold) return 'text-cyan-400';
+  if (total >= config.tier_20_threshold) return 'text-cyan-300';
+  if (total >= config.tier_10_threshold) return 'text-violet-400';
+  if (total >= config.tier_5_threshold) return 'text-amber-400';
+  if (total >= silverThreshold(config)) return 'text-slate-300';
   if (total >= config.warning_threshold) return 'text-zinc-400';
   return 'text-red-400';
 }
@@ -120,4 +138,77 @@ export function getScoreColor(total: number, config: ScoreConfig): string {
 export function getProgressPercent(total: number, config: ScoreConfig): number {
   const max = config.tier_20_threshold + 10;
   return Math.min(100, Math.max(0, (total / max) * 100));
+}
+
+// ── KPI scoring rules ───────────────────────────────────────
+
+export function parseResponseTime(val: string | null | undefined): number {
+  if (val == null || val === '' || val === '-') return NaN;
+  const s = val.trim();
+  const mSec = s.match(/^(\d+)m\s*(\d+)\s*s$/i);
+  if (mSec) return parseInt(mSec[1]!) * 60 + parseInt(mSec[2]!);
+  const mOnly = s.match(/^(\d+)m$/i);
+  if (mOnly) return parseInt(mOnly[1]!) * 60;
+  const sOnly = s.match(/^(\d+)\s*s$/i);
+  if (sOnly) return parseInt(sOnly[1]!);
+  const hms = s.match(/^(\d+):(\d{2}):(\d{2})$/);
+  if (hms) return parseInt(hms[1]!) * 3600 + parseInt(hms[2]!) * 60 + parseInt(hms[3]!);
+  const ms = s.match(/^(\d+):(\d{2})$/);
+  if (ms) return parseInt(ms[1]!) * 60 + parseInt(ms[2]!);
+  const n = parseFloat(String(val).replace(/,/g, '.'));
+  return isNaN(n) ? NaN : n;
+}
+
+export function formatSeconds(sec: number): string {
+  if (isNaN(sec) || sec <= 0) return '—';
+  const m = Math.floor(sec / 60);
+  const r = Math.round(sec % 60);
+  if (m === 0) return `${r}s`;
+  if (r === 0) return `${m}m`;
+  return `${m}m ${r}s`;
+}
+
+export const DEFAULT_KPI_RULES: KPIRules = {
+  golden_ratio: { t1: { threshold: 5, pts: 20 }, t2: { threshold: 4, pts: 10 }, t3: { threshold: 3, pts: 0 }, below_pts: -20 },
+  fan_cvr:      { t1: { threshold: 10, pts: 20 }, t2: { threshold: 8, pts: 10 }, t3: { threshold: 6, pts: 0 }, below_pts: -15 },
+  unlock_rate:  { t1: { threshold: 45, pts: 20 }, t2: { threshold: 40, pts: 10 }, t3: { threshold: 35, pts: 0 }, below_pts: -15 },
+  reply_time:   { t1: { threshold: 60, pts: 20 }, t2: { threshold: 120, pts: 10 }, t3: { threshold: 180, pts: 0 }, below_pts: -20 },
+};
+
+export function getKPIRules(config: ScoreConfig): KPIRules {
+  return config.kpi_rules ?? DEFAULT_KPI_RULES;
+}
+
+function scoreByRule(value: number, rule: KPIRule, invert = false): number {
+  if (isNaN(value)) return 0;
+  if (invert) {
+    if (value <= rule.t1.threshold) return rule.t1.pts;
+    if (value <= rule.t2.threshold) return rule.t2.pts;
+    if (value <= rule.t3.threshold) return rule.t3.pts;
+  } else {
+    if (value >= rule.t1.threshold) return rule.t1.pts;
+    if (value >= rule.t2.threshold) return rule.t2.pts;
+    if (value >= rule.t3.threshold) return rule.t3.pts;
+  }
+  return rule.below_pts;
+}
+
+export function scoreGoldenRatio(gr: number, config?: ScoreConfig): number {
+  const rules = config ? getKPIRules(config) : DEFAULT_KPI_RULES;
+  return scoreByRule(gr, rules.golden_ratio);
+}
+
+export function scoreFanCVR(cvr: number, config?: ScoreConfig): number {
+  const rules = config ? getKPIRules(config) : DEFAULT_KPI_RULES;
+  return scoreByRule(cvr, rules.fan_cvr);
+}
+
+export function scoreUnlockRate(ur: number, config?: ScoreConfig): number {
+  const rules = config ? getKPIRules(config) : DEFAULT_KPI_RULES;
+  return scoreByRule(ur, rules.unlock_rate);
+}
+
+export function scoreReplyTime(seconds: number, config?: ScoreConfig): number {
+  const rules = config ? getKPIRules(config) : DEFAULT_KPI_RULES;
+  return scoreByRule(seconds, rules.reply_time, true);
 }

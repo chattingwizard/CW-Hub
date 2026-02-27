@@ -1,0 +1,114 @@
+---
+description: CW Hub — Development workflow, collaboration rules, and critical architecture decisions
+alwaysApply: true
+---
+
+# CW Hub — Dev Workflow & Collaboration Rules
+
+## MANDATORY: Before Every Commit
+
+Run `npm run build` FIRST. Always. No exceptions.
+
+```bash
+npm run build
+```
+
+If it fails → fix the errors before committing. TypeScript strict mode is active (`strict: true`, `noUncheckedIndexedAccess: true`). Code that works locally but fails the build **must not be committed**.
+
+## Branch Rules
+
+- **NEVER push directly to `main`** — always work on a feature branch (e.g. `mileh/work`, `feat/my-feature`)
+- `main` is the production branch. It deploys automatically via GitHub Actions on every push
+- When your branch is ready → notify Pau so the merge can be reviewed and integrated
+
+## Never Commit These Files
+
+```
+dist/           ← build output, gitignored
+assets/         ← compiled JS/CSS in repo root (not the same as src/assets)
+index.html      ← if it's a compiled file in root (the real one is in /public)
+supabase/.temp/ ← CLI temp files, gitignored
+*.tsbuildinfo   ← TypeScript incremental build cache
+```
+
+If `git status` shows any of these as modified/added → do NOT stage them.
+
+## TypeScript Patterns in This Project
+
+`noUncheckedIndexedAccess: true` is active. This means:
+
+```ts
+// ❌ Fails build
+const first = arr[0];           // string | undefined
+const val = map['key'];         // T | undefined
+const g1 = regex.match(/(\d+)/)[1];  // string | undefined
+
+// ✅ Correct
+const first = arr[0]!;          // non-null assertion (when you know it exists)
+const first = arr[0] ?? '';     // fallback (when it might not exist)
+const g1 = match[1]!;           // after if (match) check → safe to assert
+```
+
+After `if (match)` or `if (arr.length > 0)` checks → using `!` is safe and correct.
+
+## Critical Architecture Decisions — DO NOT REVERT
+
+These are intentional fixes. Before changing them, check git log and ask Pau.
+
+### 1. Sign out uses `window.location.reload()` — NOT `navigate('/login')`
+
+```ts
+// src/components/layout/Sidebar.tsx
+const handleSignOut = async () => {
+  await signOut();
+  window.location.reload(); // ← intentional, do not change to navigate()
+};
+```
+
+**Why:** `navigate('/login')` doesn't clear Zustand state reliably. `reload()` forces a full reset. Changing this re-introduces the sign-out bug.
+
+### 2. `authStore.ts` SIGNED_IN handler preserves existing profile
+
+```ts
+// src/stores/authStore.ts — onAuthStateChange SIGNED_IN handler
+set(state => ({
+  user: { id: session.user.id, email: session.user.email ?? '' },
+  profile: (profile as Profile | null) ??
+    (state.profile?.id === session.user.id ? state.profile : null),
+}));
+```
+
+**Why:** Race condition fix. If Supabase's profile fetch returns null during rapid auth events, this prevents wiping a valid profile. Reverting this causes a login loop.
+
+### 3. Shell layout uses `pt-13` universally (not `lg:pt-0`)
+
+```tsx
+// src/components/layout/Shell.tsx — <main> element
+className={`transition-all duration-200 min-h-screen pt-13 ${...}`}
+```
+
+**Why:** The desktop header is `fixed` and needs top padding on all screen sizes. `lg:pt-0` caused content to render behind the header.
+
+## Before Modifying a Shared File
+
+If you're about to edit a file that's been recently touched, check first:
+
+```bash
+git log --oneline -5 src/stores/authStore.ts
+git log --oneline -5 src/components/layout/Shell.tsx
+git log --oneline -5 src/components/layout/Sidebar.tsx
+```
+
+If there are recent commits by someone else → read the commit message before overwriting logic.
+
+## Workflow Summary
+
+```
+1. git checkout -b feat/my-feature
+2. Make changes
+3. npm run build          ← MANDATORY
+4. git add (review files carefully)
+5. git commit
+6. git push origin feat/my-feature
+7. Tell Pau → he reviews and merges to main
+```

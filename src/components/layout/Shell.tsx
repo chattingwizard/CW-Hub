@@ -48,7 +48,7 @@ export default function Shell() {
       </div>
 
       {/* Desktop header bar with notifications */}
-      <div className={`hidden lg:flex fixed top-0 right-0 h-13 items-center gap-2 px-5 z-20 transition-all ${collapsed ? 'left-14' : 'left-56'}`}>
+      <div className={`hidden lg:flex fixed top-0 right-0 h-13 bg-surface-0/80 backdrop-blur-md border-b border-border items-center gap-2 px-5 z-20 transition-all ${collapsed ? 'left-14' : 'left-56'}`}>
         <div className="ml-auto flex items-center gap-2">
           <NotificationBell />
           {profile && (
@@ -65,7 +65,7 @@ export default function Shell() {
       </div>
 
       <main
-        className={`transition-all duration-200 min-h-screen pt-13 lg:pt-0 ${
+        className={`transition-all duration-200 min-h-screen pt-13 ${
           collapsed ? 'lg:ml-14' : 'lg:ml-56'
         }`}
       >

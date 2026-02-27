@@ -22,10 +22,12 @@ export default function ScoreDrawer({ chatterId, weekKey, config, scores, events
     .filter(e => e.chatter_id === chatterId)
     .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+  const silverTh = config.silver_threshold ?? 110;
   const tiers = [
-    { label: '$5', threshold: config.tier_5_threshold, color: 'bg-cyan-400' },
-    { label: '$10', threshold: config.tier_10_threshold, color: 'bg-blue-400' },
-    { label: '$20', threshold: config.tier_20_threshold, color: 'bg-emerald-400' },
+    { label: '$5', threshold: silverTh, color: 'bg-slate-400' },
+    { label: '$10', threshold: config.tier_5_threshold, color: 'bg-amber-400' },
+    { label: '$15', threshold: config.tier_10_threshold, color: 'bg-violet-400' },
+    { label: '$20', threshold: config.tier_20_threshold, color: 'bg-cyan-400' },
   ];
 
   return (
@@ -46,7 +48,11 @@ export default function ScoreDrawer({ chatterId, weekKey, config, scores, events
             <div>
               <h3 className="text-sm font-bold text-text-primary">{score.chatter_name}</h3>
               <p className="text-[10px] text-text-muted">
-                {score.team_name ?? 'No team'} · {getWeekLabel(weekKey)}
+                <span className={
+                  score.team_name?.includes('Huckle') ? 'text-orange-400' :
+                  score.team_name?.includes('Danilyn') ? 'text-blue-400' :
+                  score.team_name?.includes('Ezekiel') ? 'text-purple-400' : ''
+                }>{score.team_name ?? 'No team'}</span> · {getWeekLabel(weekKey)}
               </p>
             </div>
           </div>
@@ -74,10 +80,11 @@ export default function ScoreDrawer({ chatterId, weekKey, config, scores, events
             <div className="relative h-3 bg-surface-3 rounded-full overflow-hidden">
               <div
                 className={`absolute left-0 top-0 h-full rounded-full transition-all ${
-                  score.status === 'warning' ? 'bg-red-500' :
-                  score.status === 'no_bonus' ? 'bg-zinc-500' :
-                  score.status === 'bonus_5' ? 'bg-cyan-400' :
-                  score.status === 'bonus_10' ? 'bg-blue-400' : 'bg-emerald-400'
+                  score.status === 'bronze' ? 'bg-red-500' :
+                  score.status === 'neutral' ? 'bg-zinc-500' :
+                  score.status === 'silver' ? 'bg-slate-400' :
+                  score.status === 'gold' ? 'bg-amber-400' :
+                  score.status === 'platinum' ? 'bg-violet-400' : 'bg-cyan-400'
                 }`}
                 style={{ width: `${progress}%` }}
               />

@@ -12,6 +12,7 @@ export interface InflowwColumn {
   label: string;
   type: 'text' | 'currency' | 'number' | 'decimal' | 'percent' | 'hours' | 'time';
   hasAvg?: boolean;
+  approxReason?: string;
 }
 
 export const COLUMNS: InflowwColumn[] = [
@@ -23,14 +24,14 @@ export const COLUMNS: InflowwColumn[] = [
   { key: 'goldenRatio', label: 'Golden Ratio', type: 'percent', hasAvg: true },
   { key: 'ppvsUnlocked', label: 'PPVs Unlocked', type: 'number' },
   { key: 'unlockRate', label: 'Unlock Rate', type: 'percent' },
-  { key: 'fansChatted', label: 'Fans Chatted', type: 'number' },
-  { key: 'fansWhoSpentMoney', label: 'Fans Spent', type: 'number' },
-  { key: 'fanCvr', label: 'Fan CVR', type: 'percent', hasAvg: true },
-  { key: 'responseTime', label: 'Resp. Time', type: 'time', hasAvg: true },
+  { key: 'fansChatted', label: 'Fans Chatted', type: 'number', approxReason: 'Sum of daily values — a fan chatted on multiple days is counted each day. Infloww weekly reports deduplicate unique fans.' },
+  { key: 'fansWhoSpentMoney', label: 'Fans Spent', type: 'number', approxReason: 'Sum of daily values — a fan who spent on multiple days is counted each day. Infloww weekly reports deduplicate unique fans.' },
+  { key: 'fanCvr', label: 'Fan CVR', type: 'percent', hasAvg: true, approxReason: 'Derived from Fans Chatted and Fans Spent, both of which may include duplicates across days.' },
+  { key: 'responseTime', label: 'Resp. Time', type: 'time', hasAvg: true, approxReason: 'Weighted average of daily response times by messages sent. May differ slightly from Infloww\'s per-message calculation.' },
   { key: 'clockedHours', label: 'Clocked Hrs', type: 'hours' },
-  { key: 'salesPerHour', label: '$/hr', type: 'currency', hasAvg: true },
+  { key: 'salesPerHour', label: '$/hr', type: 'currency', hasAvg: true, approxReason: 'Calculated from total sales ÷ total clocked hours. Minor rounding differences vs Infloww due to hour precision.' },
   { key: 'characterCount', label: 'Char Count', type: 'number' },
-  { key: 'messagesSentPerHour', label: 'Msg/hr', type: 'decimal', hasAvg: true },
+  { key: 'messagesSentPerHour', label: 'Msg/hr', type: 'decimal', hasAvg: true, approxReason: 'Calculated from total DMs sent ÷ total clocked hours. Minor rounding differences vs Infloww due to hour precision.' },
 ];
 
 const DATA_KEYS = [
@@ -512,6 +513,10 @@ export async function loadFromSupabase(
   if (error) throw new Error('Supabase query failed: ' + error.message);
   if (!data || data.length === 0) return [];
 
+  const dbTotalSales = (data as ChatterDailyRow[]).reduce((s, d) => s + (Number(d.sales) || 0), 0);
+  const dbDates = [...new Set((data as ChatterDailyRow[]).map(d => d.date))].sort();
+  console.log(`[InflowwKPIs] DB query: ${data.length} rows, ${dbDates.length} dates (${dbDates.join(', ')}), total sales: $${dbTotalSales.toFixed(2)}, range: ${range?.from}..${range?.to}`);
+
   const rows = data as ChatterDailyRow[];
   const grouped: Record<string, { name: string; group: string; days: ChatterDailyRow[]; hubstaffHours: number }> = {};
 
@@ -555,19 +560,31 @@ export async function loadFromSupabase(
     m.characterCount = emp.days.reduce((s, d) => s + (Number(d.character_count) || 0), 0);
     m.clockedHours = emp.days.reduce((s, d) => s + (Number(d.clocked_hours) || 0), 0);
 
-    const grs = emp.days.map(d => Number(d.golden_ratio)).filter(v => !isNaN(v) && v > 0);
-    m.goldenRatio = grs.length ? grs.reduce((s, v) => s + v, 0) / grs.length : NaN;
-    const urs = emp.days.map(d => Number(d.unlock_rate)).filter(v => !isNaN(v) && v > 0);
-    m.unlockRate = urs.length ? urs.reduce((s, v) => s + v, 0) / urs.length : NaN;
-    const cvrs = emp.days.map(d => Number(d.fan_cvr)).filter(v => !isNaN(v) && v > 0);
-    m.fanCvr = cvrs.length ? cvrs.reduce((s, v) => s + v, 0) / cvrs.length : NaN;
-    const sphs = emp.days.map(d => Number(d.sales_per_hour)).filter(v => !isNaN(v) && v > 0);
-    m.salesPerHour = sphs.length ? sphs.reduce((s, v) => s + v, 0) / sphs.length : NaN;
-    const mphs = emp.days.map(d => Number(d.messages_per_hour)).filter(v => !isNaN(v) && v > 0);
-    m.messagesSentPerHour = mphs.length ? mphs.reduce((s, v) => s + v, 0) / mphs.length : NaN;
+    const totalMsgs = Number(m.directMessagesSent) || 0;
+    const totalPpvsSent = Number(m.directPpvsSent) || 0;
+    const totalUnlocked = Number(m.ppvsUnlocked) || 0;
+    const totalFansChatted = Number(m.fansChatted) || 0;
+    const totalFansSpent = Number(m.fansWhoSpentMoney) || 0;
+    const totalSales = Number(m.sales) || 0;
+    const totalHours = Number(m.clockedHours) || 0;
 
-    const rts = emp.days.map(d => parseResponseTime(d.response_time_clocked)).filter(v => !isNaN(v) && v > 0);
-    m.responseTime = rts.length ? rts.reduce((s, v) => s + v, 0) / rts.length : NaN;
+    m.goldenRatio = totalMsgs > 0 ? (totalPpvsSent / totalMsgs) * 100 : NaN;
+    m.unlockRate = totalPpvsSent > 0 ? (totalUnlocked / totalPpvsSent) * 100 : NaN;
+    m.fanCvr = totalFansChatted > 0 ? (totalFansSpent / totalFansChatted) * 100 : NaN;
+    m.salesPerHour = totalHours > 0 ? totalSales / totalHours : NaN;
+    m.messagesSentPerHour = totalHours > 0 ? totalMsgs / totalHours : NaN;
+
+    let rtWeightedSum = 0;
+    let rtWeightTotal = 0;
+    for (const d of emp.days) {
+      const rt = parseResponseTime(d.response_time_clocked);
+      const weight = Number(d.messages_sent) || 0;
+      if (!isNaN(rt) && rt > 0 && weight > 0) {
+        rtWeightedSum += rt * weight;
+        rtWeightTotal += weight;
+      }
+    }
+    m.responseTime = rtWeightTotal > 0 ? rtWeightedSum / rtWeightTotal : NaN;
 
     m.duration = emp.hubstaffHours || NaN;
 

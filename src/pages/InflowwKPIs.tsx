@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, type MouseEvent as ReactMouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import {
   BarChart3,
   Upload,
@@ -29,6 +30,7 @@ import {
   loadHubstaffData,
   processData,
   loadFromSupabase,
+  getAvailableDatesFromSupabase,
   sortData,
   formatValue,
   computeAverages,
@@ -63,12 +65,47 @@ const PERIODS: { id: PeriodType; label: string }[] = [
 
 type DataSource = 'hub' | 'csv';
 
+function ApproxMark({ reason, className }: { reason: string; className?: string }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const hideTimer = useRef<ReturnType<typeof setTimeout>>(null);
+
+  const show = (e: ReactMouseEvent) => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    setPos({ x: e.clientX, y: e.clientY });
+  };
+  const hide = () => {
+    hideTimer.current = setTimeout(() => setPos(null), 100);
+  };
+
+  return (
+    <>
+      <span
+        className={`cursor-help text-amber-400/70 font-bold ${className ?? 'text-[10px]'}`}
+        onMouseEnter={show}
+        onMouseMove={show}
+        onMouseLeave={hide}
+        onClick={e => e.stopPropagation()}
+      >~</span>
+      {pos && createPortal(
+        <div
+          className="fixed z-[9999] w-56 px-2.5 py-2 rounded-lg bg-[#1a1a1a] border border-[#333] text-[11px] text-[#aaa] leading-tight shadow-xl pointer-events-none"
+          style={{ left: pos.x + 8, top: pos.y - 8, transform: 'translateY(-100%)' }}
+        >
+          {reason}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 export default function InflowwKPIs() {
   const [dataSource, setDataSource] = useState<DataSource>('hub');
   const [hubData, setHubData] = useState<EmployeeMetrics[]>([]);
   const [hubLoading, setHubLoading] = useState(false);
   const [hubError, setHubError] = useState<string | null>(null);
   const [hubstaffRaw, setHubstaffRaw] = useState<ParsedCSV | null>(null);
+  const [availableDates, setAvailableDates] = useState<string[]>([]);
   const [period, setPeriod] = useState<PeriodType>('current');
   const [customFrom, setCustomFrom] = useState<string | null>(null);
   const [customTo, setCustomTo] = useState<string | null>(null);
@@ -159,7 +196,15 @@ export default function InflowwKPIs() {
     setHubLoading(true);
     setHubError(null);
     loadFromSupabase(period, customFrom, customTo, hubstaffRaw)
-      .then(result => { if (!cancelled) setHubData(result); })
+      .then(result => {
+        if (cancelled) return;
+        setHubData(result);
+        if (result.length === 0) {
+          getAvailableDatesFromSupabase().then(dates => { if (!cancelled) setAvailableDates(dates); });
+        } else {
+          setAvailableDates([]);
+        }
+      })
       .catch(err => { if (!cancelled) setHubError(err instanceof Error ? err.message : 'Load failed'); })
       .finally(() => { if (!cancelled) setHubLoading(false); });
     return () => { cancelled = true; };
@@ -318,8 +363,8 @@ export default function InflowwKPIs() {
   const hasData = dataSource === 'hub' ? hubData.length > 0 : ((stats && stats.totalRecords > 0) || hubstaffRaw);
 
   // Compact view data — active employees only
-  const compactRanked = useMemo(() => getCompactRanking(activeOnly), [activeOnly]);
-  const totalSales = useMemo(() => getTotalSales(activeOnly), [activeOnly]);
+  const compactRanked = useMemo(() => getCompactRanking(filtered), [filtered]);
+  const totalSales = useMemo(() => getTotalSales(filtered), [filtered]);
 
   // Calendar data
   const calRange = pickPhase === 1 && pickStart ? { from: pickStart, to: addDays(pickStart, 1) } : range;
@@ -378,13 +423,26 @@ export default function InflowwKPIs() {
 
       {/* Hub Data Status */}
       {dataSource === 'hub' && (
-        <div className="flex items-center gap-2 bg-surface-1 border border-border rounded-xl px-4 py-2.5">
-          {hubLoading ? (
-            <><Loader2 size={13} className="animate-spin text-cw" /><span className="text-xs text-text-muted">Loading data from Hub...</span></>
-          ) : hubError ? (
-            <><span className="text-xs text-red-400">Error: {hubError}</span></>
-          ) : (
-            <><Database size={13} className="text-cw" /><span className="text-xs text-text-muted">{hubData.length} employees loaded from Hub{chattersLoaded ? ` · ${activeChatters.size} active chatters verified` : ''}</span></>
+        <div className="bg-surface-1 border border-border rounded-xl px-4 py-2.5 space-y-1.5">
+          <div className="flex items-center gap-2">
+            {hubLoading ? (
+              <><Loader2 size={13} className="animate-spin text-cw" /><span className="text-xs text-text-muted">Loading data from Hub...</span></>
+            ) : hubError ? (
+              <><span className="text-xs text-red-400">Error: {hubError}</span></>
+            ) : (
+              <><Database size={13} className="text-cw" /><span className="text-xs text-text-muted">{hubData.length} employees loaded from Hub{chattersLoaded ? ` · ${activeChatters.size} active chatters verified` : ''}</span></>
+            )}
+          </div>
+          {!hubLoading && !hubError && hubData.length === 0 && availableDates.length > 0 && (
+            <div className="text-xs text-amber-400/80">
+              Data exists for: {availableDates.slice(0, 10).join(', ')}{availableDates.length > 10 ? ` (+${availableDates.length - 10} more)` : ''}.
+              Try selecting a matching period or &quot;All Data&quot;.
+            </div>
+          )}
+          {!hubLoading && !hubError && hubData.length === 0 && availableDates.length === 0 && (
+            <div className="text-xs text-red-400/80">
+              No data found in the database. Upload Employee Reports via the Upload Center first.
+            </div>
           )}
         </div>
       )}
@@ -488,108 +546,115 @@ export default function InflowwKPIs() {
         </div>
       )}
 
-      {/* Controls */}
+      {/* Period selector — always visible */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex gap-1 bg-surface-1 rounded-lg p-0.5 border border-border">
+          {PERIODS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => handlePeriodChange(p.id)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+                period === p.id
+                  ? 'bg-cw text-white'
+                  : 'text-text-muted hover:text-text-primary'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Calendar toggle */}
+        <div className="relative" ref={calRef}>
+          <button
+            onClick={() => setCalOpen(!calOpen)}
+            className={`p-1.5 rounded-lg border transition-colors ${calOpen ? 'bg-cw text-white border-cw' : 'text-text-muted border-border hover:text-text-primary'}`}
+            title="Calendar"
+          >
+            <Calendar size={14} />
+          </button>
+
+          {calOpen && (
+            <div className="absolute top-full left-0 z-30 mt-2 bg-surface-1 border border-border rounded-xl p-3 shadow-xl shadow-black/30" style={{ width: '540px' }}>
+              {pickPhase === 1 && (
+                <p className="text-center text-xs text-cw font-medium mb-2">
+                  Start: {new Date(pickStart + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} &middot; Select end date
+                </p>
+              )}
+              {pickPhase === 0 && period === 'custom' && (
+                <p className="text-center text-xs text-cw font-medium mb-2">Select start date</p>
+              )}
+              <div className="flex items-start gap-2">
+                <button onClick={calPrev} className="mt-6 p-1 rounded border border-border text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors flex-shrink-0">
+                  <ChevronLeft size={14} />
+                </button>
+                {/* Month 0 */}
+                <div className="flex-1">
+                  <p className="text-center text-xs font-semibold text-text-primary capitalize mb-1">{month0.title}</p>
+                  <div className="grid grid-cols-7 gap-0">
+                    {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+                      <div key={d} className="text-center text-[10px] text-text-muted font-medium py-1">{d}</div>
+                    ))}
+                    {Array.from({ length: month0.blanks }).map((_, i) => <div key={`b${i}`} className="h-7" />)}
+                    {month0.days.map(d => (
+                      <button
+                        key={d.date}
+                        onClick={() => handleCalDayClick(d.date)}
+                        className={`h-7 flex items-center justify-center text-[11px] transition-colors rounded-sm ${
+                          d.isSingle ? 'bg-cw text-white font-bold' :
+                          d.isStart ? 'bg-cw text-white rounded-l-full' :
+                          d.isEnd ? 'bg-cw text-white rounded-r-full' :
+                          d.inRange ? 'bg-cw/15 text-text-primary' :
+                          'text-text-secondary hover:bg-surface-2'
+                        } ${d.isToday && !d.isSingle && !d.isStart && !d.isEnd ? 'ring-1 ring-cw/50 ring-inset' : ''}`}
+                      >
+                        {d.day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Month 1 */}
+                <div className="flex-1">
+                  <p className="text-center text-xs font-semibold text-text-primary capitalize mb-1">{month1.title}</p>
+                  <div className="grid grid-cols-7 gap-0">
+                    {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
+                      <div key={d} className="text-center text-[10px] text-text-muted font-medium py-1">{d}</div>
+                    ))}
+                    {Array.from({ length: month1.blanks }).map((_, i) => <div key={`b${i}`} className="h-7" />)}
+                    {month1.days.map(d => (
+                      <button
+                        key={d.date}
+                        onClick={() => handleCalDayClick(d.date)}
+                        className={`h-7 flex items-center justify-center text-[11px] transition-colors rounded-sm ${
+                          d.isSingle ? 'bg-cw text-white font-bold' :
+                          d.isStart ? 'bg-cw text-white rounded-l-full' :
+                          d.isEnd ? 'bg-cw text-white rounded-r-full' :
+                          d.inRange ? 'bg-cw/15 text-text-primary' :
+                          'text-text-secondary hover:bg-surface-2'
+                        } ${d.isToday && !d.isSingle && !d.isStart && !d.isEnd ? 'ring-1 ring-cw/50 ring-inset' : ''}`}
+                      >
+                        {d.day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={calNext} className="mt-6 p-1 rounded border border-border text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors flex-shrink-0">
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Period info */}
+        {range && (
+          <span className="text-xs text-cw font-medium">{formatDateRange(range)}</span>
+        )}
+      </div>
+
+      {/* Sort / View / Toggle controls — only when data exists */}
       {hasData && (
         <div className="flex flex-wrap items-center gap-3">
-          {/* Period */}
-          <div className="flex gap-1 bg-surface-1 rounded-lg p-0.5 border border-border">
-            {PERIODS.map(p => (
-              <button
-                key={p.id}
-                onClick={() => handlePeriodChange(p.id)}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
-                  period === p.id
-                    ? 'bg-cw text-white'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                {p.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Calendar toggle */}
-          <div className="relative" ref={calRef}>
-            <button
-              onClick={() => setCalOpen(!calOpen)}
-              className={`p-1.5 rounded-lg border transition-colors ${calOpen ? 'bg-cw text-white border-cw' : 'text-text-muted border-border hover:text-text-primary'}`}
-              title="Calendar"
-            >
-              <Calendar size={14} />
-            </button>
-
-            {calOpen && (
-              <div className="absolute top-full left-0 z-30 mt-2 bg-surface-1 border border-border rounded-xl p-3 shadow-xl shadow-black/30" style={{ width: '540px' }}>
-                {pickPhase === 1 && (
-                  <p className="text-center text-xs text-cw font-medium mb-2">
-                    Start: {new Date(pickStart + 'T00:00:00Z').toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })} &middot; Select end date
-                  </p>
-                )}
-                {pickPhase === 0 && period === 'custom' && (
-                  <p className="text-center text-xs text-cw font-medium mb-2">Select start date</p>
-                )}
-                <div className="flex items-start gap-2">
-                  <button onClick={calPrev} className="mt-6 p-1 rounded border border-border text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors flex-shrink-0">
-                    <ChevronLeft size={14} />
-                  </button>
-                  {/* Month 0 */}
-                  <div className="flex-1">
-                    <p className="text-center text-xs font-semibold text-text-primary capitalize mb-1">{month0.title}</p>
-                    <div className="grid grid-cols-7 gap-0">
-                      {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
-                        <div key={d} className="text-center text-[10px] text-text-muted font-medium py-1">{d}</div>
-                      ))}
-                      {Array.from({ length: month0.blanks }).map((_, i) => <div key={`b${i}`} className="h-7" />)}
-                      {month0.days.map(d => (
-                        <button
-                          key={d.date}
-                          onClick={() => handleCalDayClick(d.date)}
-                          className={`h-7 flex items-center justify-center text-[11px] transition-colors rounded-sm ${
-                            d.isSingle ? 'bg-cw text-white font-bold' :
-                            d.isStart ? 'bg-cw text-white rounded-l-full' :
-                            d.isEnd ? 'bg-cw text-white rounded-r-full' :
-                            d.inRange ? 'bg-cw/15 text-text-primary' :
-                            'text-text-secondary hover:bg-surface-2'
-                          } ${d.isToday && !d.isSingle && !d.isStart && !d.isEnd ? 'ring-1 ring-cw/50 ring-inset' : ''}`}
-                        >
-                          {d.day}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Month 1 */}
-                  <div className="flex-1">
-                    <p className="text-center text-xs font-semibold text-text-primary capitalize mb-1">{month1.title}</p>
-                    <div className="grid grid-cols-7 gap-0">
-                      {['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'].map(d => (
-                        <div key={d} className="text-center text-[10px] text-text-muted font-medium py-1">{d}</div>
-                      ))}
-                      {Array.from({ length: month1.blanks }).map((_, i) => <div key={`b${i}`} className="h-7" />)}
-                      {month1.days.map(d => (
-                        <button
-                          key={d.date}
-                          onClick={() => handleCalDayClick(d.date)}
-                          className={`h-7 flex items-center justify-center text-[11px] transition-colors rounded-sm ${
-                            d.isSingle ? 'bg-cw text-white font-bold' :
-                            d.isStart ? 'bg-cw text-white rounded-l-full' :
-                            d.isEnd ? 'bg-cw text-white rounded-r-full' :
-                            d.inRange ? 'bg-cw/15 text-text-primary' :
-                            'text-text-secondary hover:bg-surface-2'
-                          } ${d.isToday && !d.isSingle && !d.isStart && !d.isEnd ? 'ring-1 ring-cw/50 ring-inset' : ''}`}
-                        >
-                          {d.day}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <button onClick={calNext} className="mt-6 p-1 rounded border border-border text-text-muted hover:text-text-primary hover:bg-surface-2 transition-colors flex-shrink-0">
-                    <ChevronRight size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
           {/* Sort direction */}
           <div className="flex gap-1 bg-surface-1 rounded-lg p-0.5 border border-border">
             <button
@@ -643,11 +708,6 @@ export default function InflowwKPIs() {
               <input type="checkbox" checked={showAvg} onChange={e => setShowAvg(e.target.checked)} className="accent-cw w-3.5 h-3.5" />
               <span className="text-xs text-text-muted">Show averages</span>
             </label>
-          )}
-
-          {/* Period info */}
-          {range && (
-            <span className="text-xs text-cw font-medium ml-auto">{formatDateRange(range)}</span>
           )}
         </div>
       )}
@@ -739,17 +799,22 @@ export default function InflowwKPIs() {
               <thead>
                 {showAvg && (
                   <tr className="border-b-2 border-cw/20">
-                    {COLUMNS.map(col => (
-                      <th key={`avg-${col.key}`} className="px-3 py-2 text-left font-semibold bg-surface-2/50">
-                        {col.key === 'employee' ? (
-                          <span className="text-cw uppercase text-[10px] tracking-wider">Average</span>
-                        ) : col.hasAvg && averages[col.key] != null ? (
-                          <span className={col.type === 'currency' ? 'text-emerald-400' : 'text-text-primary'}>
-                            {formatValue(averages[col.key], col.type)}
-                          </span>
-                        ) : null}
-                      </th>
-                    ))}
+                    {COLUMNS.map(col => {
+                      const avgDisplay = col.hasAvg && averages[col.key] != null ? formatValue(averages[col.key], col.type) : null;
+                      const isApproxAvg = !!col.approxReason && avgDisplay && avgDisplay !== '—';
+                      return (
+                        <th key={`avg-${col.key}`} className="px-3 py-2 text-left font-semibold bg-surface-2/50">
+                          {col.key === 'employee' ? (
+                            <span className="text-cw uppercase text-[10px] tracking-wider">Average</span>
+                          ) : avgDisplay ? (
+                            <span className={col.type === 'currency' ? 'text-emerald-400' : 'text-text-primary'}>
+                              {isApproxAvg && <ApproxMark reason={col.approxReason!} className="text-[9px] text-amber-400/40 mr-0.5" />}
+                              {avgDisplay}
+                            </span>
+                          ) : null}
+                        </th>
+                      );
+                    })}
                   </tr>
                 )}
                 <tr className="border-b border-border">
@@ -764,6 +829,7 @@ export default function InflowwKPIs() {
                         }`}
                       >
                         <span className="flex items-center gap-1">
+                          {col.approxReason && <ApproxMark reason={col.approxReason} />}
                           {col.label}
                           {isActive && (
                             sortDir === 'desc' ? <ArrowDown size={10} /> : <ArrowUp size={10} />
@@ -788,6 +854,7 @@ export default function InflowwKPIs() {
                       {COLUMNS.map(col => {
                         const val = row[col.key];
                         const display = col.type === 'text' ? String(val || '') : formatValue(val, col.type);
+                        const isApprox = !!col.approxReason && display !== '—';
                         return (
                           <td
                             key={col.key}
@@ -797,7 +864,7 @@ export default function InflowwKPIs() {
                               'text-text-secondary'
                             }`}
                           >
-                            {display}
+                            {isApprox ? <><ApproxMark reason={col.approxReason!} className="text-[9px] text-amber-400/40 mr-0.5" />{display}</> : display}
                           </td>
                         );
                       })}
