@@ -1,7 +1,8 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Menu } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { ensureSession } from '../../lib/supabase';
 import Sidebar from './Sidebar';
 import NotificationBell from '../NotificationBell';
 
@@ -9,6 +10,19 @@ export default function Shell() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { profile } = useAuthStore();
+  const location = useLocation();
+
+  useEffect(() => {
+    ensureSession();
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') ensureSession();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  }, []);
 
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary">

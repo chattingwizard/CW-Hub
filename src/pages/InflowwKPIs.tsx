@@ -19,8 +19,9 @@ import {
   ExternalLink,
   Trophy,
   List,
+  RefreshCw,
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { supabase, ensureSession } from '../lib/supabase';
 import {
   COLUMNS,
   migrateHistory,
@@ -153,12 +154,15 @@ export default function InflowwKPIs() {
     setGsheetCid(getGsheetClientId());
     setGsheetUrl(getGsheetUrl());
 
+    let cancelled = false;
     (async () => {
+      await ensureSession();
       const { data, error } = await supabase
         .from('chatters')
         .select('full_name, team_name')
         .eq('status', 'Active')
         .eq('airtable_role', 'Chatter');
+      if (cancelled) return;
       if (error || !data || data.length === 0) {
         setChattersError(true);
         return;
@@ -175,6 +179,7 @@ export default function InflowwKPIs() {
       setChatterTeamMap(teamMap);
       setChattersLoaded(true);
     })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
@@ -189,25 +194,53 @@ export default function InflowwKPIs() {
 
   const reload = useCallback(() => setDataVersion(v => v + 1), []);
 
+  const loadGenRef = useRef(0);
+
   useEffect(() => {
     if (dataSource !== 'hub') return;
-    let cancelled = false;
+    const gen = ++loadGenRef.current;
+    let timeoutId: ReturnType<typeof setTimeout>;
+
     setHubData([]);
     setHubLoading(true);
     setHubError(null);
-    loadFromSupabase(period, customFrom, customTo, hubstaffRaw)
+
+    timeoutId = setTimeout(() => {
+      if (loadGenRef.current === gen) {
+        setHubLoading(false);
+        setHubError('Request timed out — try reloading the page.');
+      }
+    }, 20_000);
+
+    ensureSession()
+      .then(() => loadFromSupabase(period, customFrom, customTo, hubstaffRaw))
       .then(result => {
-        if (cancelled) return;
+        if (loadGenRef.current !== gen) return;
+        clearTimeout(timeoutId);
         setHubData(result);
         if (result.length === 0) {
-          getAvailableDatesFromSupabase().then(dates => { if (!cancelled) setAvailableDates(dates); });
+          getAvailableDatesFromSupabase().then(dates => {
+            if (loadGenRef.current === gen) setAvailableDates(dates);
+          });
         } else {
           setAvailableDates([]);
         }
       })
-      .catch(err => { if (!cancelled) setHubError(err instanceof Error ? err.message : 'Load failed'); })
-      .finally(() => { if (!cancelled) setHubLoading(false); });
-    return () => { cancelled = true; };
+      .catch(err => {
+        if (loadGenRef.current !== gen) return;
+        clearTimeout(timeoutId);
+        setHubError(err instanceof Error ? err.message : 'Load failed');
+      })
+      .finally(() => {
+        if (loadGenRef.current === gen) {
+          clearTimeout(timeoutId);
+          setHubLoading(false);
+        }
+      });
+
+    return () => {
+      clearTimeout(timeoutId);
+    };
   }, [dataSource, period, customFrom, customTo, hubstaffRaw, dataVersion]);
 
   async function handleInflowwUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -428,7 +461,16 @@ export default function InflowwKPIs() {
             {hubLoading ? (
               <><Loader2 size={13} className="animate-spin text-cw" /><span className="text-xs text-text-muted">Loading data from Hub...</span></>
             ) : hubError ? (
-              <><span className="text-xs text-red-400">Error: {hubError}</span></>
+              <>
+                <span className="text-xs text-red-400">Error: {hubError}</span>
+                <button
+                  onClick={reload}
+                  className="flex items-center gap-1 ml-2 px-2 py-1 rounded-lg text-xs font-medium bg-cw/10 text-cw hover:bg-cw/20 transition-colors"
+                >
+                  <RefreshCw size={11} />
+                  Retry
+                </button>
+              </>
             ) : (
               <><Database size={13} className="text-cw" /><span className="text-xs text-text-muted">{hubData.length} employees loaded from Hub{chattersLoaded ? ` · ${activeChatters.size} active chatters verified` : ''}</span></>
             )}
@@ -713,7 +755,13 @@ export default function InflowwKPIs() {
       )}
 
       {/* Table / Compact / Empty */}
-      {!hasData ? (
+      {(dataSource === 'hub' && hubLoading) ? (
+        <div className="bg-surface-1 border border-dashed border-border rounded-xl p-10 text-center">
+          <Loader2 size={40} className="text-cw mx-auto mb-3 animate-spin" />
+          <h2 className="text-base font-semibold text-text-primary mb-1">Loading data...</h2>
+          <p className="text-sm text-text-muted">Fetching employee performance from the Hub database.</p>
+        </div>
+      ) : !hasData ? (
         <div className="bg-surface-1 border border-dashed border-border rounded-xl p-10 text-center">
           <BarChart3 size={40} className="text-text-muted mx-auto mb-3 opacity-50" />
           <h2 className="text-base font-semibold text-text-primary mb-1">No data yet</h2>

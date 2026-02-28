@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { isAdminLevel } from '../lib/roles';
@@ -48,11 +48,7 @@ export default function ShiftReports() {
   const [chatters, setChatters] = useState<Chatter[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadChatters();
-  }, []);
-
-  async function loadChatters() {
+  const loadChatters = useCallback(async () => {
     const { data } = await supabase
       .from('chatters')
       .select('*')
@@ -61,7 +57,11 @@ export default function ShiftReports() {
       .order('full_name');
     setChatters(data || []);
     setLoading(false);
-  }
+  }, []);
+
+  useEffect(() => {
+    loadChatters();
+  }, [loadChatters]);
 
   const tabs: { id: Tab; label: string; icon: typeof ClipboardList }[] = [
     { id: 'submit', label: 'Submit Report', icon: Send },

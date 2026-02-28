@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getDefaultPath } from '../lib/modules';
 import { Eye, EyeOff } from 'lucide-react';
+import type { Profile } from '../types';
 
 export default function Login() {
   const [mode, setMode] = useState<'login' | 'register'>('login');
@@ -13,8 +14,12 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
 
-  const { signIn, signUp, loading } = useAuthStore();
+  const { signIn, signUp, loading, user, profile } = useAuthStore();
   const navigate = useNavigate();
+
+  if (user && profile) {
+    return <Navigate to={getDefaultPath(profile.role)} replace />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -31,14 +36,44 @@ export default function Login() {
         await signUp(email, password, fullName, inviteCode);
       }
 
+      // Check immediately — signIn should have set user + profile
       const store = useAuthStore.getState();
       if (store.user && store.profile) {
         navigate(getDefaultPath(store.profile.role));
+        return;
+      }
+
+      // Fallback: subscribe to the store and wait for profile (up to 3s)
+      const profile = await new Promise<Profile | null>(resolve => {
+        const timeout = setTimeout(() => resolve(null), 3000);
+        const unsub = useAuthStore.subscribe(state => {
+          if (state.profile) {
+            clearTimeout(timeout);
+            unsub();
+            resolve(state.profile);
+          }
+        });
+        // Also check current state in case it updated between getState and subscribe
+        const current = useAuthStore.getState();
+        if (current.profile) {
+          clearTimeout(timeout);
+          unsub();
+          resolve(current.profile);
+        }
+      });
+
+      if (profile) {
+        navigate(getDefaultPath(profile.role));
+        return;
+      }
+
+      // Last resort: try explicit profile refresh
+      await useAuthStore.getState().refreshProfile();
+      const final = useAuthStore.getState();
+      if (final.profile) {
+        navigate(getDefaultPath(final.profile.role));
       } else {
-        // Fallback: wait briefly for onAuthStateChange
-        await new Promise(r => setTimeout(r, 800));
-        const retry = useAuthStore.getState();
-        navigate(getDefaultPath(retry.profile?.role ?? 'recruit'));
+        setError('Signed in successfully but could not load your profile. Please refresh the page.');
       }
     } catch (err: any) {
       setError(err.message || 'Something went wrong');

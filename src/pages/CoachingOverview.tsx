@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import type { CoachingTask, CoachingLog, CoachingRedFlag } from '../types';
 import {
@@ -183,7 +183,7 @@ export default function CoachingOverview() {
   const [expanded, setExpanded] = useState<string[]>(TLS.map((t) => t.key));
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     const [tasksRes, logsRes] = await Promise.all([
       supabase
@@ -213,9 +213,9 @@ export default function CoachingOverview() {
     }
     if (logsRes.data) setLogs(logsRes.data as CoachingLog[]);
     setLoading(false);
-  };
+  }, [selectedDate]);
 
-  useEffect(() => { fetchData(); }, [selectedDate]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const globalStats = useMemo(() => {
     const actionable = tasks.filter((t) => t.status !== 'skipped');

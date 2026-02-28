@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import type { CoachingTask, CoachingRedFlag, CoachingTalkingPoint, CoachingGoalProgress } from '../types';
@@ -172,7 +172,7 @@ export default function CoachingQueue() {
     setSelectedTl(match?.key ?? TL_OPTIONS[0]?.key ?? 'huckle');
   }, [profile]);
 
-  const fetchTasks = async () => {
+  const fetchTasks = useCallback(async () => {
     setLoading(true);
     const today = new Date().toISOString().split('T')[0];
     const { data, error } = await supabase
@@ -196,9 +196,9 @@ export default function CoachingQueue() {
       }));
     }
     setLoading(false);
-  };
+  }, []);
 
-  useEffect(() => { fetchTasks(); }, []);
+  useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   const filtered = useMemo(() => {
     let list = tasks.filter((t) => t.team_tl === selectedTl);
