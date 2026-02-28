@@ -36,9 +36,9 @@ export default function Assignments() {
   const [weekOffset, setWeekOffset] = useState(0);
   const weekStart = useMemo(() => {
     const d = new Date();
-    const day = d.getDay();
-    const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    d.setDate(diff + weekOffset * 7);
+    const day = d.getUTCDay();
+    const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+    d.setUTCDate(diff + weekOffset * 7);
     return d.toISOString().split('T')[0]!;
   }, [weekOffset]);
 

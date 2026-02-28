@@ -1058,16 +1058,16 @@ function DatePicker({ value, onChange }: { value: string; onChange: (v: string) 
 
 function getWeekStartForDate(date: Date): string {
   const d = new Date(date);
-  const day = d.getDay();
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-  d.setDate(diff);
+  const day = d.getUTCDay();
+  const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
+  d.setUTCDate(diff);
   return d.toISOString().slice(0, 10);
 }
 
 function computeScheduleDate(weekStart: string, dayOfWeek: number): string | null {
   try {
-    const d = new Date(weekStart + 'T00:00:00');
-    d.setDate(d.getDate() + dayOfWeek);
+    const d = new Date(weekStart + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + dayOfWeek);
     return d.toISOString().slice(0, 10);
   } catch {
     return null;
