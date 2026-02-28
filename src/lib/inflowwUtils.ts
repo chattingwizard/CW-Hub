@@ -29,9 +29,9 @@ export const COLUMNS: InflowwColumn[] = [
   { key: 'fanCvr', label: 'Fan CVR', type: 'percent', hasAvg: true, approxReason: 'Derived from Fans Chatted and Fans Spent, both of which may include duplicates across days.' },
   { key: 'responseTime', label: 'Resp. Time', type: 'time', hasAvg: true, approxReason: 'Weighted average of daily response times by messages sent. May differ slightly from Infloww\'s per-message calculation.' },
   { key: 'clockedHours', label: 'Clocked Hrs', type: 'hours' },
-  { key: 'salesPerHour', label: '$/hr', type: 'currency', hasAvg: true, approxReason: 'Uses Hubstaff hours when available, otherwise Infloww clocked hours. Sales ÷ hours worked.' },
+  { key: 'salesPerHour', label: '$/hr', type: 'currency', hasAvg: true, approxReason: 'Sales ÷ Hubstaff hours worked. Requires Hubstaff data to be uploaded.' },
   { key: 'characterCount', label: 'Char Count', type: 'number' },
-  { key: 'messagesSentPerHour', label: 'Msg/hr', type: 'decimal', hasAvg: true, approxReason: 'Uses Hubstaff hours when available, otherwise Infloww clocked hours. DMs sent ÷ hours worked.' },
+  { key: 'messagesSentPerHour', label: 'Msg/hr', type: 'decimal', hasAvg: true, approxReason: 'DMs sent ÷ Hubstaff hours worked. Requires Hubstaff data to be uploaded.' },
 ];
 
 const DATA_KEYS = [
@@ -602,9 +602,8 @@ export async function loadFromSupabase(
     const totalFansSpent = Number(m.fansWhoSpentMoney) || 0;
     const totalSales = Number(m.sales) || 0;
 
-    // Prefer Hubstaff hours for $/hr and Msg/hr; fall back to Infloww clocked hours
-    const hubstaffHrs = emp.hubstaffHours;
-    const hoursForRates = hubstaffHrs > 0 ? hubstaffHrs : (Number(m.clockedHours) || 0);
+    // Only use Hubstaff hours for $/hr and Msg/hr — never Infloww clocked hours
+    const hoursForRates = emp.hubstaffHours;
 
     m.goldenRatio = totalMsgs > 0 ? (totalPpvsSent / totalMsgs) * 100 : NaN;
     m.unlockRate = totalPpvsSent > 0 ? (totalUnlocked / totalPpvsSent) * 100 : NaN;
@@ -624,7 +623,7 @@ export async function loadFromSupabase(
     }
     m.responseTime = rtWeightTotal > 0 ? rtWeightedSum / rtWeightTotal : NaN;
 
-    m.duration = hubstaffHrs > 0 ? hubstaffHrs : NaN;
+    m.duration = emp.hubstaffHours > 0 ? emp.hubstaffHours : NaN;
 
     return m;
   });
