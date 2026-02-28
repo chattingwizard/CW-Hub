@@ -54,6 +54,7 @@ export interface Chatter {
   team_name: string | null;
   favorite_shift: string | null;
   profile_id: string | null;
+  hubstaff_user_id: number | null;
   synced_at: string;
 }
 
@@ -559,6 +560,26 @@ export interface ScoreConfig {
 }
 
 export type ScoreStatus = 'diamond' | 'platinum' | 'gold' | 'silver' | 'neutral' | 'bronze';
+
+// ── Hubstaff Issues ─────────────────────────────────────────
+
+export interface HubstaffIssue {
+  id: string;
+  issue_type: string;
+  description: string;
+  incident_date: string;
+  time_start: string;
+  time_end: string;
+  team: string;
+  screenshot_urls: string[];
+  status: 'open' | 'resolved';
+  resolution_notes: string | null;
+  submitted_by: string;
+  submitted_by_name?: string;
+  resolved_by: string | null;
+  resolved_at: string | null;
+  created_at: string;
+}
 
 // ── Shift Reports ───────────────────────────────────────────
 

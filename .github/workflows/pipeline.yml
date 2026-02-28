@@ -24,7 +24,12 @@ on:
           - all
           - airtable
           - hubstaff
+          - hubstaff-map
           - coaching
+      hubstaff_backfill_days:
+        description: 'Hubstaff: days to look back (default 14, max 90)'
+        required: false
+        default: '14'
 
 jobs:
   determine-task:
@@ -32,6 +37,7 @@ jobs:
     outputs:
       run_airtable: ${{ steps.check.outputs.run_airtable }}
       run_hubstaff: ${{ steps.check.outputs.run_hubstaff }}
+      run_hubstaff_map: ${{ steps.check.outputs.run_hubstaff_map }}
       run_coaching: ${{ steps.check.outputs.run_coaching }}
     steps:
       - id: check
@@ -45,10 +51,16 @@ jobs:
             echo "run_airtable=false" >> $GITHUB_OUTPUT
           fi
 
-          if [ "$INPUT" = "all" ] || [ "$INPUT" = "hubstaff" ] || [ "$CRON" = "0 1,7,13,19 * * *" ]; then
+          if [ "$INPUT" = "all" ] || [ "$INPUT" = "hubstaff" ] || [ "$INPUT" = "hubstaff-map" ] || [ "$CRON" = "0 1,7,13,19 * * *" ]; then
             echo "run_hubstaff=true" >> $GITHUB_OUTPUT
           else
             echo "run_hubstaff=false" >> $GITHUB_OUTPUT
+          fi
+
+          if [ "$INPUT" = "hubstaff-map" ]; then
+            echo "run_hubstaff_map=true" >> $GITHUB_OUTPUT
+          else
+            echo "run_hubstaff_map=false" >> $GITHUB_OUTPUT
           fi
 
           if [ "$INPUT" = "all" ] || [ "$INPUT" = "coaching" ] || [ "$CRON" = "30 23 * * *" ] || [ "$CRON" = "30 7 * * *" ] || [ "$CRON" = "30 15 * * *" ]; then
@@ -75,9 +87,26 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python pipeline/sync_airtable.py
 
-  sync-hubstaff:
+  map-hubstaff:
     needs: determine-task
-    if: needs.determine-task.outputs.run_hubstaff == 'true'
+    if: needs.determine-task.outputs.run_hubstaff_map == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r pipeline/requirements.txt
+      - name: Map Hubstaff users → Supabase chatters
+        env:
+          HUBSTAFF_TOKEN: ${{ secrets.HUBSTAFF_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: python pipeline/map_hubstaff_users.py
+
+  sync-hubstaff:
+    needs: [determine-task, map-hubstaff]
+    if: always() && needs.determine-task.outputs.run_hubstaff == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,7 +119,9 @@ jobs:
           HUBSTAFF_TOKEN: ${{ secrets.HUBSTAFF_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-        run: python pipeline/sync_hubstaff.py
+        run: |
+          BACKFILL="${{ github.event.inputs.hubstaff_backfill_days || '14' }}"
+          python pipeline/sync_hubstaff.py --backfill "$BACKFILL"
 
   generate-coaching:
     needs: determine-task

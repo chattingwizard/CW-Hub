@@ -517,23 +517,40 @@ export async function loadFromSupabase(
   const dbDates = [...new Set((data as ChatterDailyRow[]).map(d => d.date))].sort();
   console.log(`[InflowwKPIs] DB query: ${data.length} rows, ${dbDates.length} dates (${dbDates.join(', ')}), total sales: $${dbTotalSales.toFixed(2)}, range: ${range?.from}..${range?.to}`);
 
-  // Fetch Hubstaff hours from chatter_hours table (joined with chatters for name)
+  // Fetch Hubstaff hours from chatter_hours table, matched to chatter names
   let hubstaffByName: Record<string, number> = {};
   {
     let hoursQuery = supabase
       .from('chatter_hours')
-      .select('hours_worked, chatter:chatters!chatter_hours_chatter_id_fkey(full_name)')
+      .select('hours_worked, date, chatter_id')
       .gt('hours_worked', 0);
     if (range) {
       hoursQuery = hoursQuery.gte('date', range.from).lt('date', range.to);
     }
-    const { data: hoursData } = await hoursQuery;
-    if (hoursData) {
-      for (const h of hoursData as { hours_worked: number; chatter: { full_name: string } | null }[]) {
-        if (!h.chatter?.full_name) continue;
-        const key = h.chatter.full_name.toLowerCase().trim().replace(/\s+/g, ' ');
+    const [hoursRes, chattersRes] = await Promise.all([
+      hoursQuery,
+      supabase.from('chatters').select('id, full_name'),
+    ]);
+
+    if (hoursRes.data && chattersRes.data) {
+      const idToName = new Map<string, string>();
+      for (const c of chattersRes.data as { id: string; full_name: string }[]) {
+        idToName.set(c.id, c.full_name);
+      }
+      let matched = 0;
+      let unmatched = 0;
+      for (const h of hoursRes.data as { hours_worked: number; date: string; chatter_id: string }[]) {
+        const name = idToName.get(h.chatter_id);
+        if (!name) { unmatched++; continue; }
+        matched++;
+        const key = name.toLowerCase().trim().replace(/\s+/g, ' ');
         hubstaffByName[key] = (hubstaffByName[key] ?? 0) + Number(h.hours_worked);
       }
+      const totalHrs = Object.values(hubstaffByName).reduce((s, v) => s + v, 0);
+      console.log(`[InflowwKPIs] Hubstaff hours: ${hoursRes.data.length} records, ${matched} matched, ${unmatched} unmatched, ${Object.keys(hubstaffByName).length} employees, ${totalHrs.toFixed(1)}h total, range: ${range?.from}..${range?.to}`);
+    } else {
+      if (hoursRes.error) console.warn('[InflowwKPIs] chatter_hours query error:', hoursRes.error.message);
+      if (chattersRes.error) console.warn('[InflowwKPIs] chatters query error:', chattersRes.error.message);
     }
   }
 
