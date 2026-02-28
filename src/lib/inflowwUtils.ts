@@ -29,9 +29,9 @@ export const COLUMNS: InflowwColumn[] = [
   { key: 'fanCvr', label: 'Fan CVR', type: 'percent', hasAvg: true, approxReason: 'Derived from Fans Chatted and Fans Spent, both of which may include duplicates across days.' },
   { key: 'responseTime', label: 'Resp. Time', type: 'time', hasAvg: true, approxReason: 'Weighted average of daily response times by messages sent. May differ slightly from Infloww\'s per-message calculation.' },
   { key: 'clockedHours', label: 'Clocked Hrs', type: 'hours' },
-  { key: 'salesPerHour', label: '$/hr', type: 'currency', hasAvg: true, approxReason: 'Calculated from total sales ÷ total clocked hours. Minor rounding differences vs Infloww due to hour precision.' },
+  { key: 'salesPerHour', label: '$/hr', type: 'currency', hasAvg: true, approxReason: 'Uses Hubstaff hours when available, otherwise Infloww clocked hours. Sales ÷ hours worked.' },
   { key: 'characterCount', label: 'Char Count', type: 'number' },
-  { key: 'messagesSentPerHour', label: 'Msg/hr', type: 'decimal', hasAvg: true, approxReason: 'Calculated from total DMs sent ÷ total clocked hours. Minor rounding differences vs Infloww due to hour precision.' },
+  { key: 'messagesSentPerHour', label: 'Msg/hr', type: 'decimal', hasAvg: true, approxReason: 'Uses Hubstaff hours when available, otherwise Infloww clocked hours. DMs sent ÷ hours worked.' },
 ];
 
 const DATA_KEYS = [
@@ -517,6 +517,26 @@ export async function loadFromSupabase(
   const dbDates = [...new Set((data as ChatterDailyRow[]).map(d => d.date))].sort();
   console.log(`[InflowwKPIs] DB query: ${data.length} rows, ${dbDates.length} dates (${dbDates.join(', ')}), total sales: $${dbTotalSales.toFixed(2)}, range: ${range?.from}..${range?.to}`);
 
+  // Fetch Hubstaff hours from chatter_hours table (joined with chatters for name)
+  let hubstaffByName: Record<string, number> = {};
+  {
+    let hoursQuery = supabase
+      .from('chatter_hours')
+      .select('hours_worked, chatter:chatters!chatter_hours_chatter_id_fkey(full_name)')
+      .gt('hours_worked', 0);
+    if (range) {
+      hoursQuery = hoursQuery.gte('date', range.from).lt('date', range.to);
+    }
+    const { data: hoursData } = await hoursQuery;
+    if (hoursData) {
+      for (const h of hoursData as { hours_worked: number; chatter: { full_name: string } | null }[]) {
+        if (!h.chatter?.full_name) continue;
+        const key = h.chatter.full_name.toLowerCase().trim().replace(/\s+/g, ' ');
+        hubstaffByName[key] = (hubstaffByName[key] ?? 0) + Number(h.hours_worked);
+      }
+    }
+  }
+
   const rows = data as ChatterDailyRow[];
   const grouped: Record<string, { name: string; group: string; days: ChatterDailyRow[]; hubstaffHours: number }> = {};
 
@@ -527,6 +547,21 @@ export async function loadFromSupabase(
     }
     if (row.team) grouped[key].group = row.team;
     grouped[key].days.push(row);
+  }
+
+  // Apply Hubstaff hours from DB first, then override with manual CSV if provided
+  for (const [nameKey, hours] of Object.entries(hubstaffByName)) {
+    if (grouped[nameKey]) {
+      grouped[nameKey].hubstaffHours = hours;
+    } else {
+      // Fuzzy match: try partial name matching
+      for (const gKey of Object.keys(grouped)) {
+        if (gKey.includes(nameKey) || nameKey.includes(gKey)) {
+          grouped[gKey].hubstaffHours = hours;
+          break;
+        }
+      }
+    }
   }
 
   if (hubstaffRaw) {
@@ -566,13 +601,16 @@ export async function loadFromSupabase(
     const totalFansChatted = Number(m.fansChatted) || 0;
     const totalFansSpent = Number(m.fansWhoSpentMoney) || 0;
     const totalSales = Number(m.sales) || 0;
-    const totalHours = Number(m.clockedHours) || 0;
+
+    // Prefer Hubstaff hours for $/hr and Msg/hr; fall back to Infloww clocked hours
+    const hubstaffHrs = emp.hubstaffHours;
+    const hoursForRates = hubstaffHrs > 0 ? hubstaffHrs : (Number(m.clockedHours) || 0);
 
     m.goldenRatio = totalMsgs > 0 ? (totalPpvsSent / totalMsgs) * 100 : NaN;
     m.unlockRate = totalPpvsSent > 0 ? (totalUnlocked / totalPpvsSent) * 100 : NaN;
     m.fanCvr = totalFansChatted > 0 ? (totalFansSpent / totalFansChatted) * 100 : NaN;
-    m.salesPerHour = totalHours > 0 ? totalSales / totalHours : NaN;
-    m.messagesSentPerHour = totalHours > 0 ? totalMsgs / totalHours : NaN;
+    m.salesPerHour = hoursForRates > 0 ? totalSales / hoursForRates : NaN;
+    m.messagesSentPerHour = hoursForRates > 0 ? totalMsgs / hoursForRates : NaN;
 
     let rtWeightedSum = 0;
     let rtWeightTotal = 0;
@@ -586,7 +624,7 @@ export async function loadFromSupabase(
     }
     m.responseTime = rtWeightTotal > 0 ? rtWeightedSum / rtWeightTotal : NaN;
 
-    m.duration = emp.hubstaffHours || NaN;
+    m.duration = hubstaffHrs > 0 ? hubstaffHrs : NaN;
 
     return m;
   });
