@@ -1,0 +1,30 @@
+---
+description: NUNCA crear ni modificar archivos sin confirmación explícita de Pau
+alwaysApply: true
+---
+
+# Prohibido Modificar Sin Confirmación
+
+## REGLA ABSOLUTA
+
+**NUNCA** crear, modificar, eliminar ni renombrar archivos o código sin la confirmación explícita y previa de Pau.
+
+## Flujo obligatorio
+
+1. **Analizar** lo que se necesita
+2. **Presentar** la propuesta completa al usuario (qué archivos, qué cambios, por qué)
+3. **Esperar** confirmación explícita ("sí", "hazlo", "adelante", etc.)
+4. **Solo entonces** ejecutar los cambios
+
+## Esto incluye
+
+- Archivos de código (`.ts`, `.tsx`, `.py`, `.js`, `.sql`, etc.)
+- Archivos de documentación (`.md`, `.mdc`, `.txt`)
+- Archivos de configuración (`package.json`, `tsconfig.json`, `.env`, etc.)
+- Archivos de reglas (`.cursor/rules/`)
+- Cualquier otro archivo del proyecto
+
+## Excepciones
+
+- Comandos de solo lectura (`git status`, `git diff`, `ls`, búsquedas) no requieren confirmación
+- Si Pau dice explícitamente "haz X" con instrucción clara y directa, eso es confirmación

@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CW Hub — Chatter Score (Mockup)</title>
+<style>
+  :root {
+    --bg: #0a0a0a; --surface: #111111; --card: #161616; --border: #222;
+    --border2: #2a2a2a; --text: #e5e5e5; --dim: #777; --dim2: #555;
+    --accent: #1d9bf0; --accent-hover: #1a8dd9;
+    --green: #22c55e; --red: #ef4444; --yellow: #f59e0b; --orange: #f97316;
+    --purple: #a855f7;
+    --huckle: #f97316; --danilyn: #3b82f6; --ezekiel: #a855f7;
+    --radius: 8px; --radius-sm: 6px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 220px; min-height: 100vh; background: var(--surface);
+    border-right: 1px solid var(--border); display: flex; flex-direction: column;
+    padding: 0; flex-shrink: 0; position: fixed; top: 0; left: 0; bottom: 0; z-index: 100;
+  }
+  .sidebar-logo {
+    padding: 18px 16px 14px; border-bottom: 1px solid var(--border);
+    font-size: 0.9rem; font-weight: 700; color: var(--accent); letter-spacing: 0.02em;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sidebar-logo .logo-mark { width: 26px; height: 26px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; color: white; }
+  .sidebar-section { padding: 20px 10px 6px; }
+  .sidebar-section-label { font-size: 0.65rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--dim2); padding: 0 8px; margin-bottom: 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 9px; padding: 7px 10px;
+    border-radius: var(--radius-sm); color: var(--dim); font-size: 0.83rem; cursor: pointer;
+    text-decoration: none; transition: all 0.15s; margin-bottom: 1px; white-space: nowrap;
+  }
+  .nav-item:hover { background: var(--card); color: var(--text); }
+  .nav-item.active { background: rgba(29,155,240,0.12); color: var(--accent); font-weight: 500; }
+  .nav-icon { width: 15px; height: 15px; opacity: 0.9; flex-shrink: 0; }
+  .sidebar-bottom { margin-top: auto; padding: 12px 10px; border-top: 1px solid var(--border); }
+  .user-badge { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); }
+  .user-avatar { width: 28px; height: 28px; border-radius: 50%; background: linear-gradient(135deg, #1d9bf0, #0f5b94); display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: 700; color: white; flex-shrink: 0; }
+  .user-name { font-size: 0.8rem; font-weight: 500; }
+  .user-role { font-size: 0.7rem; color: var(--dim); }
+
+  /* ── MAIN CONTENT ── */
+  .main { margin-left: 220px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { height: 52px; background: var(--surface); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; flex-shrink: 0; }
+  .topbar-title { font-size: 0.9rem; font-weight: 600; color: var(--text); }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .week-selector { display: flex; align-items: center; gap: 8px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 5px 12px; font-size: 0.8rem; color: var(--text); cursor: pointer; }
+  .week-selector svg { width: 13px; height: 13px; color: var(--dim); }
+  .btn { padding: 7px 14px; border-radius: var(--radius-sm); font-size: 0.82rem; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-ghost { background: transparent; color: var(--dim); border: 1px solid var(--border2); }
+  .btn-ghost:hover { background: var(--card); color: var(--text); }
+  .btn-sm { padding: 5px 10px; font-size: 0.78rem; }
+  .btn-danger { background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.2); }
+  .btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+  .content { padding: 24px; flex: 1; }
+
+  /* ── PAGE HEADER ── */
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .page-title { font-size: 1.35rem; font-weight: 700; }
+  .page-sub { font-size: 0.82rem; color: var(--dim); margin-top: 2px; }
+
+  /* ── TABS ── */
+  .tabs { display: flex; gap: 2px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 3px; width: fit-content; margin-bottom: 22px; }
+  .tab { padding: 7px 16px; border-radius: 6px; font-size: 0.83rem; font-weight: 500; cursor: pointer; color: var(--dim); transition: all 0.15s; white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+  .tab-icon { width: 13px; height: 13px; }
+
+  /* ── STATS ROW ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px 18px; }
+  .stat-label { font-size: 0.75rem; color: var(--dim); font-weight: 500; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+  .stat-value { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+  .stat-value.green { color: var(--green); }
+  .stat-value.red { color: var(--red); }
+  .stat-value.yellow { color: var(--yellow); }
+  .stat-sub { font-size: 0.72rem; color: var(--dim); margin-top: 4px; }
+
+  /* ── LEADERBOARD TABLE ── */
+  .table-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .table-header-row { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+  .table-header-row h3 { font-size: 0.88rem; font-weight: 600; }
+  .filter-row { display: flex; gap: 8px; align-items: center; }
+  .filter-select { background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); color: var(--text); font-size: 0.78rem; padding: 5px 10px; cursor: pointer; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { padding: 10px 18px; text-align: left; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  thead th.right { text-align: right; }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; cursor: pointer; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: rgba(255,255,255,0.025); }
+  tbody td { padding: 12px 18px; font-size: 0.83rem; vertical-align: middle; }
+  tbody td.right { text-align: right; }
+  .rank { font-size: 0.8rem; color: var(--dim); font-weight: 600; width: 24px; }
+  .rank.top { color: var(--yellow); }
+  .chatter-name { font-weight: 500; display: flex; align-items: center; gap: 8px; }
+  .team-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .pts { font-weight: 600; font-size: 0.88rem; }
+  .pts.pos { color: var(--green); }
+  .pts.neg { color: var(--red); }
+  .pts.neutral { color: var(--dim); }
+  .total-pts { font-size: 1rem; font-weight: 700; }
+  .total-pts.high { color: #22c55e; }
+  .total-pts.mid { color: #f59e0b; }
+  .total-pts.low { color: #ef4444; }
+
+  /* ── BADGES ── */
+  .badge { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; white-space: nowrap; }
+  .badge-green { background: rgba(34,197,94,0.12); color: #22c55e; border: 1px solid rgba(34,197,94,0.2); }
+  .badge-yellow { background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.2); }
+  .badge-red { background: rgba(239,68,68,0.12); color: #ef4444; border: 1px solid rgba(239,68,68,0.2); }
+  .badge-blue { background: rgba(29,155,240,0.12); color: #1d9bf0; border: 1px solid rgba(29,155,240,0.2); }
+  .badge-gray { background: rgba(255,255,255,0.06); color: var(--dim); border: 1px solid var(--border2); }
+  .bonus-amount { font-size: 0.75rem; font-weight: 700; }
+
+  /* ── LOG EVENT FORM ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .form-grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; }
+  .form-card h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 18px; display: flex; align-items: center; gap: 8px; }
+  .form-group { margin-bottom: 16px; }
+  .form-label { font-size: 0.75rem; font-weight: 500; color: var(--dim); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.04em; }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm);
+    color: var(--text); font-size: 0.83rem; padding: 9px 12px; transition: border-color 0.15s;
+    font-family: inherit;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { outline: none; border-color: var(--accent); }
+  .form-textarea { min-height: 80px; resize: vertical; }
+  .points-preview { display: flex; align-items: center; gap: 10px; background: rgba(29,155,240,0.06); border: 1px solid rgba(29,155,240,0.15); border-radius: var(--radius-sm); padding: 10px 14px; margin-top: 8px; }
+  .points-preview .pts-big { font-size: 1.5rem; font-weight: 800; }
+  .points-preview .pts-label { font-size: 0.78rem; color: var(--dim); }
+  .event-type-list { display: flex; flex-direction: column; gap: 4px; }
+  .event-type-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--card); border: 1px solid var(--border2); cursor: pointer; transition: all 0.1s; }
+  .event-type-item:hover { border-color: var(--border); background: #1c1c1c; }
+  .event-type-item.selected { border-color: var(--accent); background: rgba(29,155,240,0.08); }
+  .event-name { font-size: 0.82rem; }
+  .event-pts { font-size: 0.82rem; font-weight: 700; }
+  .event-pts.p { color: var(--green); }
+  .event-pts.n { color: var(--red); }
+  .section-divider { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; color: var(--dim2); padding: 8px 0 4px; border-top: 1px solid var(--border); margin-top: 8px; }
+  .recent-events { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .event-row { display: flex; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); gap: 12px; }
+  .event-row:last-child { border-bottom: none; }
+  .event-row-name { font-size: 0.82rem; font-weight: 500; flex: 1; }
+  .event-row-type { font-size: 0.78rem; color: var(--dim); flex: 2; }
+  .event-row-date { font-size: 0.75rem; color: var(--dim2); }
+  .event-row-pts { font-size: 0.85rem; font-weight: 700; min-width: 48px; text-align: right; }
+
+  /* ── WEEKLY REPORTS ── */
+  .weekly-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+  .team-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .team-header { padding: 12px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; }
+  .team-name { font-size: 0.85rem; font-weight: 600; }
+  .team-count { font-size: 0.75rem; color: var(--dim); }
+  .weekly-chatter-row { padding: 10px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .weekly-chatter-row:last-child { border-bottom: none; }
+  .wc-name { font-size: 0.8rem; font-weight: 500; }
+  .wc-status { font-size: 0.72rem; }
+  .wc-btn { font-size: 0.72rem; padding: 4px 10px; background: var(--card); border: 1px solid var(--border2); border-radius: 4px; color: var(--dim); cursor: pointer; white-space: nowrap; }
+  .wc-btn:hover { color: var(--text); border-color: var(--dim); }
+  .wc-btn.done { background: rgba(34,197,94,0.08); border-color: rgba(34,197,94,0.2); color: var(--green); }
+
+  /* ── SCORE CONFIG ── */
+  .config-section { margin-bottom: 28px; }
+  .config-section h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .config-event-item { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+  .config-event-item.pos { border-left: 3px solid var(--green); }
+  .config-event-item.neg { border-left: 3px solid var(--red); }
+  .config-event-name { flex: 1; font-size: 0.82rem; }
+  .config-pts-input { width: 68px; background: var(--card); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-size: 0.85rem; font-weight: 700; padding: 5px 8px; text-align: center; }
+  .config-pts-input.pos-val { color: var(--green); }
+  .config-pts-input.neg-val { color: var(--red); }
+  .config-del { width: 26px; height: 26px; border-radius: 4px; background: transparent; border: none; color: var(--dim2); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.1s; }
+  .config-del:hover { background: rgba(239,68,68,0.1); color: var(--red); }
+  .add-event-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+  .add-event-row input { flex: 1; }
+  .tier-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .tier-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .tier-label { font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--dim); margin-bottom: 8px; }
+  .tier-range { font-size: 0.8rem; margin-bottom: 10px; color: var(--dim); }
+  .tier-pts { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .tier-pts label { font-size: 0.72rem; color: var(--dim); min-width: 70px; }
+  .tier-pts input { background: var(--card); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-size: 0.83rem; padding: 4px 8px; width: 70px; }
+  .tier-bonus { font-size: 0.75rem; color: var(--dim); display: flex; gap: 6px; align-items: center; }
+  .tier-bonus input { background: var(--card); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-size: 0.83rem; padding: 4px 8px; width: 60px; }
+  .reply-time-grid { display: flex; flex-direction: column; gap: 6px; }
+  .rt-row { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 9px 14px; }
+  .rt-range { font-size: 0.82rem; flex: 1; font-family: monospace; }
+  .rt-pts-input { width: 68px; background: var(--card); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-size: 0.85rem; padding: 5px 8px; text-align: center; }
+
+  /* ── MODAL (drawer) ── */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 200; display: flex; align-items: flex-start; justify-content: flex-end; }
+  .drawer { background: var(--surface); border-left: 1px solid var(--border); width: 420px; height: 100vh; overflow-y: auto; padding: 24px; display: flex; flex-direction: column; gap: 18px; animation: slideIn 0.2s ease; }
+  @keyframes slideIn { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  .drawer-header { display: flex; align-items: center; justify-content: space-between; }
+  .drawer-title { font-size: 1rem; font-weight: 700; }
+  .drawer-close { width: 30px; height: 30px; border-radius: var(--radius-sm); background: var(--card); border: 1px solid var(--border2); color: var(--dim); cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; }
+  .drawer-close:hover { color: var(--text); }
+  .event-history-item { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; display: flex; align-items: center; gap: 10px; }
+  .ehi-type { font-size: 0.8rem; flex: 1; }
+  .ehi-date { font-size: 0.73rem; color: var(--dim); }
+  .ehi-pts { font-size: 0.85rem; font-weight: 700; }
+  .score-big { text-align: center; padding: 20px; background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); }
+  .score-num { font-size: 3.5rem; font-weight: 800; line-height: 1; }
+  .score-label { font-size: 0.8rem; color: var(--dim); margin-top: 4px; }
+
+  /* ── MY DASHBOARD SCORE CARD ── */
+  .my-score-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+  .msc-score { font-size: 2.8rem; font-weight: 800; color: var(--green); line-height: 1; }
+  .msc-label { font-size: 0.78rem; color: var(--dim); margin-top: 2px; }
+  .msc-breakdown { display: flex; flex-direction: column; gap: 4px; margin-top: 10px; }
+  .msc-row { display: flex; justify-content: space-between; font-size: 0.78rem; }
+  .msc-row span:first-child { color: var(--dim); }
+  .msc-right { text-align: right; }
+  .msc-bonus { font-size: 1.4rem; font-weight: 700; color: var(--green); }
+  .msc-status { font-size: 0.72rem; color: var(--dim); }
+
+  /* ── UTILITY ── */
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .gap-8 { gap: 8px; }
+  .gap-12 { gap: 12px; }
+  .ml-auto { margin-left: auto; }
+  .opacity-50 { opacity: 0.5; }
+  .mt-16 { margin-top: 16px; }
+  .mt-8 { margin-top: 8px; }
+  .hidden { display: none; }
+  .w-full { width: 100%; }
+  .text-dim { color: var(--dim); }
+  .text-sm { font-size: 0.8rem; }
+  .font-600 { font-weight: 600; }
+  .divider { height: 1px; background: var(--border); margin: 6px 0; }
+  .checkbox-group { display: flex; flex-direction: column; gap: 8px; }
+  .checkbox-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; cursor: pointer; padding: 8px 12px; background: var(--card); border: 1px solid var(--border2); border-radius: var(--radius-sm); }
+  .checkbox-item input[type="checkbox"] { accent-color: var(--accent); width: 14px; height: 14px; }
+  .info-box { background: rgba(29,155,240,0.06); border: 1px solid rgba(29,155,240,0.15); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 0.78rem; color: var(--dim); }
+  .save-bar { position: sticky; bottom: 0; background: var(--surface); border-top: 1px solid var(--border); padding: 14px 22px; display: flex; align-items: center; justify-content: space-between; margin: 0 -22px -20px; }
+  .save-bar-note { font-size: 0.78rem; color: var(--dim); }
+  .tooltip { position: relative; }
+  .tooltip-text { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #333; color: white; font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; white-space: nowrap; margin-bottom: 4px; pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+  .tooltip:hover .tooltip-text { opacity: 1; }
+  .progress-bar { height: 4px; background: var(--border2); border-radius: 2px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; border-radius: 2px; }
+
+  /* ── TAB PANELS ── */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+</style>
+</head>
+<body>
+
+<!-- ─────────── SIDEBAR ─────────── -->
+<div class="sidebar">
+  <div class="sidebar-logo">
+    <div class="logo-mark">CW</div>
+    CW Hub
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Operations</div>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+      Overview
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Chatter Performance
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Schedules
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Assignments
+    </a>
+    <a class="nav-item active" href="#">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Chatter Score
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Coaching</div>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Coaching Queue
+    </a>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Coaching Overview
+    </a>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">System</div>
+    <a class="nav-item" href="#">
+      <svg class="nav-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Settings
+    </a>
+  </div>
+
+  <div class="sidebar-bottom">
+    <div class="user-badge">
+      <div class="user-avatar">M</div>
+      <div>
+        <div class="user-name">Mileh</div>
+        <div class="user-role">Head of Sales · Admin</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─────────── TOPBAR ─────────── -->
+<div class="main">
+<div class="topbar">
+  <div class="topbar-title">Chatter Score</div>
+  <div class="topbar-right">
+    <div class="week-selector">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:13px;height:13px;color:#777"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Week 9 · Feb 24 – Mar 2, 2026
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:11px;height:11px;color:#555"><polyline points="6 9 12 15 18 9"/></svg>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="showPanel('log')">+ Log Event</button>
+  </div>
+</div>
+
+<!-- ─────────── CONTENT ─────────── -->
+<div class="content">
+
+  <div class="page-header">
+    <div>
+      <div class="page-title">Chatter Score</div>
+      <div class="page-sub">Weekly performance points — all teams</div>
+    </div>
+  </div>
+
+  <!-- STATS ROW -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">
+        <svg width="13" height="13" fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Total Bonus Earners
+      </div>
+      <div class="stat-value green">18</div>
+      <div class="stat-sub">out of 27 active chatters</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">
+        <svg width="13" height="13" fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        Warnings
+      </div>
+      <div class="stat-value red">3</div>
+      <div class="stat-sub">below threshold this week</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">
+        <svg width="13" height="13" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        Pending Weekly Reports
+      </div>
+      <div class="stat-value yellow">9</div>
+      <div class="stat-sub">TLs haven't submitted yet</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">
+        <svg width="13" height="13" fill="none" stroke="#1d9bf0" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        Total Bonuses This Week
+      </div>
+      <div class="stat-value" style="color:#1d9bf0">$235</div>
+      <div class="stat-sub">projected payout</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('leaderboard', this)">
+      <svg class="tab-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+      Leaderboard
+    </div>
+    <div class="tab" onclick="switchTab('log', this)">
+      <svg class="tab-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Log Event
+    </div>
+    <div class="tab" onclick="switchTab('weekly', this)">
+      <svg class="tab-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Weekly Reports
+      <span class="badge badge-yellow" style="margin-left:2px;padding:1px 7px;font-size:0.68rem;">9</span>
+    </div>
+    <div class="tab" onclick="switchTab('config', this)">
+      <svg class="tab-icon" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+      Score Config
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: LEADERBOARD ════════════ -->
+  <div id="tab-leaderboard" class="tab-panel active">
+    <div class="table-container">
+      <div class="table-header-row">
+        <h3>Week 9 — All Chatters</h3>
+        <div class="filter-row">
+          <select class="filter-select">
+            <option>All Teams</option>
+            <option>Team Huckle (Night)</option>
+            <option>Team Danilyn (Day)</option>
+            <option>Team Ezekiel (Evening)</option>
+          </select>
+          <select class="filter-select">
+            <option>All Statuses</option>
+            <option>$20 Bonus</option>
+            <option>$10 Bonus</option>
+            <option>$5 Bonus</option>
+            <option>No Bonus</option>
+            <option>Warning</option>
+          </select>
+          <button class="btn btn-ghost btn-sm">Export</button>
+        </div>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Chatter</th>
+            <th>Team</th>
+            <th class="right">Event Pts</th>
+            <th class="right">Weekly Bonus</th>
+            <th class="right">Total</th>
+            <th class="right">Status</th>
+            <th class="right">Bonus</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr onclick="openDrawer('Don Mc Rey Parone', 162)">
+            <td class="rank top">🥇</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#f97316"></div>Don Mc Rey Parone</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Huckle</span></td>
+            <td class="right pts pos">+40</td>
+            <td class="right pts pos">+30</td>
+            <td class="right"><span class="total-pts high">162</span></td>
+            <td class="right"><span class="badge badge-green">$20 Bonus</span></td>
+            <td class="right"><span class="bonus-amount" style="color:#22c55e">$20</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr onclick="openDrawer('Kent Dominic Estacio', 155)">
+            <td class="rank top">🥈</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#3b82f6"></div>Kent Dominic Estacio</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Danilyn</span></td>
+            <td class="right pts pos">+30</td>
+            <td class="right pts pos">+40</td>
+            <td class="right"><span class="total-pts high">155</span></td>
+            <td class="right"><span class="badge badge-green">$20 Bonus</span></td>
+            <td class="right"><span class="bonus-amount" style="color:#22c55e">$20</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr onclick="openDrawer('Dionefel Mamites', 148)">
+            <td class="rank top">🥉</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#f97316"></div>Dionefel Mamites</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Huckle</span></td>
+            <td class="right pts pos">+20</td>
+            <td class="right pts pos">+35</td>
+            <td class="right"><span class="total-pts mid">148</span></td>
+            <td class="right"><span class="badge badge-yellow">$10 Bonus</span></td>
+            <td class="right"><span class="bonus-amount" style="color:#f59e0b">$10</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr>
+            <td class="rank">4</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#a855f7"></div>MARY WAMBUI GITHIGE</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Ezekiel</span></td>
+            <td class="right pts pos">+10</td>
+            <td class="right pts pos">+30</td>
+            <td class="right"><span class="total-pts mid">140</span></td>
+            <td class="right"><span class="badge badge-yellow">$10 Bonus</span></td>
+            <td class="right"><span class="bonus-amount" style="color:#f59e0b">$10</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr>
+            <td class="rank">5</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#a855f7"></div>Kimberly Gaile Diaz Bacani</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Ezekiel</span></td>
+            <td class="right pts pos">+5</td>
+            <td class="right pts pos">+25</td>
+            <td class="right"><span class="total-pts mid">130</span></td>
+            <td class="right"><span class="badge" style="background:rgba(34,197,94,0.08);color:#6ee7b7;border-color:rgba(34,197,94,0.15);font-size:0.72rem">$5 Bonus</span></td>
+            <td class="right"><span class="bonus-amount" style="color:#6ee7b7">$5</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr>
+            <td class="rank">6</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#3b82f6"></div>Allonah Yvonne D. Tumampos</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Danilyn</span></td>
+            <td class="right pts pos">+10</td>
+            <td class="right pts pos">+15</td>
+            <td class="right"><span class="total-pts mid">125</span></td>
+            <td class="right"><span class="badge" style="background:rgba(34,197,94,0.08);color:#6ee7b7;border-color:rgba(34,197,94,0.15);font-size:0.72rem">$5 Bonus</span></td>
+            <td class="right"><span class="bonus-amount" style="color:#6ee7b7">$5</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr>
+            <td class="rank">7</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#3b82f6"></div>Princess Diane Manalo</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Danilyn</span></td>
+            <td class="right pts pos">+5</td>
+            <td class="right pts neutral">+10</td>
+            <td class="right"><span class="total-pts" style="color:#aaa">115</span></td>
+            <td class="right"><span class="badge badge-gray">No Bonus</span></td>
+            <td class="right"><span class="bonus-amount text-dim">—</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr>
+            <td class="rank">8</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#f97316"></div>Angel Joyce Ranosa</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Huckle</span></td>
+            <td class="right pts neg">-25</td>
+            <td class="right pts pos">+15</td>
+            <td class="right"><span class="total-pts" style="color:#aaa">110</span></td>
+            <td class="right"><span class="badge badge-gray">No Bonus</span></td>
+            <td class="right"><span class="bonus-amount text-dim">—</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr>
+            <td class="rank">...</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#f97316"></div>JOHN ARSEL MUHI</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Huckle</span></td>
+            <td class="right pts neg">-25</td>
+            <td class="right pts neutral">+5</td>
+            <td class="right"><span class="total-pts low">80</span></td>
+            <td class="right"><span class="badge badge-red">⚠ Warning</span></td>
+            <td class="right"><span class="bonus-amount" style="color:#ef4444">$0</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+          <tr>
+            <td class="rank">...</td>
+            <td><div class="chatter-name"><div class="team-dot" style="background:#a855f7"></div>Fiona Ajiambo</div></td>
+            <td><span class="badge badge-gray" style="font-size:0.7rem">Ezekiel</span></td>
+            <td class="right pts neg">-20</td>
+            <td class="right pts neutral">0</td>
+            <td class="right"><span class="total-pts low">75</span></td>
+            <td class="right"><span class="badge badge-red">⚠ Warning</span></td>
+            <td class="right"><span class="bonus-amount" style="color:#ef4444">$0</span></td>
+            <td><button class="btn btn-ghost btn-sm">View</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: LOG EVENT ════════════ -->
+  <div id="tab-log" class="tab-panel">
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:18px;">
+
+      <!-- Form -->
+      <div class="form-card">
+        <h3>
+          <svg width="16" height="16" fill="none" stroke="#1d9bf0" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Log Score Event
+        </h3>
+        <div class="form-grid" style="margin-bottom:16px">
+          <div class="form-group">
+            <label class="form-label">Chatter</label>
+            <select class="form-select" onchange="updatePreview()">
+              <option value="">Select chatter...</option>
+              <option>Don Mc Rey Parone — Huckle</option>
+              <option>Kent Dominic Estacio — Danilyn</option>
+              <option>Angel Joyce Ranosa — Huckle</option>
+              <option>JOHN ARSEL MUHI — Huckle</option>
+              <option>Fiona Ajiambo — Ezekiel</option>
+              <option>Kimberly Gaile Diaz Bacani — Ezekiel</option>
+              <option>Princess Diane Manalo — Danilyn</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Date</label>
+            <input type="date" class="form-input" value="2026-02-25">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Event Type</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px;">
+            <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#22c55e;padding:6px 0 4px;">✦ Positive</div>
+            <div style="font-size:0.7rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:#ef4444;padding:6px 0 4px;">✦ Negative</div>
+            <div class="event-type-item" onclick="selectEvent(this, 10, 'Covering = 4 hours')"><span class="event-name">Covering = 4 hours</span><span class="event-pts p">+10</span></div>
+            <div class="event-type-item selected" onclick="selectEvent(this, -5, 'Late to Shift')"><span class="event-name">Late to Shift</span><span class="event-pts n">-5</span></div>
+            <div class="event-type-item" onclick="selectEvent(this, 5, 'Covering &lt; 4 hours')"><span class="event-name">Covering &lt; 4 hours</span><span class="event-pts p">+5</span></div>
+            <div class="event-type-item" onclick="selectEvent(this, -10, 'AFK over 5 minutes')"><span class="event-name">AFK over 5 minutes</span><span class="event-pts n">-10</span></div>
+            <div class="event-type-item" onclick="selectEvent(this, 10, 'Feedback Implemented')"><span class="event-name">Feedback Implemented</span><span class="event-pts p">+10</span></div>
+            <div class="event-type-item" onclick="selectEvent(this, -20, 'No Show')"><span class="event-name">No Show</span><span class="event-pts n">-20</span></div>
+            <div class="event-type-item" onclick="selectEvent(this, 5, 'Manager Call Attendance')"><span class="event-name">Manager Call Attendance</span><span class="event-pts p">+5</span></div>
+            <div class="event-type-item" onclick="selectEvent(this, -5, 'No reply Slack')"><span class="event-name">No reply Slack</span><span class="event-pts n">-5</span></div>
+            <div></div>
+            <div class="event-type-item" onclick="selectEvent(this, -5, 'Missing Chatter Report')"><span class="event-name">Missing Chatter Report</span><span class="event-pts n">-5</span></div>
+            <div></div>
+            <div class="event-type-item" onclick="selectEvent(this, -5, 'Manager Call Incidence')"><span class="event-name">Manager Call Incidence</span><span class="event-pts n">-5</span></div>
+            <div></div>
+            <div class="event-type-item" onclick="selectEvent(this, -15, 'Not Following Instructions')"><span class="event-name">Not Following Instructions</span><span class="event-pts n">-15</span></div>
+            <div></div>
+            <div class="event-type-item" onclick="selectEvent(this, -15, 'Negative Attitude')"><span class="event-name">Negative Attitude</span><span class="event-pts n">-15</span></div>
+            <div></div>
+            <div class="event-type-item" onclick="selectEvent(this, 0, 'Others (custom)')"><span class="event-name">Others (custom)</span><span class="event-pts n" style="color:#777">±?</span></div>
+          </div>
+        </div>
+
+        <div id="custom-pts-row" class="form-group hidden">
+          <label class="form-label">Custom Points</label>
+          <input type="number" class="form-input" placeholder="e.g. -8 or +12" style="max-width:160px">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Notes (optional)</label>
+          <textarea class="form-textarea" placeholder="Additional context..."></textarea>
+        </div>
+
+        <div class="points-preview">
+          <div class="pts-big neg" id="preview-pts">-5</div>
+          <div>
+            <div style="font-size:0.82rem;font-weight:600" id="preview-type">Late to Shift</div>
+            <div class="pts-label">points will be added to chatter's weekly total</div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-primary">Submit Event</button>
+        </div>
+      </div>
+
+      <!-- Recent Events Log -->
+      <div>
+        <div style="font-size:0.82rem;font-weight:600;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between">
+          Recent Events
+          <span class="text-dim text-sm">This week</span>
+        </div>
+        <div class="recent-events">
+          <div class="event-row">
+            <div>
+              <div class="event-row-name">JOHN ARSEL MUHI</div>
+              <div class="event-row-type">Late to Shift</div>
+              <div class="event-row-date">Feb 25 · by Huckle</div>
+            </div>
+            <div class="event-row-pts neg">-5</div>
+          </div>
+          <div class="event-row">
+            <div>
+              <div class="event-row-name">JOHN ARSEL MUHI</div>
+              <div class="event-row-type">AFK over 5 minutes</div>
+              <div class="event-row-date">Feb 25 · by Huckle</div>
+            </div>
+            <div class="event-row-pts neg">-10</div>
+          </div>
+          <div class="event-row">
+            <div>
+              <div class="event-row-name">Leny Rose L. Noma</div>
+              <div class="event-row-type">Late to Shift</div>
+              <div class="event-row-date">Feb 25 · by Danilyn</div>
+            </div>
+            <div class="event-row-pts neg">-5</div>
+          </div>
+          <div class="event-row">
+            <div>
+              <div class="event-row-name">Fiona Ajiambo</div>
+              <div class="event-row-type">No Show</div>
+              <div class="event-row-date">Feb 24 · by Ezekiel</div>
+            </div>
+            <div class="event-row-pts neg">-20</div>
+          </div>
+          <div class="event-row">
+            <div>
+              <div class="event-row-name">Don Mc Rey Parone</div>
+              <div class="event-row-type">Covering = 4 hours</div>
+              <div class="event-row-date">Feb 24 · by Huckle</div>
+            </div>
+            <div class="event-row-pts pos">+10</div>
+          </div>
+          <div class="event-row">
+            <div>
+              <div class="event-row-name">Angel Joyce Ranosa</div>
+              <div class="event-row-type">Late to Shift</div>
+              <div class="event-row-date">Feb 24 · by Huckle</div>
+            </div>
+            <div class="event-row-pts neg">-5</div>
+          </div>
+          <div class="event-row">
+            <div>
+              <div class="event-row-name">Kent Dominic Estacio</div>
+              <div class="event-row-type">Covering = 4 hours</div>
+              <div class="event-row-date">Feb 24 · by Danilyn</div>
+            </div>
+            <div class="event-row-pts pos">+10</div>
+          </div>
+          <div class="event-row">
+            <div>
+              <div class="event-row-name">Kimberly Gaile D. Bacani</div>
+              <div class="event-row-type">Covering &lt; 4 hours</div>
+              <div class="event-row-date">Feb 24 · by Ezekiel</div>
+            </div>
+            <div class="event-row-pts pos">+5</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: WEEKLY REPORTS ════════════ -->
+  <div id="tab-weekly" class="tab-panel">
+    <div class="info-box" style="margin-bottom:16px">
+      📋 Submit one weekly report per chatter at the end of the week. Includes reply time average, incidence check, and report compliance.
+    </div>
+    <div class="weekly-grid">
+      <!-- Team Huckle -->
+      <div class="team-section">
+        <div class="team-header">
+          <div class="team-dot" style="background:#f97316;width:9px;height:9px;border-radius:50%"></div>
+          <div class="team-name">Team Huckle</div>
+          <div class="team-count ml-auto">3/8 submitted</div>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Don Mc Rey Parone</div><div class="wc-status"><span class="badge badge-green" style="font-size:0.68rem">✓ Submitted</span></div></div>
+          <button class="wc-btn done">Edit</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Dionefel Mamites</div><div class="wc-status"><span class="badge badge-green" style="font-size:0.68rem">✓ Submitted</span></div></div>
+          <button class="wc-btn done">Edit</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">MARY WAMBUI GITHIGE</div><div class="wc-status"><span class="badge badge-green" style="font-size:0.68rem">✓ Submitted</span></div></div>
+          <button class="wc-btn done">Edit</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Angel Joyce Ranosa</div><div class="wc-status"><span class="badge badge-gray" style="font-size:0.68rem">Pending</span></div></div>
+          <button class="wc-btn" onclick="openWeeklyModal('Angel Joyce Ranosa')">Submit →</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">JOHN ARSEL MUHI</div><div class="wc-status"><span class="badge badge-gray" style="font-size:0.68rem">Pending</span></div></div>
+          <button class="wc-btn" onclick="openWeeklyModal('JOHN ARSEL MUHI')">Submit →</button>
+        </div>
+      </div>
+
+      <!-- Team Danilyn -->
+      <div class="team-section">
+        <div class="team-header">
+          <div class="team-dot" style="background:#3b82f6;width:9px;height:9px;border-radius:50%"></div>
+          <div class="team-name">Team Danilyn</div>
+          <div class="team-count ml-auto">2/9 submitted</div>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Kent Dominic Estacio</div><div class="wc-status"><span class="badge badge-green" style="font-size:0.68rem">✓ Submitted</span></div></div>
+          <button class="wc-btn done">Edit</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Allonah Yvonne D. Tumampos</div><div class="wc-status"><span class="badge badge-green" style="font-size:0.68rem">✓ Submitted</span></div></div>
+          <button class="wc-btn done">Edit</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Princess Diane Manalo</div><div class="wc-status"><span class="badge badge-gray" style="font-size:0.68rem">Pending</span></div></div>
+          <button class="wc-btn" onclick="openWeeklyModal('Princess Diane Manalo')">Submit →</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Trishia Izze Casangyao</div><div class="wc-status"><span class="badge badge-gray" style="font-size:0.68rem">Pending</span></div></div>
+          <button class="wc-btn" onclick="openWeeklyModal('Trishia Izze Casangyao')">Submit →</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Leny Rose L. Noma</div><div class="wc-status"><span class="badge badge-gray" style="font-size:0.68rem">Pending</span></div></div>
+          <button class="wc-btn" onclick="openWeeklyModal('Leny Rose L. Noma')">Submit →</button>
+        </div>
+      </div>
+
+      <!-- Team Ezekiel -->
+      <div class="team-section">
+        <div class="team-header">
+          <div class="team-dot" style="background:#a855f7;width:9px;height:9px;border-radius:50%"></div>
+          <div class="team-name">Team Ezekiel</div>
+          <div class="team-count ml-auto">1/10 submitted</div>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Kimberly Gaile Diaz Bacani</div><div class="wc-status"><span class="badge badge-green" style="font-size:0.68rem">✓ Submitted</span></div></div>
+          <button class="wc-btn done">Edit</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">Fiona Ajiambo</div><div class="wc-status"><span class="badge badge-gray" style="font-size:0.68rem">Pending</span></div></div>
+          <button class="wc-btn" onclick="openWeeklyModal('Fiona Ajiambo')">Submit →</button>
+        </div>
+        <div class="weekly-chatter-row">
+          <div><div class="wc-name">MARY WAMBUI GITHIGE</div><div class="wc-status"><span class="badge badge-gray" style="font-size:0.68rem">Pending</span></div></div>
+          <button class="wc-btn" onclick="openWeeklyModal('MARY WAMBUI GITHIGE')">Submit →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════ TAB: SCORE CONFIG ════════════ -->
+  <div id="tab-config" class="tab-panel">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+
+      <!-- Left: Event Types -->
+      <div>
+        <div class="config-section">
+          <h3>
+            <svg width="14" height="14" fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            Positive Events
+            <span class="badge badge-green" style="margin-left:auto;font-size:0.7rem">5 active</span>
+          </h3>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="config-event-item pos">
+              <span class="config-event-name">Covering = 4 hours</span>
+              <input class="config-pts-input pos-val" value="+10" type="text">
+              <button class="config-del" title="Delete event">✕</button>
+            </div>
+            <div class="config-event-item pos">
+              <span class="config-event-name">Covering &lt; 4 hours</span>
+              <input class="config-pts-input pos-val" value="+5" type="text">
+              <button class="config-del" title="Delete event">✕</button>
+            </div>
+            <div class="config-event-item pos">
+              <span class="config-event-name">Feedback Implemented</span>
+              <input class="config-pts-input pos-val" value="+10" type="text">
+              <button class="config-del" title="Delete event">✕</button>
+            </div>
+            <div class="config-event-item pos">
+              <span class="config-event-name">Manager Call Attendance</span>
+              <input class="config-pts-input pos-val" value="+5" type="text">
+              <button class="config-del" title="Delete event">✕</button>
+            </div>
+          </div>
+          <div class="add-event-row mt-8">
+            <input class="form-input" type="text" placeholder="New event name..." style="flex:1;font-size:0.8rem;padding:7px 10px">
+            <input class="config-pts-input pos-val" type="text" placeholder="+0" style="width:68px">
+            <button class="btn btn-primary btn-sm">Add</button>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <h3>
+            <svg width="14" height="14" fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Negative Events
+            <span class="badge badge-red" style="margin-left:auto;font-size:0.7rem">9 active</span>
+          </h3>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="config-event-item neg">
+              <span class="config-event-name">Late to Shift</span>
+              <input class="config-pts-input neg-val" value="-5" type="text">
+              <button class="config-del" title="Delete event">✕</button>
+            </div>
+            <div class="config-event-item neg">
+              <span class="config-event-name">AFK over 5 minutes</span>
+              <input class="config-pts-input neg-val" value="-10" type="text">
+              <button class="config-del" title="Delete event">✕</button>
+            </div>
+            <div class="config-event-item neg">
+              <span class="config-event-name">No Show</span>
+              <input class="config-pts-input neg-val" value="-20" type="text">
+              <button class="config-del" title="Delete event">✕</button>
+            </div>
+            <div class="config-event-item neg">
+              <span class="config-event-name">No reply Slack</span>
+              <input class="config-pts-input neg-val" value="-5" type="text">
+              <button class="config-del" title="Delete event">✕</button>
+            </div>
+            <div class="config-event-item neg" style="opacity:0.5">
+              <span class="config-event-name" style="text-decoration:line-through">Missing Chatter Report</span>
+              <input class="config-pts-input neg-val" value="-5" type="text" disabled>
+              <button class="config-del" title="Restore" style="color:#22c55e">↺</button>
+            </div>
+            <div class="config-event-item neg">
+              <span class="config-event-name">Not Following Instructions</span>
+              <input class="config-pts-input neg-val" value="-15" type="text">
+              <button class="config-del">✕</button>
+            </div>
+            <div class="config-event-item neg">
+              <span class="config-event-name">Negative Attitude</span>
+              <input class="config-pts-input neg-val" value="-15" type="text">
+              <button class="config-del">✕</button>
+            </div>
+          </div>
+          <div class="add-event-row mt-8">
+            <input class="form-input" type="text" placeholder="New event name..." style="flex:1;font-size:0.8rem;padding:7px 10px">
+            <input class="config-pts-input neg-val" type="text" placeholder="-0" style="width:68px">
+            <button class="btn btn-primary btn-sm">Add</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Weekly Bonus Config + Tiers -->
+      <div>
+        <div class="config-section">
+          <h3>
+            <svg width="14" height="14" fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Reply Time → Points
+          </h3>
+          <div class="reply-time-grid">
+            <div class="rt-row"><span class="rt-range">00:00 – 00:59</span><span style="font-size:0.72rem;color:#777;margin-right:6px">Outstanding</span><input class="rt-pts-input pos-val" value="+20"></div>
+            <div class="rt-row"><span class="rt-range">01:00 – 01:29</span><span style="font-size:0.72rem;color:#777;margin-right:6px">Good</span><input class="rt-pts-input pos-val" value="+10"></div>
+            <div class="rt-row"><span class="rt-range">01:30 – 01:59</span><span style="font-size:0.72rem;color:#777;margin-right:6px">Acceptable</span><input class="rt-pts-input pos-val" value="+5"></div>
+            <div class="rt-row"><span class="rt-range">02:00 – 02:59</span><span style="font-size:0.72rem;color:#777;margin-right:6px">Neutral</span><input class="rt-pts-input" value="0" style="color:#777"></div>
+            <div class="rt-row"><span class="rt-range">03:00 – 03:29</span><span style="font-size:0.72rem;color:#777;margin-right:6px">Slow</span><input class="rt-pts-input neg-val" value="-5"></div>
+            <div class="rt-row"><span class="rt-range">03:30 – 03:59</span><span style="font-size:0.72rem;color:#777;margin-right:6px">Too slow</span><input class="rt-pts-input neg-val" value="-10"></div>
+            <div class="rt-row"><span class="rt-range">04:00+</span><span style="font-size:0.72rem;color:#777;margin-right:6px">Critical</span><input class="rt-pts-input neg-val" value="-20"></div>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <h3>
+            <svg width="14" height="14" fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            Weekly Checkbox Bonuses
+          </h3>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div class="rt-row">
+              <span class="rt-range">No Shift Incidence (zero incidents this week)</span>
+              <input class="rt-pts-input pos-val" value="+10">
+            </div>
+            <div class="rt-row">
+              <span class="rt-range">All Reports Submitted On Time</span>
+              <input class="rt-pts-input pos-val" value="+10">
+            </div>
+            <div class="rt-row">
+              <span class="rt-range">Team Bonus (whole team clean week)</span>
+              <input class="rt-pts-input pos-val" value="+5">
+            </div>
+          </div>
+        </div>
+
+        <div class="config-section">
+          <h3>
+            <svg width="14" height="14" fill="none" stroke="#1d9bf0" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+            Bonus Tiers (Weekly Payout)
+          </h3>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div class="rt-row" style="border-left:3px solid #22c55e">
+              <span class="rt-range">150+ points</span>
+              <input class="rt-pts-input pos-val" value="$20" style="width:60px;color:#22c55e">
+            </div>
+            <div class="rt-row" style="border-left:3px solid #f59e0b">
+              <span class="rt-range">135 – 149 points</span>
+              <input class="rt-pts-input" value="$10" style="width:60px;color:#f59e0b">
+            </div>
+            <div class="rt-row" style="border-left:3px solid #6ee7b7">
+              <span class="rt-range">120 – 134 points</span>
+              <input class="rt-pts-input" value="$5" style="width:60px;color:#6ee7b7">
+            </div>
+            <div class="rt-row" style="border-left:3px solid #555">
+              <span class="rt-range">Below 120 points</span>
+              <input class="rt-pts-input" value="$0" style="width:60px;color:#777">
+            </div>
+            <div class="rt-row" style="border-left:3px solid #ef4444">
+              <span class="rt-range">Warning threshold (below)</span>
+              <input class="rt-pts-input neg-val" value="100" style="width:60px">
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:4px;justify-content:flex-end">
+          <button class="btn btn-ghost">Discard changes</button>
+          <button class="btn btn-primary">Save Config</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /content -->
+</div><!-- /main -->
+
+<!-- ════════ DRAWER: Chatter History ════════ -->
+<div id="drawer-overlay" class="overlay hidden" onclick="closeDrawer(event)">
+  <div class="drawer" onclick="event.stopPropagation()">
+    <div class="drawer-header">
+      <div>
+        <div class="drawer-title" id="drawer-name">Don Mc Rey Parone</div>
+        <div style="font-size:0.78rem;color:#777;margin-top:2px">Team Huckle · Week 9</div>
+      </div>
+      <button class="drawer-close" onclick="closeDrawerBtn()">✕</button>
+    </div>
+
+    <div class="score-big">
+      <div class="score-num" style="color:#22c55e" id="drawer-score">+162</div>
+      <div class="score-label">Total points this week</div>
+      <div style="margin-top:12px"><span class="badge badge-green" style="font-size:0.8rem">$20 Bonus</span></div>
+      <div class="progress-bar" style="margin-top:14px;height:5px">
+        <div class="progress-fill" style="width:100%;background:linear-gradient(90deg,#22c55e,#1d9bf0)"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:0.7rem;color:#555;margin-top:4px">
+        <span>0</span><span>120 ($5)</span><span>135 ($10)</span><span>150 ($20)</span>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size:0.8rem;font-weight:600;margin-bottom:8px;color:#888;text-transform:uppercase;letter-spacing:0.06em">Event History</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div class="event-history-item">
+          <div class="ehi-type" style="flex:1">Covering = 4 hours</div>
+          <div class="ehi-date">Feb 25</div>
+          <div class="ehi-pts pos">+10</div>
+        </div>
+        <div class="event-history-item">
+          <div class="ehi-type" style="flex:1">Covering = 4 hours</div>
+          <div class="ehi-date">Feb 24</div>
+          <div class="ehi-pts pos">+10</div>
+        </div>
+        <div class="event-history-item">
+          <div class="ehi-type" style="flex:1">Covering = 4 hours</div>
+          <div class="ehi-date">Feb 23</div>
+          <div class="ehi-pts pos">+10</div>
+        </div>
+        <div class="event-history-item">
+          <div class="ehi-type" style="flex:1">Covering = 4 hours</div>
+          <div class="ehi-date">Feb 22</div>
+          <div class="ehi-pts pos">+10</div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size:0.8rem;font-weight:600;margin-bottom:8px;color:#888;text-transform:uppercase;letter-spacing:0.06em">Weekly Report</div>
+      <div class="form-card" style="gap:8px;display:flex;flex-direction:column;padding:14px">
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem">
+          <span style="color:#777">Reply Time avg</span>
+          <span class="badge badge-green">00:00–00:59 (+20)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem">
+          <span style="color:#777">No Shift Incidence</span>
+          <span class="badge badge-green">✓ Yes (+10)</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:0.8rem">
+          <span style="color:#777">All Reports Sent</span>
+          <span class="badge badge-green">✓ Yes (+10)</span>
+        </div>
+        <div class="divider"></div>
+        <div style="display:flex;justify-content:space-between;font-size:0.85rem;font-weight:600">
+          <span>Weekly Bonus Points</span>
+          <span style="color:#22c55e">+40</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div style="font-size:0.8rem;font-weight:600;margin-bottom:8px;color:#888;text-transform:uppercase;letter-spacing:0.06em">Quick Actions</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm w-full">+ Add Event</button>
+        <button class="btn btn-ghost btn-sm w-full">Edit Weekly Report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MODAL: Weekly Report Form ════════ -->
+<div id="weekly-modal-overlay" class="overlay hidden" style="align-items:center;justify-content:center;" onclick="closeWeeklyModal(event)">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;width:460px;padding:24px;animation:slideIn 0.2s ease" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+      <div>
+        <div style="font-size:1rem;font-weight:700" id="weekly-modal-name">Angel Joyce Ranosa</div>
+        <div style="font-size:0.78rem;color:#777;margin-top:2px">Weekly Report · Week 9 · Feb 24 – Mar 2</div>
+      </div>
+      <button class="drawer-close" onclick="closeWeeklyModalBtn()">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Average Reply Time This Week</label>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border:1px solid var(--border2);border-radius:6px;cursor:pointer;font-size:0.82rem">
+          <input type="radio" name="rt" style="accent-color:#1d9bf0"> <span style="font-family:monospace">00:00–00:59</span> <span class="ml-auto" style="color:#22c55e;font-weight:700">+20</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border:1px solid var(--border2);border-radius:6px;cursor:pointer;font-size:0.82rem">
+          <input type="radio" name="rt" style="accent-color:#1d9bf0"> <span style="font-family:monospace">01:00–01:29</span> <span class="ml-auto" style="color:#22c55e;font-weight:700">+10</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(29,155,240,0.08);border:1px solid rgba(29,155,240,0.3);border-radius:6px;cursor:pointer;font-size:0.82rem">
+          <input type="radio" name="rt" checked style="accent-color:#1d9bf0"> <span style="font-family:monospace">01:30–01:59</span> <span class="ml-auto" style="color:#22c55e;font-weight:700">+5</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border:1px solid var(--border2);border-radius:6px;cursor:pointer;font-size:0.82rem">
+          <input type="radio" name="rt" style="accent-color:#1d9bf0"> <span style="font-family:monospace">02:00–02:59</span> <span class="ml-auto" style="color:#777;font-weight:700">0</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border:1px solid var(--border2);border-radius:6px;cursor:pointer;font-size:0.82rem">
+          <input type="radio" name="rt" style="accent-color:#1d9bf0"> <span style="font-family:monospace">03:00–03:29</span> <span class="ml-auto" style="color:#ef4444;font-weight:700">-5</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border:1px solid var(--border2);border-radius:6px;cursor:pointer;font-size:0.82rem">
+          <input type="radio" name="rt" style="accent-color:#1d9bf0"> <span style="font-family:monospace">03:30–03:59</span> <span class="ml-auto" style="color:#ef4444;font-weight:700">-10</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--card);border:1px solid var(--border2);border-radius:6px;cursor:pointer;font-size:0.82rem">
+          <input type="radio" name="rt" style="accent-color:#1d9bf0"> <span style="font-family:monospace">04:00+</span> <span class="ml-auto" style="color:#ef4444;font-weight:700">-20</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="form-group" style="margin-top:16px">
+      <label class="form-label">Weekly Bonuses</label>
+      <div class="checkbox-group">
+        <label class="checkbox-item">
+          <input type="checkbox"> No incidents this week (no late, no AFK, no no-show) <span class="ml-auto" style="color:#22c55e;font-weight:700;font-size:0.8rem">+10</span>
+        </label>
+        <label class="checkbox-item">
+          <input type="checkbox" checked> All shift reports submitted on time <span class="ml-auto" style="color:#22c55e;font-weight:700;font-size:0.8rem">+10</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="points-preview" style="margin-top:14px">
+      <div class="pts-big pos" style="font-size:1.8rem">+20</div>
+      <div><div style="font-size:0.82rem;font-weight:600">Weekly report points</div><div class="pts-label">Reply Time (+5) + All Reports (+10) + No Incidence (0)</div></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:18px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeWeeklyModalBtn()">Cancel</button>
+      <button class="btn btn-primary">Submit Weekly Report</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ MY DASHBOARD PREVIEW NOTE ════════ -->
+<div style="position:fixed;bottom:20px;right:20px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;max-width:300px;font-size:0.78rem;color:var(--dim);z-index:50">
+  <div style="font-size:0.8rem;font-weight:600;color:var(--text);margin-bottom:6px">📌 My Dashboard — Chatter View</div>
+  <div style="background:var(--card);border:1px solid var(--border2);border-radius:var(--radius-sm);padding:12px;margin-bottom:4px">
+    <div style="font-size:0.7rem;color:#777;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.05em">My Score — Week 9</div>
+    <div style="font-size:2rem;font-weight:800;color:#22c55e;line-height:1">+162</div>
+    <div style="font-size:0.72rem;color:#777;margin:4px 0 8px">pts this week</div>
+    <span class="badge badge-green" style="font-size:0.7rem">🎉 $20 Bonus</span>
+    <div style="margin-top:10px;font-size:0.72rem;display:flex;flex-direction:column;gap:3px">
+      <div style="display:flex;justify-content:space-between"><span style="color:#777">Event points</span><span style="color:#22c55e">+40</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:#777">Weekly bonus</span><span style="color:#22c55e">+40</span></div>
+      <div style="display:flex;justify-content:space-between"><span style="color:#777">Base</span><span>100</span></div>
+    </div>
+  </div>
+  <div style="color:#555;font-size:0.72rem">This card appears in the chatter's own dashboard</div>
+</div>
+
+<script>
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  function showPanel(name) {
+    const tabs = document.querySelectorAll('.tab');
+    const panels = document.querySelectorAll('.tab-panel');
+    tabs.forEach(t => t.classList.remove('active'));
+    panels.forEach(p => p.classList.remove('active'));
+    const tabIndex = { log: 1, weekly: 2, config: 3 }[name] || 0;
+    tabs[tabIndex].classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  function selectEvent(el, pts, name) {
+    document.querySelectorAll('.event-type-item').forEach(e => e.classList.remove('selected'));
+    el.classList.add('selected');
+    const previewPts = document.getElementById('preview-pts');
+    const previewType = document.getElementById('preview-type');
+    previewPts.textContent = (pts >= 0 ? '+' : '') + pts;
+    previewPts.className = 'pts-big ' + (pts > 0 ? 'pos' : pts < 0 ? 'neg' : 'neutral');
+    previewType.textContent = name;
+    document.getElementById('custom-pts-row').classList.toggle('hidden', name !== 'Others (custom)');
+  }
+
+  function openDrawer(name, score) {
+    document.getElementById('drawer-name').textContent = name;
+    document.getElementById('drawer-score').textContent = '+' + score;
+    document.getElementById('drawer-overlay').classList.remove('hidden');
+  }
+
+  function closeDrawer(e) {
+    if (e.target === document.getElementById('drawer-overlay')) closeDrawerBtn();
+  }
+  function closeDrawerBtn() {
+    document.getElementById('drawer-overlay').classList.add('hidden');
+  }
+
+  function openWeeklyModal(name) {
+    document.getElementById('weekly-modal-name').textContent = name;
+    document.getElementById('weekly-modal-overlay').classList.remove('hidden');
+  }
+  function closeWeeklyModal(e) {
+    if (e.target === document.getElementById('weekly-modal-overlay')) closeWeeklyModalBtn();
+  }
+  function closeWeeklyModalBtn() {
+    document.getElementById('weekly-modal-overlay').classList.add('hidden');
+  }
+</script>
+</body>
+</html>

@@ -102,15 +102,37 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (data.session?.user) {
-      const { data: profile } = await supabase
+      const userId = data.session.user.id;
+      const userEmail = data.session.user.email ?? '';
+
+      // First attempt — may fail if auth headers haven't propagated to PostgREST yet
+      const { data: p1 } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', data.session.user.id)
+        .eq('id', userId)
         .single();
 
+      let profile = p1 as Profile | null;
+
+      if (!profile) {
+        // Force session refresh so the client uses the new JWT for queries
+        await supabase.auth.setSession({
+          access_token: data.session.access_token,
+          refresh_token: data.session.refresh_token,
+        });
+        await new Promise(r => setTimeout(r, 200));
+
+        const { data: p2 } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        profile = p2 as Profile | null;
+      }
+
       set({
-        user: { id: data.session.user.id, email: data.session.user.email ?? '' },
-        profile: profile as Profile | null,
+        user: { id: userId, email: userEmail },
+        profile,
         loading: false,
       });
     } else {

@@ -1,8 +1,9 @@
 import { useState, Suspense, useRef, useEffect } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Menu, LogOut, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { ROLE_LABELS } from '../../lib/roles';
+import { ensureSession } from '../../lib/supabase';
 import Sidebar from './Sidebar';
 import NotificationBell from '../NotificationBell';
 
@@ -23,6 +24,7 @@ export default function Shell() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { profile, signOut } = useAuthStore();
+  const location = useLocation();
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -32,6 +34,18 @@ export default function Shell() {
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    ensureSession();
+  }, [location.pathname]);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') ensureSession();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   const handleSignOut = async () => {

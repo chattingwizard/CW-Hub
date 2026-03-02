@@ -9,13 +9,15 @@ import { cn, formatCurrency, STATUS_COLORS } from '../lib/utils';
 import { useTrafficData } from '../hooks/useTrafficData';
 import ModelAvatar from '../components/ModelAvatar';
 import { PageTypeBadge } from '../components/TrafficBadge';
-import type { Model, Chatter, ModelChatterAssignment } from '../types';
+import type { Model, Chatter, AssignmentGroupModel, AssignmentGroupChatter, AssignmentGroup } from '../types';
 
 export default function ModelInfo() {
   const { profile } = useAuthStore();
   const [models, setModels] = useState<Model[]>([]);
   const [chatters, setChatters] = useState<Chatter[]>([]);
-  const [assignments, setAssignments] = useState<ModelChatterAssignment[]>([]);
+  const [groupModels, setGroupModels] = useState<AssignmentGroupModel[]>([]);
+  const [groupChatters, setGroupChatters] = useState<AssignmentGroupChatter[]>([]);
+  const [groups, setGroups] = useState<AssignmentGroup[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('Live');
@@ -24,14 +26,18 @@ export default function ModelInfo() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [modelsRes, chattersRes, assignRes] = await Promise.all([
+    const [modelsRes, chattersRes, gmRes, gcRes, groupsRes] = await Promise.all([
       supabase.from('models').select('*').order('name'),
       supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
-      supabase.from('model_chatter_assignments').select('*').eq('active', true),
+      supabase.from('assignment_group_models').select('*'),
+      supabase.from('assignment_group_chatters').select('*'),
+      supabase.from('assignment_groups').select('*').eq('active', true),
     ]);
     setModels((modelsRes.data as Model[]) ?? []);
     setChatters((chattersRes.data as Chatter[]) ?? []);
-    setAssignments((assignRes.data as ModelChatterAssignment[]) ?? []);
+    setGroupModels((gmRes.data as AssignmentGroupModel[]) ?? []);
+    setGroupChatters((gcRes.data as AssignmentGroupChatter[]) ?? []);
+    setGroups((groupsRes.data as AssignmentGroup[]) ?? []);
     setLoading(false);
   }, []);
 
@@ -57,8 +63,18 @@ export default function ModelInfo() {
   }, [models, statusFilter, search]);
 
   const getAssignedChatters = (modelId: string) => {
-    const ids = assignments.filter(a => a.model_id === modelId).map(a => a.chatter_id);
-    return chatters.filter(c => ids.includes(c.id));
+    const gm = groupModels.find(g => g.model_id === modelId);
+    if (!gm) return [];
+    const chatterIds = groupChatters
+      .filter(gc => gc.group_id === gm.group_id)
+      .map(gc => gc.chatter_id);
+    return chatters.filter(c => chatterIds.includes(c.id));
+  };
+
+  const getGroupForModel = (modelId: string) => {
+    const gm = groupModels.find(g => g.model_id === modelId);
+    if (!gm) return null;
+    return groups.find(g => g.id === gm.group_id) ?? null;
   };
 
   return (
@@ -139,7 +155,10 @@ export default function ModelInfo() {
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
               {filtered.map((model) => {
                 const traffic = getModelTraffic(model.id);
-                const chatterCount = assignments.filter(a => a.model_id === model.id).length;
+                const assignedGroup = getGroupForModel(model.id);
+                const chatterCount = assignedGroup
+                  ? groupChatters.filter(gc => gc.group_id === assignedGroup.id).length
+                  : 0;
                 const isSelected = selectedModel?.id === model.id;
 
                 return (
@@ -214,6 +233,7 @@ export default function ModelInfo() {
               model={selectedModel}
               traffic={getModelTraffic(selectedModel.id)}
               chatters={getAssignedChatters(selectedModel.id)}
+              groupName={getGroupForModel(selectedModel.id)?.name ?? null}
               onClose={() => setSelectedModel(null)}
             />
           </div>
@@ -229,6 +249,7 @@ export default function ModelInfo() {
               model={selectedModel}
               traffic={getModelTraffic(selectedModel.id)}
               chatters={getAssignedChatters(selectedModel.id)}
+              groupName={getGroupForModel(selectedModel.id)?.name ?? null}
               onClose={() => setSelectedModel(null)}
             />
           </div>
@@ -238,10 +259,11 @@ export default function ModelInfo() {
   );
 }
 
-function ModelDetailPanel({ model, traffic, chatters, onClose }: {
+function ModelDetailPanel({ model, traffic, chatters, groupName, onClose }: {
   model: Model;
   traffic: ReturnType<ReturnType<typeof useTrafficData>['getModelTraffic']>;
   chatters: Chatter[];
+  groupName: string | null;
   onClose: () => void;
 }) {
   return (
@@ -297,6 +319,12 @@ function ModelDetailPanel({ model, traffic, chatters, onClose }: {
 
       {/* Assigned Chatters */}
       <div className="p-5 border-b border-border">
+        {groupName && (
+          <div className="mb-3 flex items-center gap-1.5">
+            <span className="text-[10px] text-text-muted uppercase tracking-wider">Group:</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-cw/15 text-cw font-medium">{groupName}</span>
+          </div>
+        )}
         <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-3">
           Assigned Chatters ({chatters.length})
         </h3>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
-import type { ScoreConfig as ScoreConfigType, ScoreEventType } from '../../types';
+import { DEFAULT_KPI_RULES } from '../../lib/scoreUtils';
+import type { ScoreConfig as ScoreConfigType, ScoreEventType, KPIRules } from '../../types';
 import { Save, Plus, Trash2, RotateCcw } from 'lucide-react';
 
 interface Props {
@@ -10,15 +11,6 @@ interface Props {
   onSave: () => void;
 }
 
-const REPLY_TIME_LABELS = [
-  { key: '00:00-00:59', label: '< 1 min' },
-  { key: '01:00-01:29', label: '1:00 – 1:29' },
-  { key: '01:30-01:59', label: '1:30 – 1:59' },
-  { key: '02:00-02:59', label: '2:00 – 2:59' },
-  { key: '03:00-03:29', label: '3:00 – 3:29' },
-  { key: '03:30-03:59', label: '3:30 – 3:59' },
-  { key: '04:00+', label: '4:00+' },
-];
 
 export default function ScoreConfigPanel({ config, eventTypes, onSave }: Props) {
   const { profile } = useAuthStore();
@@ -36,6 +28,9 @@ export default function ScoreConfigPanel({ config, eventTypes, onSave }: Props) 
   const [tier20Amount, setTier20Amount] = useState(config.tier_20_amount);
   const [tier10Amount, setTier10Amount] = useState(config.tier_10_amount);
   const [tier5Amount, setTier5Amount] = useState(config.tier_5_amount);
+  const [silverThreshold, setSilverThreshold] = useState(config.silver_threshold ?? 110);
+  const [silverAmount, setSilverAmount] = useState(config.silver_amount ?? 5);
+  const [kpiRules, setKpiRules] = useState<KPIRules>(config.kpi_rules ?? DEFAULT_KPI_RULES);
 
   useEffect(() => {
     setLocalTypes(eventTypes.map(t => ({ ...t })));
@@ -50,6 +45,9 @@ export default function ScoreConfigPanel({ config, eventTypes, onSave }: Props) 
     setTier20Amount(config.tier_20_amount);
     setTier10Amount(config.tier_10_amount);
     setTier5Amount(config.tier_5_amount);
+    setSilverThreshold(config.silver_threshold ?? 110);
+    setSilverAmount(config.silver_amount ?? 5);
+    setKpiRules(config.kpi_rules ?? DEFAULT_KPI_RULES);
   }, [config, eventTypes]);
 
   function updateType(id: string, field: string, value: string | number | boolean) {
@@ -80,6 +78,7 @@ export default function ScoreConfigPanel({ config, eventTypes, onSave }: Props) 
     if (!profile) return;
     setSaving(true);
     try {
+      const now = new Date().toISOString();
       await supabase.from('score_config').update({
         base_score: baseScore,
         reply_time_points: replyPts,
@@ -92,8 +91,11 @@ export default function ScoreConfigPanel({ config, eventTypes, onSave }: Props) 
         tier_20_amount: tier20Amount,
         tier_10_amount: tier10Amount,
         tier_5_amount: tier5Amount,
+        silver_threshold: silverThreshold,
+        silver_amount: silverAmount,
+        kpi_rules: kpiRules,
         updated_by: profile.id,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       }).eq('id', 1);
 
       for (const t of localTypes) {
@@ -210,24 +212,6 @@ export default function ScoreConfigPanel({ config, eventTypes, onSave }: Props) 
             </div>
           </div>
 
-          {/* Reply Time Points */}
-          <div className="bg-surface-1 rounded-xl border border-border p-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3">Reply Time Points</h4>
-            <div className="space-y-1.5">
-              {REPLY_TIME_LABELS.map(({ key, label }) => (
-                <div key={key} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-2">
-                  <span className="text-xs text-text-secondary flex-1">{label}</span>
-                  <input
-                    type="number"
-                    value={replyPts[key] ?? 0}
-                    onChange={e => setReplyPts(prev => ({ ...prev, [key]: parseInt(e.target.value) || 0 }))}
-                    className="w-16 bg-surface-3 border border-border rounded px-2 py-1 text-xs text-center text-text-primary"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
           {/* Weekly Bonuses */}
           <div className="bg-surface-1 rounded-xl border border-border p-4">
             <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3">Weekly Checkbox Bonuses</h4>
@@ -255,12 +239,12 @@ export default function ScoreConfigPanel({ config, eventTypes, onSave }: Props) 
 
           {/* Bonus Tiers */}
           <div className="bg-surface-1 rounded-xl border border-border p-4">
-            <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3">Bonus Tiers</h4>
+            <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-3">Tier System</h4>
             <div className="space-y-2">
               {[
-                { label: '$20 Bonus', threshold: tier20Threshold, setThreshold: setTier20Threshold, amount: tier20Amount, setAmount: setTier20Amount, color: 'text-emerald-400' },
-                { label: '$10 Bonus', threshold: tier10Threshold, setThreshold: setTier10Threshold, amount: tier10Amount, setAmount: setTier10Amount, color: 'text-blue-400' },
-                { label: '$5 Bonus', threshold: tier5Threshold, setThreshold: setTier5Threshold, amount: tier5Amount, setAmount: setTier5Amount, color: 'text-cyan-400' },
+                { label: 'Diamond', threshold: tier20Threshold, setThreshold: setTier20Threshold, amount: tier20Amount, setAmount: setTier20Amount, color: 'text-cyan-300' },
+                { label: 'Platinum', threshold: tier10Threshold, setThreshold: setTier10Threshold, amount: tier10Amount, setAmount: setTier10Amount, color: 'text-violet-400' },
+                { label: 'Gold', threshold: tier5Threshold, setThreshold: setTier5Threshold, amount: tier5Amount, setAmount: setTier5Amount, color: 'text-amber-400' },
               ].map(tier => (
                 <div key={tier.label} className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-2">
                   <span className={`text-xs font-medium w-20 ${tier.color}`}>{tier.label}</span>
@@ -282,7 +266,32 @@ export default function ScoreConfigPanel({ config, eventTypes, onSave }: Props) 
                 </div>
               ))}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-2">
-                <span className="text-xs font-medium w-20 text-red-400">Warning</span>
+                <span className="text-xs font-medium w-20 text-slate-300">Silver</span>
+                <span className="text-[10px] text-text-muted">≥</span>
+                <input
+                  type="number"
+                  value={silverThreshold}
+                  onChange={e => setSilverThreshold(parseInt(e.target.value) || 0)}
+                  className="w-16 bg-surface-3 border border-border rounded px-2 py-1 text-xs text-center text-text-primary"
+                />
+                <span className="text-[10px] text-text-muted">pts</span>
+                <span className="text-[10px] text-text-muted ml-auto">$</span>
+                <input
+                  type="number"
+                  value={silverAmount}
+                  onChange={e => setSilverAmount(parseFloat(e.target.value) || 0)}
+                  className="w-14 bg-surface-3 border border-border rounded px-2 py-1 text-xs text-center text-text-primary"
+                />
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-2">
+                <span className="text-xs font-medium w-20 text-zinc-400">Neutral</span>
+                <span className="text-[10px] text-text-muted"></span>
+                <span className="w-16 text-xs text-center text-text-muted">{warningThreshold}–{silverThreshold - 1}</span>
+                <span className="text-[10px] text-text-muted">pts</span>
+                <span className="text-[10px] text-text-muted ml-auto">base salary</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/5 border border-red-500/10">
+                <span className="text-xs font-medium w-20 text-red-400">Bronze</span>
                 <span className="text-[10px] text-text-muted">&lt;</span>
                 <input
                   type="number"
@@ -291,9 +300,81 @@ export default function ScoreConfigPanel({ config, eventTypes, onSave }: Props) 
                   className="w-16 bg-surface-3 border border-border rounded px-2 py-1 text-xs text-center text-text-primary"
                 />
                 <span className="text-[10px] text-text-muted">pts</span>
+                <span className="text-[10px] text-red-400 ml-auto">low performance</span>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* KPI Scoring Rules */}
+      <div className="bg-surface-1 rounded-xl border border-border p-4">
+        <h4 className="text-xs font-bold uppercase tracking-wider text-text-muted mb-4">End of Week — KPI Scoring Rules</h4>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {([
+            { key: 'golden_ratio' as const, label: 'Golden Ratio', unit: '%', meta: 4, invert: false },
+            { key: 'fan_cvr' as const, label: 'Fan CVR', unit: '%', meta: 8, invert: false },
+            { key: 'unlock_rate' as const, label: 'Unlock Rate', unit: '%', meta: 40, invert: false },
+            { key: 'reply_time' as const, label: 'Reply Time', unit: 's', meta: 120, invert: true },
+          ]).map(metric => {
+            const rule = kpiRules[metric.key];
+            const updateRule = (field: string, tier: string, value: number) => {
+              setKpiRules(prev => ({
+                ...prev,
+                [metric.key]: {
+                  ...prev[metric.key],
+                  ...(tier === 'below' ? { below_pts: value } : {
+                    [tier]: { ...prev[metric.key][tier as 't1' | 't2' | 't3'], [field]: value },
+                  }),
+                },
+              }));
+            };
+            const op = metric.invert ? '≤' : '≥';
+            const fmtTh = (v: number) => metric.unit === 's' ? `${Math.floor(v / 60)}m ${v % 60}s` : `${v}${metric.unit}`;
+            return (
+              <div key={metric.key} className="bg-surface-2 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold text-text-primary">{metric.label}</span>
+                  <span className="text-[9px] text-text-muted">Meta: {fmtTh(metric.meta)}</span>
+                </div>
+                {[
+                  { tier: 't1' as const, tierData: rule.t1 },
+                  { tier: 't2' as const, tierData: rule.t2 },
+                  { tier: 't3' as const, tierData: rule.t3 },
+                ].map(({ tier, tierData }) => (
+                  <div key={tier} className="flex items-center gap-1.5">
+                    <span className="text-[10px] text-text-muted w-4">{op}</span>
+                    <input
+                      type="number"
+                      value={tierData.threshold}
+                      onChange={e => updateRule('threshold', tier, parseFloat(e.target.value) || 0)}
+                      className="w-14 bg-surface-3 border border-border rounded px-1.5 py-0.5 text-[11px] text-center text-text-primary"
+                    />
+                    <span className="text-[9px] text-text-muted w-4">{metric.unit}</span>
+                    <span className="text-[10px] text-text-muted ml-auto">→</span>
+                    <input
+                      type="number"
+                      value={tierData.pts}
+                      onChange={e => updateRule('pts', tier, parseInt(e.target.value) || 0)}
+                      className="w-12 bg-surface-3 border border-border rounded px-1.5 py-0.5 text-[11px] text-center text-text-primary"
+                    />
+                    <span className="text-[9px] text-text-muted">pts</span>
+                  </div>
+                ))}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-red-400 flex-1">Below all</span>
+                  <span className="text-[10px] text-text-muted">→</span>
+                  <input
+                    type="number"
+                    value={rule.below_pts}
+                    onChange={e => updateRule('', 'below', parseInt(e.target.value) || 0)}
+                    className="w-12 bg-surface-3 border border-border rounded px-1.5 py-0.5 text-[11px] text-center text-red-400"
+                  />
+                  <span className="text-[9px] text-text-muted">pts</span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

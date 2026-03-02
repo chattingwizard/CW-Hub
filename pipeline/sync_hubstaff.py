@@ -11,8 +11,12 @@ CW has multiple Hubstaff organizations:
   - Chatting Wizard ENG (643051)
   - Only Elite Angels (529677) — legacy, skip
 All must be synced.
+
+Matching strategy (priority order):
+  1. chatters.hubstaff_user_id (reliable, set by map_hubstaff_users.py)
+  2. Normalized full_name fallback (for unmapped chatters, with warning)
 """
-import os, requests, json
+import os, sys, unicodedata, requests
 from datetime import datetime, timezone, timedelta
 
 HUBSTAFF_REFRESH_TOKEN = os.environ["HUBSTAFF_TOKEN"]
@@ -28,6 +32,20 @@ HEADERS_SB = {
 }
 
 SKIP_ORGS = {529677}  # Only Elite Angels — legacy org, not CW
+
+DEFAULT_LOOKBACK_DAYS = 14
+MAX_BACKFILL_DAYS = 90
+
+
+def strip_accents(s: str) -> str:
+    return "".join(
+        c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn"
+    )
+
+
+def normalize(name: str) -> str:
+    return strip_accents(name).lower().strip().replace("  ", " ")
+
 
 def get_stored_refresh_token():
     r = requests.get(
@@ -103,8 +121,21 @@ def get_user_names(org_id, access_token):
             name_map[uid] = f"User {uid}"
     return name_map
 
+def get_lookback_days():
+    """Parse --backfill N from CLI args, otherwise use default."""
+    args = sys.argv[1:]
+    for i, arg in enumerate(args):
+        if arg == "--backfill" and i + 1 < len(args):
+            try:
+                days = int(args[i + 1])
+                return min(days, MAX_BACKFILL_DAYS)
+            except ValueError:
+                pass
+    return DEFAULT_LOOKBACK_DAYS
+
 def sync_hours():
-    print("Syncing Hubstaff hours...")
+    lookback_days = get_lookback_days()
+    print(f"Syncing Hubstaff hours (last {lookback_days} days)...")
 
     refresh_token = get_stored_refresh_token() or HUBSTAFF_REFRESH_TOKEN
     access_token, new_refresh = exchange_for_access_token(refresh_token)
@@ -129,23 +160,33 @@ def sync_hours():
     active_orgs = [o for o in orgs if o["id"] not in SKIP_ORGS]
     print(f"  Organizations: {len(active_orgs)} active (skipping {len(SKIP_ORGS)} legacy)")
 
-    # Load chatters from Supabase for name matching
+    # Load chatters from Supabase — prefer hubstaff_user_id, fall back to name
     r = requests.get(
-        f"{SUPABASE_URL}/rest/v1/chatters?select=id,full_name&status=eq.Active",
+        f"{SUPABASE_URL}/rest/v1/chatters?select=id,full_name,hubstaff_user_id&status=eq.Active",
         headers=HEADERS_SB,
     )
     chatters = r.json() if r.status_code == 200 else []
-    chatter_name_map = {}
+
+    chatter_by_hsid = {}   # hubstaff_user_id (int) → chatter UUID
+    chatter_by_name = {}   # normalized name → chatter UUID
+    mapped_count = 0
+
     for c in chatters:
-        key = c["full_name"].lower().strip().replace("  ", " ")
-        chatter_name_map[key] = c["id"]
-    print(f"  Supabase chatters loaded: {len(chatter_name_map)}")
+        if c.get("hubstaff_user_id"):
+            chatter_by_hsid[c["hubstaff_user_id"]] = c["id"]
+            mapped_count += 1
+        key = normalize(c["full_name"])
+        chatter_by_name[key] = c["id"]
+
+    print(f"  Supabase chatters loaded: {len(chatters)} ({mapped_count} with hubstaff_user_id)")
 
     end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    start_date = (datetime.now(timezone.utc) - timedelta(days=3)).strftime("%Y-%m-%d")
+    start_date = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
     all_rows = []
     seen_keys = set()
-    unmatched = set()
+    unmatched = {}         # name → hubstaff user_id (for logging)
+    matched_by_id = 0
+    matched_by_name = 0
 
     for org in active_orgs:
         org_id = org["id"]
@@ -194,12 +235,21 @@ def sync_hours():
         for act in activities:
             user_id = act.get("user_id")
             user_name = member_names.get(user_id, "")
-            chatter_key = user_name.lower().strip().replace("  ", " ")
-            chatter_id = chatter_name_map.get(chatter_key)
+
+            # Strategy 1: match by hubstaff_user_id
+            chatter_id = chatter_by_hsid.get(user_id)
+            if chatter_id:
+                matched_by_id += 1
+            else:
+                # Strategy 2: fallback to normalized name
+                chatter_key = normalize(user_name)
+                chatter_id = chatter_by_name.get(chatter_key)
+                if chatter_id:
+                    matched_by_name += 1
 
             if not chatter_id:
                 if user_name:
-                    unmatched.add(user_name)
+                    unmatched[user_name] = user_id
                 continue
 
             tracked_seconds = act.get("tracked", 0)
@@ -209,7 +259,6 @@ def sync_hours():
             if date and hours > 0:
                 dedup_key = f"{chatter_id}:{date}"
                 if dedup_key in seen_keys:
-                    # Same chatter in multiple orgs — sum hours
                     for row in all_rows:
                         if row["chatter_id"] == chatter_id and row["date"] == date:
                             row["hours_worked"] = round(row["hours_worked"] + hours, 2)
@@ -224,11 +273,16 @@ def sync_hours():
                     })
 
     print(f"\n  Total rows to sync: {len(all_rows)}")
+    print(f"  Matched by hubstaff_user_id: {matched_by_id}")
+    print(f"  Matched by name (fallback): {matched_by_name}")
     if unmatched:
-        print(f"  Unmatched Hubstaff users ({len(unmatched)}): {', '.join(sorted(unmatched)[:15])}")
+        print(f"  Unmatched Hubstaff users ({len(unmatched)}):")
+        for name, uid in sorted(unmatched.items())[:20]:
+            print(f"    - {name} (hubstaff_user_id={uid})")
+        if len(unmatched) > 20:
+            print(f"    ... and {len(unmatched) - 20} more")
 
     if all_rows:
-        # Batch upsert in chunks of 100
         for i in range(0, len(all_rows), 100):
             chunk = all_rows[i:i+100]
             r = requests.post(
