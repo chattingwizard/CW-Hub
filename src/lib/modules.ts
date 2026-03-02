@@ -143,6 +143,15 @@ export const modules: HubModule[] = [
     section: 'tools',
   },
   {
+    id: 'hubstaff-issues',
+    name: 'Hubstaff Issues',
+    icon: 'Bug',
+    type: 'internal',
+    path: '/hubstaff-issues',
+    roles: ['owner', 'admin', 'chatter'],
+    section: 'tools',
+  },
+  {
     id: 'knowledge-base',
     name: 'Knowledge Base',
     icon: 'BookMarked',
