@@ -361,8 +361,7 @@ export default function Schedules() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Save schedules
-      await supabase.from('schedules').delete().eq('week_start', weekStart);
+      // Save schedules atomically via RPC (delete + insert in one transaction)
       const rows = schedules.map(s => ({
         chatter_id: s.chatter_id,
         week_start: s.week_start,
@@ -370,10 +369,11 @@ export default function Schedules() {
         shift: s.shift,
         created_by: profile?.id,
       }));
-      if (rows.length > 0) {
-        const { error } = await supabase.from('schedules').insert(rows);
-        if (error) throw error;
-      }
+      const { error: schedError } = await supabase.rpc('save_schedules', {
+        p_week_start: weekStart,
+        p_rows: rows,
+      });
+      if (schedError) throw schedError;
 
       // Save overrides
       if (coverageMap.size > 0) {
