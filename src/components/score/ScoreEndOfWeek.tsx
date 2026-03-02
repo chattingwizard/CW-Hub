@@ -217,7 +217,7 @@ export default function ScoreEndOfWeek({ weekKey, chatters, events, eventTypes, 
     } finally {
       setLoading(false);
     }
-  }, [weekKey, chatters, events, eowEventType]);
+  }, [weekKey, chatters, events, eowEventType, scores, config]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
