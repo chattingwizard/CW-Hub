@@ -27,20 +27,43 @@ export function getAccessToken(): string | null {
 
 /**
  * Fetches a user profile with retry + exponential backoff.
- * Handles the PostgREST JWT propagation delay after sign-in without hacks.
+ * Uses direct REST calls to bypass the Supabase JS client's internal auth
+ * lock which deadlocks when called from inside onAuthStateChange callbacks.
  */
 export async function fetchProfileWithRetry(
   userId: string,
   attempts = 3,
 ): Promise<Profile | null> {
   for (let i = 0; i < attempts; i++) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (data) return data as Profile;
-    if (error && error.code !== 'PGRST116') return null;
+    const token = getAccessToken();
+    const headers: Record<string, string> = {
+      'apikey': SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/profiles?id=eq.${encodeURIComponent(userId)}&select=*`,
+        { headers, signal: controller.signal },
+      );
+      clearTimeout(timer);
+
+      if (!res.ok) {
+        if (i < attempts - 1) {
+          await new Promise(r => setTimeout(r, 300 * (i + 1)));
+          continue;
+        }
+        return null;
+      }
+      const rows = (await res.json()) as Profile[];
+      if (rows[0]) return rows[0];
+    } catch {
+      // timeout or network error — retry
+    }
     if (i < attempts - 1) await new Promise(r => setTimeout(r, 300 * (i + 1)));
   }
   return null;
