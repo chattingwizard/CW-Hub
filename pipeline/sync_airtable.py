@@ -52,22 +52,26 @@ def upsert_supabase(table, rows, on_conflict="airtable_id"):
 
 ACTIVE_STATUSES = {"Active"}
 
-def build_team_lookup():
-    """Fetch Teams table and build record_id → team_name mapping."""
-    print("🏷️  Building team lookup...")
-    records = fetch_airtable("tblGTOPvVCQTbEHsW", fields=["Equipo"])
-    lookup = {}
+def build_chatter_team_map():
+    """Fetch Teams table and build chatter_record_id → team_name mapping.
+    The relationship goes Teams.Chatter → linked chatter records (not the other way)."""
+    print("🏷️  Building chatter→team mapping...")
+    records = fetch_airtable("tblGTOPvVCQTbEHsW", fields=["Equipo", "Chatter"])
+    mapping = {}
     for rec in records:
-        equipo = rec.get("fields", {}).get("Equipo", "")
-        if equipo:
-            lookup[rec["id"]] = str(equipo).strip()
-    print(f"  Found {len(lookup)} teams")
-    return lookup
+        f = rec.get("fields", {})
+        equipo = str(f.get("Equipo", "")).strip()
+        if not equipo or equipo == "0":
+            continue
+        for chatter_id in f.get("Chatter", []):
+            mapping[chatter_id] = equipo
+    print(f"  Mapped {len(mapping)} chatters to teams")
+    return mapping
 
 def sync_chatters():
     """Sync Chatter table from Airtable, respecting ⚡Status field."""
     print("📋 Syncing chatters...")
-    team_lookup = build_team_lookup()
+    chatter_team_map = build_chatter_team_map()
     records = fetch_airtable("tblBrbCZyL5ub48zc")
     
     rows = []
@@ -84,12 +88,7 @@ def sync_chatters():
         if status == "Active":
             active_count += 1
         
-        team_ids = f.get("Team", [])
-        if isinstance(team_ids, str):
-            team_ids = [team_ids]
-        team_name = None
-        if isinstance(team_ids, list) and team_ids:
-            team_name = team_lookup.get(team_ids[0])
+        team_name = chatter_team_map.get(rec["id"])
         
         rows.append({
             "airtable_id": rec["id"],
