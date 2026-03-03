@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import type { Document, DocCategory, UserRole } from '../types';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize';
 import {
   Search, Plus, X, Edit3, Save, Trash2, Eye, EyeOff,
   Building2, Users, ClipboardList, GraduationCap, Shield, BookOpen,
@@ -28,6 +29,14 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 const ALL_ROLES: UserRole[] = ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant', 'chatter', 'recruit'];
+
+const sanitizeSchema = {
+  ...defaultSchema,
+  attributes: {
+    ...defaultSchema.attributes,
+    code: [...(defaultSchema.attributes?.['code'] ?? []), 'className'],
+  },
+};
 
 // ── Content pre-processing (Notion plain text → Markdown) ───
 
@@ -94,7 +103,7 @@ const markdownComponents = {
   },
   hr: () => <hr className="border-border my-6" />,
   a: (props: ComponentPropsWithoutRef<'a'>) => (
-    <a className="text-cw hover:text-cw/80 underline underline-offset-2" target="_blank" rel="noopener" {...props} />
+    <a className="text-cw hover:text-cw/80 underline underline-offset-2" target="_blank" rel="noopener noreferrer" {...props} />
   ),
   table: (props: ComponentPropsWithoutRef<'table'>) => (
     <div className="overflow-x-auto my-4 rounded-xl border border-border">
@@ -372,6 +381,7 @@ export default function KnowledgeBase() {
               {doc.content ? (
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[[rehypeSanitize, sanitizeSchema]]}
                   components={markdownComponents}
                 >
                   {normalizeContent(doc.content)}

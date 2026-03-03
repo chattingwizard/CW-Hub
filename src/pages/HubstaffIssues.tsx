@@ -41,6 +41,30 @@ const MONTHS = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ] as const;
 
+const SCREENSHOT_BUCKET = 'hubstaff-screenshots';
+const PUBLIC_URL_PREFIX = /^https?:\/\/[^/]+\/storage\/v1\/object\/public\/hubstaff-screenshots\//;
+
+function extractStoragePath(urlOrPath: string): string {
+  return urlOrPath.replace(PUBLIC_URL_PREFIX, '');
+}
+
+async function resolveSignedUrls(urls: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (!urls.length) return map;
+
+  const results = await Promise.allSettled(
+    urls.map(async (raw) => {
+      const path = extractStoragePath(raw);
+      const { data } = await supabase.storage
+        .from(SCREENSHOT_BUCKET)
+        .createSignedUrl(path, 3600);
+      if (data?.signedUrl) map.set(raw, data.signedUrl);
+    }),
+  );
+  void results;
+  return map;
+}
+
 function daysInMonth(month: number, year: number): number {
   return new Date(year, month, 0).getDate();
 }
@@ -75,6 +99,7 @@ export default function HubstaffIssues() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [resolveNotes, setResolveNotes] = useState('');
   const [resolving, setResolving] = useState(false);
+  const [signedUrlMap, setSignedUrlMap] = useState<Map<string, string>>(new Map());
 
   const loadIssues = useCallback(async () => {
     if (!profile) return;
@@ -111,6 +136,11 @@ export default function HubstaffIssues() {
 
     setIssues(mapped);
     setLoadingIssues(false);
+
+    const allScreenshots = mapped.flatMap(i => i.screenshot_urls);
+    if (allScreenshots.length > 0) {
+      resolveSignedUrls(allScreenshots).then(setSignedUrlMap);
+    }
   }, [profile, isAdmin]);
 
   useEffect(() => {
@@ -137,15 +167,12 @@ export default function HubstaffIssues() {
         const ext = file.name.split('.').pop() ?? 'png';
         const path = `${profile.id}/${Date.now()}_${i}.${ext}`;
         const { error: uploadErr } = await supabase.storage
-          .from('hubstaff-screenshots')
+          .from(SCREENSHOT_BUCKET)
           .upload(path, file, { contentType: file.type });
 
         if (uploadErr) throw new Error(`Screenshot upload failed: ${uploadErr.message}`);
 
-        const { data: urlData } = supabase.storage
-          .from('hubstaff-screenshots')
-          .getPublicUrl(path);
-        uploadedUrls.push(urlData.publicUrl);
+        uploadedUrls.push(path);
       }
 
       const { error } = await supabase.from('hubstaff_issues').insert({
@@ -555,18 +582,21 @@ export default function HubstaffIssues() {
                               Screenshots ({issue.screenshot_urls.length})
                             </span>
                             <div className="flex flex-col gap-1 mt-1">
-                              {issue.screenshot_urls.map((url, idx) => (
-                                <a
-                                  key={idx}
-                                  href={url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-1.5 text-cw text-sm hover:underline"
-                                >
-                                  <ExternalLink size={13} />
-                                  Screenshot {idx + 1}
-                                </a>
-                              ))}
+                              {issue.screenshot_urls.map((raw, idx) => {
+                                const href = signedUrlMap.get(raw) ?? raw;
+                                return (
+                                  <a
+                                    key={idx}
+                                    href={href}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-1.5 text-cw text-sm hover:underline"
+                                  >
+                                    <ExternalLink size={13} />
+                                    Screenshot {idx + 1}
+                                  </a>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
