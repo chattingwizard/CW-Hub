@@ -15,15 +15,16 @@ export default function EmbeddedModule() {
     setLoading(false);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session && iframeRef.current?.contentWindow) {
+      if (session && iframeRef.current?.contentWindow && mod) {
+        const targetOrigin = new URL(mod.path).origin;
         iframeRef.current.contentWindow.postMessage({
           type: 'cw-hub-session',
           access_token: session.access_token,
           refresh_token: session.refresh_token,
-        }, '*');
+        }, targetOrigin);
       }
     } catch { /* iframe may block postMessage on cross-origin */ }
-  }, []);
+  }, [mod]);
 
   if (!mod || mod.type !== 'iframe') {
     return (

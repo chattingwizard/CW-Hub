@@ -313,7 +313,8 @@ export function useTrafficData(): UseTrafficDataReturn {
       teams.sort((a, b) => b.total_workload_pct - a.total_workload_pct);
       setTeamTraffic(teams);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to load traffic data');
+      console.error('Traffic data load failed:', err);
+      setError('Could not load traffic data. Please try again.');
     } finally {
       setLoading(false);
     }
