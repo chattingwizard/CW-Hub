@@ -2,6 +2,7 @@ import { useEffect, lazy, Suspense, Component, type ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { getDefaultPath } from './lib/roles';
+import { startSessionHeartbeat, stopSessionHeartbeat } from './lib/supabase';
 
 import Shell from './components/layout/Shell';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -80,6 +81,15 @@ export default function App() {
     }, 8000);
     return () => clearTimeout(timeout);
   }, [initialize]);
+
+  useEffect(() => {
+    if (profile) {
+      startSessionHeartbeat();
+    } else {
+      stopSessionHeartbeat();
+    }
+    return () => stopSessionHeartbeat();
+  }, [profile]);
 
   if (!initialized) {
     return (
