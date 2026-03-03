@@ -181,8 +181,8 @@ function SubmitTab({ chatters }: { chatters: Chatter[] }) {
         setNotes('');
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to submit report';
-      setSubmitResult({ ok: false, msg: message });
+      console.error('Shift report submit failed:', err);
+      setSubmitResult({ ok: false, msg: 'Could not submit report. Please try again.' });
     } finally {
       setSubmitting(false);
     }
@@ -809,8 +809,8 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
         msg: action === 'accepted' ? `${item.chatter_name}: -5 points applied` : `Alert dismissed`,
       });
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Action failed';
-      setActionResult({ key, ok: false, msg: message });
+      console.error('Alert action failed:', err);
+      setActionResult({ key, ok: false, msg: 'Could not complete action. Please try again.' });
     } finally {
       setProcessing(null);
     }

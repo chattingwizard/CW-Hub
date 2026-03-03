@@ -92,9 +92,8 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : JSON.stringify(err);
       console.error('Error logging event:', err);
-      setError(msg);
+      setError('Could not log event. Please refresh and try again.');
     } finally {
       setSubmitting(false);
     }

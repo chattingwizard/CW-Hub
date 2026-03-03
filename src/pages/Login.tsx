@@ -27,14 +27,23 @@ export default function Login() {
       if (mode === 'login') {
         await signIn(email, password);
       } else {
-        if (password.length < 6) {
-          setError('Password must be at least 6 characters.');
+        if (password.length < 8) {
+          setError('Password must be at least 8 characters.');
           return;
         }
         await signUp(email, password, fullName, inviteCode);
       }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : '';
+      if (msg.includes('Invalid login credentials')) {
+        setError('Incorrect email or password.');
+      } else if (msg.includes('already registered')) {
+        setError('This email is already registered. Try logging in.');
+      } else if (msg.includes('invite')) {
+        setError('Invalid or expired invite code.');
+      } else {
+        setError(mode === 'login' ? 'Could not sign in. Please try again.' : 'Could not create account. Please try again.');
+      }
     }
   };
 

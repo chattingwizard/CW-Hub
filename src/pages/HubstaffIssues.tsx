@@ -170,7 +170,7 @@ export default function HubstaffIssues() {
           .from(SCREENSHOT_BUCKET)
           .upload(path, file, { contentType: file.type });
 
-        if (uploadErr) throw new Error(`Screenshot upload failed: ${uploadErr.message}`);
+        if (uploadErr) { console.error('Screenshot upload failed:', uploadErr); throw new Error('Could not upload screenshot.'); }
 
         uploadedUrls.push(path);
       }

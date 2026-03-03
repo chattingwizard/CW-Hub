@@ -79,7 +79,8 @@ export async function directInsert<T = unknown>(
 
     if (!res.ok) {
       const err = json as { message?: string };
-      return { data: null, error: err.message ?? `HTTP ${res.status}` };
+      console.error('Supabase request failed:', err.message, res.status);
+      return { data: null, error: 'Request failed. Please try again.' };
     }
     return { data: json as T[], error: null };
   } catch (err) {
@@ -87,7 +88,8 @@ export async function directInsert<T = unknown>(
     if (err instanceof DOMException && err.name === 'AbortError') {
       return { data: null, error: 'Request timed out. Please try again.' };
     }
-    return { data: null, error: err instanceof Error ? err.message : 'Unknown error' };
+    console.error('Supabase network error:', err);
+    return { data: null, error: 'Network error. Please check your connection.' };
   }
 }
 

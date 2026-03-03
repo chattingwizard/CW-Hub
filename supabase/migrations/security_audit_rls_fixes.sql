@@ -107,3 +107,46 @@ DROP POLICY IF EXISTS "Public read for hubstaff screenshots" ON storage.objects;
 CREATE POLICY "Authenticated read for hubstaff screenshots"
   ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'hubstaff-screenshots');
+
+
+-- ────────────────────────────────────────────────────────────
+-- 6. profiles — Prevent role self-escalation via direct API
+-- ────────────────────────────────────────────────────────────
+
+CREATE OR REPLACE FUNCTION public.protect_profile_columns()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.role IS DISTINCT FROM OLD.role THEN
+    IF NOT public.is_owner() THEN
+      RAISE EXCEPTION 'Only owner can change roles';
+    END IF;
+  END IF;
+
+  IF NEW.is_active IS DISTINCT FROM OLD.is_active THEN
+    IF NOT public.is_admin() THEN
+      RAISE EXCEPTION 'Only admins can change active status';
+    END IF;
+  END IF;
+
+  IF NEW.airtable_chatter_id IS DISTINCT FROM OLD.airtable_chatter_id THEN
+    IF NOT public.is_admin() THEN
+      RAISE EXCEPTION 'Only admins can change airtable link';
+    END IF;
+  END IF;
+
+  IF NEW.team_name IS DISTINCT FROM OLD.team_name THEN
+    IF NOT public.is_admin() THEN
+      RAISE EXCEPTION 'Only admins can change team assignment';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS protect_profile_columns_trigger ON public.profiles;
+
+CREATE TRIGGER protect_profile_columns_trigger
+  BEFORE UPDATE ON public.profiles
+  FOR EACH ROW
+  EXECUTE FUNCTION public.protect_profile_columns();

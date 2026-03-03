@@ -404,8 +404,8 @@ export default function Schedules() {
       setTimeout(() => setSaveMsg(''), 2000);
       fetchData();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Unknown error';
-      setSaveMsg(`Error: ${msg}`);
+      console.error('Schedule save failed:', err);
+      setSaveMsg('Error: Could not save schedules. Please try again.');
     } finally {
       setSaving(false);
     }
