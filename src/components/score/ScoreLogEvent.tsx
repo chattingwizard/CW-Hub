@@ -19,6 +19,8 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
   const [customPoints, setCustomPoints] = useState(0);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
   const [recentEvents, setRecentEvents] = useState<(ScoreEvent & { chatter?: Chatter; event_type?: ScoreEventType })[]>([]);
   const [loadingRecent, setLoadingRecent] = useState(true);
 
@@ -51,11 +53,13 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
   async function handleSubmit() {
     if (!selectedChatter || !selectedEventType || !profile) return;
     setSubmitting(true);
+    setError(null);
+    setSuccess(false);
     try {
       const points = selectedEventType.category === 'custom' ? customPoints : selectedEventType.points;
       const eventWeek = getWeekKey(new Date(selectedDate));
 
-      const { error } = await supabase.from('score_events').insert({
+      const { error: insertError } = await supabase.from('score_events').insert({
         chatter_id: selectedChatter,
         submitted_by: profile.id,
         date: selectedDate,
@@ -66,15 +70,20 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
         week: eventWeek,
       });
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
       setSelectedChatter('');
       setSelectedEventType(null);
       setCustomPoints(0);
       setNotes('');
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
       loadRecentEvents();
-    } catch (err) {
+    } catch (err: unknown) {
+      const pgErr = err as { message?: string; details?: string; code?: string };
+      const msg = pgErr?.message || (err instanceof Error ? err.message : JSON.stringify(err));
       console.error('Error logging event:', err);
+      setError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -90,6 +99,19 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
       {/* Left: Log form */}
       <div className="bg-surface-1 rounded-xl border border-border p-5">
         <h3 className="text-sm font-semibold text-text-primary mb-4">Log Score Event</h3>
+
+        {error && (
+          <div className="mb-4 px-3 py-2.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+            <p className="font-semibold mb-0.5">Failed to log event</p>
+            <p className="text-red-400/80">{error}</p>
+          </div>
+        )}
+
+        {success && (
+          <div className="mb-4 px-3 py-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-medium">
+            Event logged successfully
+          </div>
+        )}
 
         {/* Chatter select */}
         <div className="mb-4">
