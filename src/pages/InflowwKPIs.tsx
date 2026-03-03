@@ -21,7 +21,7 @@ import {
   List,
   RefreshCw,
 } from 'lucide-react';
-import { supabase, ensureSession } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import {
   COLUMNS,
   migrateHistory,
@@ -156,7 +156,6 @@ export default function InflowwKPIs() {
 
     let cancelled = false;
     (async () => {
-      await ensureSession();
       const { data, error } = await supabase
         .from('chatters')
         .select('full_name, team_name')
@@ -212,8 +211,7 @@ export default function InflowwKPIs() {
       }
     }, 20_000);
 
-    ensureSession()
-      .then(() => loadFromSupabase(period, customFrom, customTo, hubstaffRaw))
+    loadFromSupabase(period, customFrom, customTo, hubstaffRaw)
       .then(result => {
         if (loadGenRef.current !== gen) return;
         clearTimeout(timeoutId);

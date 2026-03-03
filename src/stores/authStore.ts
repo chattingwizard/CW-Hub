@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { supabase } from '../lib/supabase';
+import { supabase, fetchProfileWithRetry } from '../lib/supabase';
 import type { Profile, UserRole } from '../types';
 import { isManagement, isLeadership, isAdminLevel } from '../lib/roles';
 
@@ -12,7 +12,7 @@ interface AuthState {
   loading: boolean;
   initialized: boolean;
 
-  initialize: () => Promise<void>;
+  initialize: () => void;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string, inviteCode: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -30,7 +30,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   loading: false,
   initialized: false,
 
-  initialize: async () => {
+  initialize: () => {
     if (isInitializing) return;
     isInitializing = true;
 
@@ -39,111 +39,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       authSubscription = null;
     }
 
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-
-        set({
-          user: { id: session.user.id, email: session.user.email ?? '' },
-          profile: profile as Profile | null,
-          initialized: true,
-        });
-      } else {
-        set({ user: null, profile: null, initialized: true });
-      }
-    } catch (err) {
-      console.error('Auth init failed:', err);
-      set({ user: null, profile: null, initialized: true });
-    } finally {
-      isInitializing = false;
-    }
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'SIGNED_OUT') {
-        const { data: { session: retrySession } } = await supabase.auth.getSession();
-        if (retrySession?.user) return;
-        set({ user: null, profile: null });
-        return;
-      }
+      switch (event) {
+        case 'INITIAL_SESSION':
+        case 'SIGNED_IN': {
+          if (!session?.user) {
+            set({ user: null, profile: null, initialized: true, loading: false });
+            return;
+          }
 
-      if (!session?.user) return;
+          const currentUser = get().user;
+          if (event === 'SIGNED_IN' && currentUser?.id === session.user.id && get().profile) {
+            set({ loading: false });
+            return;
+          }
 
-      if (event === 'TOKEN_REFRESHED') {
-        const currentProfile = get().profile;
-        if (currentProfile?.id === session.user.id) {
-          set({ user: { id: session.user.id, email: session.user.email ?? '' } });
-          return;
+          const profile = await fetchProfileWithRetry(session.user.id);
+          set(state => ({
+            user: { id: session.user.id, email: session.user.email ?? '' },
+            profile: profile ?? (state.profile?.id === session.user.id ? state.profile : null),
+            initialized: true,
+            loading: false,
+          }));
+          break;
         }
-      }
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        const currentProfile = get().profile;
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+        case 'TOKEN_REFRESHED':
+          break;
 
-        set({
-          user: { id: session.user.id, email: session.user.email ?? '' },
-          profile: (profile as Profile | null) ??
-            (currentProfile?.id === session.user.id ? currentProfile : null),
-        });
+        case 'SIGNED_OUT':
+          set({ user: null, profile: null, loading: false });
+          break;
       }
     });
+
     authSubscription = subscription;
+    isInitializing = false;
   },
 
   signIn: async (email: string, password: string) => {
     set({ loading: true });
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
       set({ loading: false });
       throw error;
-    }
-
-    if (data.session?.user) {
-      const userId = data.session.user.id;
-      const userEmail = data.session.user.email ?? '';
-
-      // First attempt — may fail if auth headers haven't propagated to PostgREST yet
-      const { data: p1 } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
-
-      let profile = p1 as Profile | null;
-
-      if (!profile) {
-        // Force session refresh so the client uses the new JWT for queries
-        await supabase.auth.setSession({
-          access_token: data.session.access_token,
-          refresh_token: data.session.refresh_token,
-        });
-        await new Promise(r => setTimeout(r, 200));
-
-        const { data: p2 } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', userId)
-          .single();
-        profile = p2 as Profile | null;
-      }
-
-      set({
-        user: { id: userId, email: userEmail },
-        profile,
-        loading: false,
-      });
-    } else {
-      set({ loading: false });
     }
   },
 
@@ -189,16 +128,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   refreshProfile: async () => {
     const { user } = get();
     if (!user) return;
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single();
-    if (error) {
-      console.error('Profile refresh failed:', error);
-      return;
+    const profile = await fetchProfileWithRetry(user.id);
+    if (profile) {
+      set({ profile });
     }
-    set({ profile: profile as Profile | null });
   },
 
   hasRole: (...roles: UserRole[]) => {

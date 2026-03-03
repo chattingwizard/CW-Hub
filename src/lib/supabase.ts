@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import type { Profile } from '../types';
 
 export const SUPABASE_URL = 'https://bnmrdlqqzxenyqjknqhy.supabase.co';
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJubXJkbHFxenhlbnlxamtucWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwODIxNzMsImV4cCI6MjA4NjY1ODE3M30.do4TDZdu84GA_Ek37qZi2ZPGqzRKJs9N80opQQP6V90';
@@ -22,6 +23,27 @@ export function getAccessToken(): string | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Fetches a user profile with retry + exponential backoff.
+ * Handles the PostgREST JWT propagation delay after sign-in without hacks.
+ */
+export async function fetchProfileWithRetry(
+  userId: string,
+  attempts = 3,
+): Promise<Profile | null> {
+  for (let i = 0; i < attempts; i++) {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (data) return data as Profile;
+    if (error && error.code !== 'PGRST116') return null;
+    if (i < attempts - 1) await new Promise(r => setTimeout(r, 300 * (i + 1)));
+  }
+  return null;
 }
 
 /**
@@ -69,5 +91,5 @@ export async function directInsert<T = unknown>(
   }
 }
 
-/** No-op for backward compatibility. */
+/** No-op kept for backward compatibility with imports that haven't been cleaned up yet. */
 export async function ensureSession(): Promise<void> {}
