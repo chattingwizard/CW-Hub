@@ -99,10 +99,10 @@ export default function ChatterScore() {
     return true;
   });
 
-  const bonusEarners = scores.filter(s => s.bonus_amount > 0).length;
-  const warnings = scores.filter(s => s.status === 'bronze').length;
-  const avgScore = scores.length > 0 ? Math.round(scores.reduce((sum, s) => sum + s.total, 0) / scores.length) : 0;
-  const totalBonuses = scores.reduce((sum, s) => sum + s.bonus_amount, 0);
+  const bonusEarners = filteredScores.filter(s => s.bonus_amount > 0).length;
+  const warnings = filteredScores.filter(s => s.status === 'bronze').length;
+  const avgScore = filteredScores.length > 0 ? Math.round(filteredScores.reduce((sum, s) => sum + s.total, 0) / filteredScores.length) : 0;
+  const totalBonuses = filteredScores.reduce((sum, s) => sum + s.bonus_amount, 0);
 
   const teams = [...new Set(chatters.map(c => c.team_name).filter(Boolean))] as string[];
 
