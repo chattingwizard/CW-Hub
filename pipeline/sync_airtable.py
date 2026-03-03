@@ -52,9 +52,22 @@ def upsert_supabase(table, rows, on_conflict="airtable_id"):
 
 ACTIVE_STATUSES = {"Active"}
 
+def build_team_lookup():
+    """Fetch Teams table and build record_id → team_name mapping."""
+    print("🏷️  Building team lookup...")
+    records = fetch_airtable("tblGTOPvVCQTbEHsW", fields=["Equipo"])
+    lookup = {}
+    for rec in records:
+        equipo = rec.get("fields", {}).get("Equipo", "")
+        if equipo:
+            lookup[rec["id"]] = str(equipo).strip()
+    print(f"  Found {len(lookup)} teams")
+    return lookup
+
 def sync_chatters():
     """Sync Chatter table from Airtable, respecting ⚡Status field."""
     print("📋 Syncing chatters...")
+    team_lookup = build_team_lookup()
     records = fetch_airtable("tblBrbCZyL5ub48zc")
     
     rows = []
@@ -71,12 +84,12 @@ def sync_chatters():
         if status == "Active":
             active_count += 1
         
-        team_names = f.get("Team", [])
+        team_ids = f.get("Team", [])
+        if isinstance(team_ids, str):
+            team_ids = [team_ids]
         team_name = None
-        if isinstance(team_names, list) and team_names:
-            team_name = team_names[0] if isinstance(team_names[0], str) else None
-        elif isinstance(team_names, str):
-            team_name = team_names
+        if isinstance(team_ids, list) and team_ids:
+            team_name = team_lookup.get(team_ids[0])
         
         rows.append({
             "airtable_id": rec["id"],
