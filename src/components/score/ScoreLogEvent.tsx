@@ -40,13 +40,15 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
 
   async function loadRecentEvents() {
     setLoadingRecent(true);
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('score_events')
       .select('*, chatter:chatters(*), event_type:score_event_types(*)')
       .eq('week', weekKey)
       .order('created_at', { ascending: false })
       .limit(20);
-    setRecentEvents(data || []);
+    if (!error && data) {
+      setRecentEvents(data);
+    }
     setLoadingRecent(false);
   }
 
@@ -80,13 +82,20 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
         throw new Error('Event was not saved — your session may have expired. Please refresh the page (F5) and try again.');
       }
 
+      const savedEvent = data[0]!;
+      const chatterObj = chatters.find(c => c.id === selectedChatter);
+      setRecentEvents(prev => [{
+        ...savedEvent,
+        chatter: chatterObj,
+        event_type: selectedEventType,
+      } as typeof prev[number], ...prev]);
+
       setSelectedChatter('');
       setSelectedEventType(null);
       setCustomPoints(0);
       setNotes('');
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
-      loadRecentEvents();
     } catch (err: unknown) {
       const pgErr = err as { message?: string; details?: string; code?: string };
       const msg = pgErr?.message || (err instanceof Error ? err.message : JSON.stringify(err));
