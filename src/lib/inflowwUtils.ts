@@ -72,6 +72,35 @@ const HUBSTAFF_ALIASES: Record<string, string[]> = {
   hours: ['hours', 'time', 'duration', 'tracked', 'time tracked', 'total time', 'hours worked', 'horas', 'tiempo'],
 };
 
+/**
+ * Normalize a name for matching across data sources that use different
+ * formats (e.g. "Cezar Edades Jr" vs "Cezar E. Edades Jr").
+ * Strips single-letter middle initials (X.) and collapses whitespace.
+ */
+function normalizeNameForMatch(name: string): string {
+  return name
+    .toLowerCase()
+    .trim()
+    .replace(/\b\w\.\s*/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Token-based name matching: returns true if every token of the shorter
+ * name exists in the longer name. Handles middle names gracefully
+ * (e.g. "kurt milana" matches "kurt randolph milana").
+ */
+function namesMatch(a: string, b: string): boolean {
+  const na = normalizeNameForMatch(a);
+  const nb = normalizeNameForMatch(b);
+  if (na === nb) return true;
+  const ta = na.split(' ');
+  const tb = nb.split(' ');
+  const [shorter, longer] = ta.length <= tb.length ? [ta, tb] : [tb, ta];
+  return shorter.length >= 2 && shorter.every(token => longer.includes(token));
+}
+
 export interface HistoryRecord {
   periodStart: string;
   periodEnd: string;
@@ -546,7 +575,7 @@ export async function loadFromSupabase(
         const name = idToName.get(h.chatter_id);
         if (!name) { unmatched++; continue; }
         matched++;
-        const key = name.toLowerCase().trim().replace(/\s+/g, ' ');
+        const key = normalizeNameForMatch(name);
         hubstaffByName[key] = (hubstaffByName[key] ?? 0) + Number(h.hours_worked);
       }
       const totalHrs = Object.values(hubstaffByName).reduce((s, v) => s + v, 0);
@@ -561,7 +590,7 @@ export async function loadFromSupabase(
   const grouped: Record<string, { name: string; group: string; days: ChatterDailyRow[]; hubstaffHours: number }> = {};
 
   for (const row of rows) {
-    const key = row.employee_name.toLowerCase().trim();
+    const key = normalizeNameForMatch(row.employee_name);
     if (!grouped[key]) {
       grouped[key] = { name: row.employee_name, group: row.team || '', days: [], hubstaffHours: 0 };
     }
@@ -574,9 +603,8 @@ export async function loadFromSupabase(
     if (grouped[nameKey]) {
       grouped[nameKey].hubstaffHours = hours;
     } else {
-      // Fuzzy match: try partial name matching
       for (const gKey of Object.keys(grouped)) {
-        if (gKey.includes(nameKey) || nameKey.includes(gKey)) {
+        if (namesMatch(nameKey, gKey)) {
           grouped[gKey].hubstaffHours = hours;
           break;
         }
@@ -591,10 +619,19 @@ export async function loadFromSupabase(
     for (const row of hRows) {
       const name = map.employee != null ? (row[map.employee] || '').trim() : '';
       if (!name) continue;
-      const key = name.toLowerCase();
-      if (!grouped[key]) grouped[key] = { name, group: '', days: [], hubstaffHours: 0 };
+      const key = normalizeNameForMatch(name);
       const h = parseHours(map.hours != null ? (row[map.hours] ?? '') : '');
-      if (!isNaN(h)) grouped[key]!.hubstaffHours += h;
+      if (isNaN(h)) continue;
+      if (grouped[key]) {
+        grouped[key].hubstaffHours += h;
+      } else {
+        const match = Object.keys(grouped).find(gKey => namesMatch(key, gKey));
+        if (match) {
+          grouped[match].hubstaffHours += h;
+        } else {
+          grouped[key] = { name, group: '', days: [], hubstaffHours: h };
+        }
+      }
     }
   }
 
