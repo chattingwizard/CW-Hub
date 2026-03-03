@@ -54,7 +54,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             return;
           }
 
-          const profile = await fetchProfileWithRetry(session.user.id);
+          const profile = await fetchProfileWithRetry(session.user.id, session.access_token);
           set(state => ({
             user: { id: session.user.id, email: session.user.email ?? '' },
             profile: profile ?? (state.profile?.id === session.user.id ? state.profile : null),

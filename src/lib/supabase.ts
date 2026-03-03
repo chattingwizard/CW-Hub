@@ -6,7 +6,16 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 const STORAGE_KEY = 'sb-bnmrdlqqzxenyqjknqhy-auth-token';
 
+const timeoutFetch: typeof fetch = (input, init) => {
+  const url = typeof input === 'string' ? input : input instanceof URL ? input.href : (input as Request).url;
+  if (url.includes('/auth/')) return fetch(input, init);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeout));
+};
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  global: { fetch: timeoutFetch },
   auth: { autoRefreshToken: true, persistSession: true },
 });
 
@@ -29,13 +38,17 @@ export function getAccessToken(): string | null {
  * Fetches a user profile with retry + exponential backoff.
  * Uses direct REST calls to bypass the Supabase JS client's internal auth
  * lock which deadlocks when called from inside onAuthStateChange callbacks.
+ *
+ * @param accessToken Pass the session's access_token when calling from
+ *   onAuthStateChange — localStorage may not be up-to-date yet.
  */
 export async function fetchProfileWithRetry(
   userId: string,
+  accessToken?: string | null,
   attempts = 3,
 ): Promise<Profile | null> {
   for (let i = 0; i < attempts; i++) {
-    const token = getAccessToken();
+    const token = accessToken ?? getAccessToken();
     const headers: Record<string, string> = {
       'apikey': SUPABASE_ANON_KEY,
       'Content-Type': 'application/json',
