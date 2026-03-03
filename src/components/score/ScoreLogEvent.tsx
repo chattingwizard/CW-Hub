@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase, ensureSession } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { getWeekKey } from '../../lib/scoreUtils';
 import type { ScoreEventType, ScoreEvent, Chatter } from '../../types';
@@ -56,12 +56,15 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
     setError(null);
     setSuccess(false);
     try {
-      await ensureSession();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Session expired. Please refresh the page and log in again.');
+      }
 
       const points = selectedEventType.category === 'custom' ? customPoints : selectedEventType.points;
       const eventWeek = getWeekKey(new Date(selectedDate));
 
-      const insertPromise = supabase.from('score_events').insert({
+      const { data, error: insertError } = await supabase.from('score_events').insert({
         chatter_id: selectedChatter,
         submitted_by: profile.id,
         date: selectedDate,
@@ -70,16 +73,12 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
         custom_points: selectedEventType.category === 'custom' ? customPoints : null,
         notes: notes || null,
         week: eventWeek,
-      });
+      }).select();
 
-      const result = await Promise.race([
-        insertPromise,
-        new Promise<{ error: { message: string } }>(resolve =>
-          setTimeout(() => resolve({ error: { message: 'Request timed out after 10s. Try refreshing the page.' } }), 10000)
-        ),
-      ]);
-
-      if (result.error) throw result.error;
+      if (insertError) throw insertError;
+      if (!data || data.length === 0) {
+        throw new Error('Event was not saved — your session may have expired. Please refresh the page (F5) and try again.');
+      }
 
       setSelectedChatter('');
       setSelectedEventType(null);
