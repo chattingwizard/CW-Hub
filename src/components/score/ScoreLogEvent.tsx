@@ -58,11 +58,6 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
     setError(null);
     setSuccess(false);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        throw new Error('Session expired. Please refresh the page (F5) and log in again.');
-      }
-
       const points = selectedEventType.category === 'custom' ? customPoints : selectedEventType.points;
       const eventWeek = getWeekKey(new Date(selectedDate));
 
