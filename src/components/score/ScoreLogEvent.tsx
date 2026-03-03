@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
+import { supabase, ensureSession } from '../../lib/supabase';
 import { useAuthStore } from '../../stores/authStore';
 import { getWeekKey } from '../../lib/scoreUtils';
 import type { ScoreEventType, ScoreEvent, Chatter } from '../../types';
@@ -56,10 +56,12 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
     setError(null);
     setSuccess(false);
     try {
+      await ensureSession();
+
       const points = selectedEventType.category === 'custom' ? customPoints : selectedEventType.points;
       const eventWeek = getWeekKey(new Date(selectedDate));
 
-      const { error: insertError } = await supabase.from('score_events').insert({
+      const insertPromise = supabase.from('score_events').insert({
         chatter_id: selectedChatter,
         submitted_by: profile.id,
         date: selectedDate,
@@ -70,7 +72,14 @@ export default function ScoreLogEvent({ weekKey, eventTypes, chatters }: Props) 
         week: eventWeek,
       });
 
-      if (insertError) throw insertError;
+      const result = await Promise.race([
+        insertPromise,
+        new Promise<{ error: { message: string } }>(resolve =>
+          setTimeout(() => resolve({ error: { message: 'Request timed out after 10s. Try refreshing the page.' } }), 10000)
+        ),
+      ]);
+
+      if (result.error) throw result.error;
 
       setSelectedChatter('');
       setSelectedEventType(null);
