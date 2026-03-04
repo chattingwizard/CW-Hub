@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { Menu, LogOut, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { ROLE_LABELS } from '../../lib/roles';
+import { ensureFreshSession } from '../../lib/supabase';
 import Sidebar from './Sidebar';
 import NotificationBell from '../NotificationBell';
 
@@ -32,6 +33,14 @@ export default function Shell() {
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') ensureFreshSession();
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
   }, []);
 
   const handleSignOut = async () => {
