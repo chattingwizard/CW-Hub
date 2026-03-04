@@ -17,7 +17,6 @@ function resolveCategory(pageType?: PageType | null): LtvPageCategory {
 
 interface LtvGaugeProps {
   value: number;
-  maxValue: number;
   label?: string;
   sublabel?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -27,6 +26,11 @@ interface LtvGaugeProps {
 const RADIUS = 70;
 const STROKE = 10;
 const CIRCUMFERENCE = Math.PI * RADIUS;
+
+function getScaleMax(pageType?: PageType | null): number {
+  const [, , premium] = TIER_THRESHOLDS[resolveCategory(pageType)];
+  return premium * 1.5;
+}
 
 function getColor(value: number, pageType?: PageType | null): string {
   if (value <= 0) return '#333333';
@@ -46,8 +50,9 @@ function getTierLabel(value: number, pageType?: PageType | null): string {
   return 'Premium';
 }
 
-export default function LtvGauge({ value, maxValue, label, sublabel, size = 'md', pageType }: LtvGaugeProps) {
-  const fillPct = maxValue > 0 ? Math.min(value / maxValue, 1) : 0;
+export default function LtvGauge({ value, label, sublabel, size = 'md', pageType }: LtvGaugeProps) {
+  const scaleMax = getScaleMax(pageType);
+  const fillPct = scaleMax > 0 ? Math.min(value / scaleMax, 1) : 0;
   const fillLength = fillPct * CIRCUMFERENCE;
   const color = getColor(value, pageType);
   const tier = getTierLabel(value, pageType);
@@ -110,4 +115,4 @@ export default function LtvGauge({ value, maxValue, label, sublabel, size = 'md'
   );
 }
 
-export { getColor, getTierLabel };
+export { getColor, getTierLabel, getScaleMax };
