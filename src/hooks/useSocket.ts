@@ -92,7 +92,8 @@ export function useSocket() {
         });
 
         socket.on('connect_error', (err: Error) => {
-          setState(prev => ({ ...prev, error: err.message, reconnecting: true }));
+          console.error('Socket connection error:', err);
+          setState(prev => ({ ...prev, error: 'Connection problem. Reconnecting...', reconnecting: true }));
         });
 
         // Forward all events to registered listeners

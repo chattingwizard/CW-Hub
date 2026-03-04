@@ -21,7 +21,7 @@ import {
   List,
   RefreshCw,
 } from 'lucide-react';
-import { supabase, ensureSession } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 import {
   COLUMNS,
   migrateHistory,
@@ -156,7 +156,6 @@ export default function InflowwKPIs() {
 
     let cancelled = false;
     (async () => {
-      await ensureSession();
       const { data, error } = await supabase
         .from('chatters')
         .select('full_name, team_name')
@@ -212,8 +211,7 @@ export default function InflowwKPIs() {
       }
     }, 20_000);
 
-    ensureSession()
-      .then(() => loadFromSupabase(period, customFrom, customTo, hubstaffRaw))
+    loadFromSupabase(period, customFrom, customTo, hubstaffRaw)
       .then(result => {
         if (loadGenRef.current !== gen) return;
         clearTimeout(timeoutId);
@@ -229,7 +227,8 @@ export default function InflowwKPIs() {
       .catch(err => {
         if (loadGenRef.current !== gen) return;
         clearTimeout(timeoutId);
-        setHubError(err instanceof Error ? err.message : 'Load failed');
+        console.error('Hub data load failed:', err);
+        setHubError('Could not load data. Please try again.');
       })
       .finally(() => {
         if (loadGenRef.current === gen) {
@@ -253,7 +252,8 @@ export default function InflowwKPIs() {
       setInflowwLabel(`${file.name.slice(0, 20)}${file.name.length > 20 ? '...' : ''} (${count} rows)`);
       reload();
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Upload failed');
+      console.error('Infloww upload failed:', err);
+      alert('Upload failed. Please check the file and try again.');
     } finally {
       setUploadingInfloww(false);
       if (inflowwRef.current) inflowwRef.current.value = '';
@@ -350,7 +350,8 @@ export default function InflowwKPIs() {
       setGsheetUrl(url);
       window.open(url, '_blank');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Export failed');
+      console.error('Export failed:', err);
+      alert('Export failed. Please try again.');
     } finally {
       setExporting(false);
       setExportStatus('');

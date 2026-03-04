@@ -75,9 +75,30 @@ function parseCSV(text: string): Record<string, unknown>[] {
  * Read a spreadsheet file (.xlsx or .csv) and return rows as objects
  * with header names as keys — same format as the old XLSX.utils.sheet_to_json().
  */
+function validateMagicBytes(buffer: ArrayBuffer, ext: string): void {
+  const bytes = new Uint8Array(buffer.slice(0, 4));
+
+  if (ext === 'xlsx') {
+    // XLSX = ZIP archive: PK\x03\x04
+    if (bytes[0] !== 0x50 || bytes[1] !== 0x4B || bytes[2] !== 0x03 || bytes[3] !== 0x04) {
+      throw new Error('File content does not match .xlsx format. The file may be corrupted or mislabeled.');
+    }
+  } else if (ext === 'csv') {
+    // CSV must be text — reject if it starts with known binary signatures
+    const isBinary = (bytes[0] === 0x50 && bytes[1] === 0x4B) // ZIP
+      || (bytes[0] === 0xD0 && bytes[1] === 0xCF)             // OLE2
+      || (bytes[0] === 0x00);                                  // Null byte
+    if (isBinary) {
+      throw new Error('File content does not match .csv format. The file may be a renamed binary.');
+    }
+  }
+}
+
 export async function readSpreadsheet(file: File): Promise<Record<string, unknown>[]> {
   const buffer = await file.arrayBuffer();
   const ext = file.name.split('.').pop()?.toLowerCase();
+
+  validateMagicBytes(buffer, ext ?? '');
 
   if (ext === 'csv') {
     const text = new TextDecoder('utf-8').decode(buffer);

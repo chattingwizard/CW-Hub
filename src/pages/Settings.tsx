@@ -42,8 +42,9 @@ export default function Settings() {
       setStatusMsg('Role updated');
       fetchData();
       setTimeout(() => setStatusMsg(''), 2000);
-    } catch (err: any) {
-      setStatusMsg(`Error: ${err.message}`);
+    } catch (err: unknown) {
+      console.error('Role change failed:', err);
+      setStatusMsg('Error: Could not update role. Please try again.');
     }
   };
 
@@ -59,8 +60,9 @@ export default function Settings() {
         setStatusMsg('Code generated and copied!');
         setTimeout(() => { setCopiedCode(null); setStatusMsg(''); }, 3000);
       }
-    } catch (err: any) {
-      setStatusMsg(`Error: ${err.message}`);
+    } catch (err: unknown) {
+      console.error('Invite code generation failed:', err);
+      setStatusMsg('Error: Could not generate invite code. Please try again.');
     } finally {
       setGenerating(false);
     }

@@ -145,18 +145,19 @@ export default function UploadCenter() {
       if (upload.report_date) {
         if (upload.upload_type === 'creator_report') {
           const { error } = await supabase.from('model_daily_stats').delete().eq('date', upload.report_date);
-          if (error) throw new Error(`Failed to delete stats data: ${error.message}`);
+          if (error) { console.error('Delete stats failed:', error); throw error; }
         } else if (upload.upload_type === 'employee_report') {
           const { error } = await supabase.from('chatter_daily_stats').delete().eq('date', upload.report_date);
-          if (error) throw new Error(`Failed to delete stats data: ${error.message}`);
+          if (error) { console.error('Delete stats failed:', error); throw error; }
         }
       }
       const { error } = await supabase.from('csv_uploads').delete().eq('id', upload.id);
-      if (error) throw new Error(`Failed to delete upload record: ${error.message}`);
+      if (error) { console.error('Delete upload failed:', error); throw error; }
       setConfirmDeleteId(null);
       fetchHistory();
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Delete failed');
+      console.error('Delete operation failed:', err);
+      setDeleteError('Could not delete. Please try again.');
       setConfirmDeleteId(null);
     } finally {
       setDeleting(false);
@@ -168,15 +169,16 @@ export default function UploadCenter() {
     setDeleteError(null);
     try {
       const { error: e1 } = await supabase.from('chatter_daily_stats').delete().gte('date', '1900-01-01');
-      if (e1) throw new Error(`chatter_daily_stats: ${e1.message}`);
+      if (e1) { console.error('Clear chatter stats failed:', e1); throw e1; }
       const { error: e2 } = await supabase.from('model_daily_stats').delete().gte('date', '1900-01-01');
-      if (e2) throw new Error(`model_daily_stats: ${e2.message}`);
+      if (e2) { console.error('Clear model stats failed:', e2); throw e2; }
       const { error: e3 } = await supabase.from('csv_uploads').delete().gte('uploaded_at', '1900-01-01');
-      if (e3) throw new Error(`csv_uploads: ${e3.message}`);
+      if (e3) { console.error('Clear uploads failed:', e3); throw e3; }
       setConfirmClearAll(false);
       fetchHistory();
     } catch (err) {
-      setDeleteError(err instanceof Error ? err.message : 'Clear failed');
+      console.error('Clear all failed:', err);
+      setDeleteError('Could not clear data. Please try again.');
       setConfirmClearAll(false);
     } finally {
       setClearing(false);

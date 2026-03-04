@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 #
 # Pre-commit hook: scan for secrets before allowing commit
 # Blocks commits that contain passwords, tokens, API keys, etc.
