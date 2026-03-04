@@ -11,7 +11,7 @@ import TrafficBadge from '../components/TrafficBadge';
 import { PageTypeBadge } from '../components/TrafficBadge';
 import CreatorReportUpload from '../components/CreatorReportUpload';
 import { useTrafficData } from '../hooks/useTrafficData';
-import LtvGauge, { getColor } from '../components/LtvGauge';
+import LtvGauge, { getColor, getScaleMax } from '../components/LtvGauge';
 
 export default function Dashboard() {
   const [showCreatorUpload, setShowCreatorUpload] = useState(false);
@@ -44,7 +44,6 @@ export default function Dashboard() {
     ? modelsWithLtv.reduce((sum, t) => sum + t.ltv, 0) / modelsWithLtv.length
     : 0;
   const topLtvModels = [...modelsWithLtv].sort((a, b) => b.ltv - a.ltv).slice(0, 6);
-  const maxLtv = topLtvModels.length > 0 ? topLtvModels[0]!.ltv * 1.15 : 100;
 
   // Status options from actual data
   const statuses = [...new Set(modelTraffic.map((t) => t.model_status))].sort();
@@ -173,13 +172,12 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-3 lg:grid-cols-7 gap-4 items-end">
             <div className="col-span-3 lg:col-span-1 flex justify-center">
-              <LtvGauge value={Math.round(avgLtv)} maxValue={maxLtv} label="All Models" sublabel="Portfolio Average" size="lg" />
+              <LtvGauge value={Math.round(avgLtv)} label="All Models" sublabel="Portfolio Average" size="lg" />
             </div>
             {topLtvModels.map((t) => (
               <div key={t.model_id} className="flex justify-center">
                 <LtvGauge
                   value={Math.round(t.ltv)}
-                  maxValue={maxLtv}
                   label={t.model_name}
                   sublabel={`${Math.round(t.avg_sub_length_days)}d avg sub`}
                   size="sm"
@@ -261,7 +259,7 @@ export default function Dashboard() {
                             <div
                               className="h-full rounded-full transition-all duration-500"
                               style={{
-                                width: `${Math.min((t.ltv / maxLtv) * 100, 100)}%`,
+                                width: `${Math.min((t.ltv / getScaleMax(t.page_type)) * 100, 100)}%`,
                                 backgroundColor: getColor(t.ltv, t.page_type),
                               }}
                             />
