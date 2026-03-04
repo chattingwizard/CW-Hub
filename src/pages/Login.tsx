@@ -6,20 +6,32 @@ import { Eye, EyeOff } from 'lucide-react';
 import type { Profile } from '../types';
 
 export default function Login() {
-  const [mode, setMode] = useState<'login' | 'register'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [inviteCode, setInviteCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [resetSent, setResetSent] = useState(false);
 
-  const { signIn, signUp, loading, user, profile } = useAuthStore();
+  const { signIn, signUp, resetPassword, loading, user, profile } = useAuthStore();
   const navigate = useNavigate();
 
   if (user && profile) {
     return <Navigate to={getDefaultPath(profile.role)} replace />;
   }
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    try {
+      await resetPassword(email);
+      setResetSent(true);
+    } catch (err: any) {
+      setError(err.message || 'Could not send reset email.');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -94,6 +106,59 @@ export default function Login() {
 
         {/* Card */}
         <div className="bg-surface-1 border border-border rounded-2xl p-8">
+          {mode === 'forgot' ? (
+            // Forgot password view
+            <>
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(''); setResetSent(false); }}
+                className="text-text-muted hover:text-text-secondary text-sm mb-4 inline-flex items-center gap-1 transition-colors"
+              >
+                &larr; Back to Sign In
+              </button>
+              <h2 className="text-lg font-semibold text-white mb-1">Reset your password</h2>
+              <p className="text-text-secondary text-sm mb-6">
+                Enter your email and we&apos;ll send you a link to reset your password.
+              </p>
+              {resetSent ? (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-lg px-4 py-3 text-emerald-400 text-sm">
+                  Check your email for a password reset link. You can close this tab.
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-text-secondary mb-1.5">Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-surface-2 border border-border rounded-lg px-4 py-2.5 text-white placeholder-text-muted focus:outline-none focus:border-cw focus:ring-1 focus:ring-cw"
+                      placeholder="you@example.com"
+                      required
+                    />
+                  </div>
+                  {error && (
+                    <div className="bg-danger/10 border border-danger/30 rounded-lg px-4 py-2.5 text-danger text-sm">
+                      {error}
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-cw hover:bg-cw-dark text-white font-medium rounded-lg px-4 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {loading ? (
+                      <span className="inline-flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Sending...
+                      </span>
+                    ) : 'Send Reset Link'}
+                  </button>
+                </form>
+              )}
+            </>
+          ) : (
+          <>
           {/* Tab switcher */}
           <div className="flex bg-surface-2 rounded-lg p-1 mb-6">
             <button
@@ -178,6 +243,18 @@ export default function Login() {
               </div>
             </div>
 
+            {mode === 'login' && (
+              <div className="text-right -mt-1">
+                <button
+                  type="button"
+                  onClick={() => { setMode('forgot'); setError(''); }}
+                  className="text-cw hover:text-cw/80 text-sm transition-colors"
+                >
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
             {error && (
               <div className="bg-danger/10 border border-danger/30 rounded-lg px-4 py-2.5 text-danger text-sm">
                 {error}
@@ -197,6 +274,8 @@ export default function Login() {
               ) : mode === 'login' ? 'Sign In' : 'Create Account'}
             </button>
           </form>
+          </>
+          )}
         </div>
 
         <p className="text-center text-text-muted text-xs mt-6">
