@@ -183,6 +183,7 @@ export default function Dashboard() {
                   label={t.model_name}
                   sublabel={`${Math.round(t.avg_sub_length_days)}d avg sub`}
                   size="sm"
+                  pageType={t.page_type}
                 />
               </div>
             ))}
@@ -261,7 +262,7 @@ export default function Dashboard() {
                               className="h-full rounded-full transition-all duration-500"
                               style={{
                                 width: `${Math.min((t.ltv / maxLtv) * 100, 100)}%`,
-                                backgroundColor: getColor(t.ltv),
+                                backgroundColor: getColor(t.ltv, t.page_type),
                               }}
                             />
                           </div>

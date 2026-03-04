@@ -1,4 +1,19 @@
 import { formatCurrency } from '../lib/utils';
+import type { PageType } from '../types';
+
+type LtvPageCategory = 'paid' | 'free' | 'mixed';
+
+const TIER_THRESHOLDS: Record<LtvPageCategory, [number, number, number]> = {
+  paid:  [10, 20, 40],
+  free:  [1,  2,  4],
+  mixed: [5,  10, 20],
+};
+
+function resolveCategory(pageType?: PageType | null): LtvPageCategory {
+  if (pageType === 'Paid Page') return 'paid';
+  if (pageType === 'Free Page') return 'free';
+  return 'mixed';
+}
 
 interface LtvGaugeProps {
   value: number;
@@ -6,33 +21,36 @@ interface LtvGaugeProps {
   label?: string;
   sublabel?: string;
   size?: 'sm' | 'md' | 'lg';
+  pageType?: PageType | null;
 }
 
 const RADIUS = 70;
 const STROKE = 10;
 const CIRCUMFERENCE = Math.PI * RADIUS;
 
-function getColor(value: number): string {
+function getColor(value: number, pageType?: PageType | null): string {
   if (value <= 0) return '#333333';
-  if (value < 15) return '#ef4444';
-  if (value < 30) return '#f59e0b';
-  if (value < 60) return '#22c55e';
+  const [low, ok, premium] = TIER_THRESHOLDS[resolveCategory(pageType)];
+  if (value < low) return '#ef4444';
+  if (value < ok) return '#f59e0b';
+  if (value < premium) return '#22c55e';
   return '#1d9bf0';
 }
 
-function getTierLabel(value: number): string {
+function getTierLabel(value: number, pageType?: PageType | null): string {
   if (value <= 0) return 'No data';
-  if (value < 15) return 'Low';
-  if (value < 30) return 'Average';
-  if (value < 60) return 'Good';
+  const [low, ok, premium] = TIER_THRESHOLDS[resolveCategory(pageType)];
+  if (value < low) return 'Low';
+  if (value < ok) return 'Below target';
+  if (value < premium) return 'On target';
   return 'Premium';
 }
 
-export default function LtvGauge({ value, maxValue, label, sublabel, size = 'md' }: LtvGaugeProps) {
+export default function LtvGauge({ value, maxValue, label, sublabel, size = 'md', pageType }: LtvGaugeProps) {
   const fillPct = maxValue > 0 ? Math.min(value / maxValue, 1) : 0;
   const fillLength = fillPct * CIRCUMFERENCE;
-  const color = getColor(value);
-  const tier = getTierLabel(value);
+  const color = getColor(value, pageType);
+  const tier = getTierLabel(value, pageType);
 
   const dimensions = { sm: { w: 140, h: 90 }, md: { w: 180, h: 110 }, lg: { w: 240, h: 145 } };
   const fonts = { sm: { val: 18, tier: 9, label: 10 }, md: { val: 24, tier: 10, label: 11 }, lg: { val: 32, tier: 12, label: 13 } };
