@@ -11,12 +11,15 @@ interface AuthState {
   profile: Profile | null;
   loading: boolean;
   initialized: boolean;
+  passwordRecovery: boolean;
 
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string, inviteCode: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updatePassword: (newPassword: string) => Promise<void>;
 
   hasRole: (...roles: UserRole[]) => boolean;
   isAdminOrOwner: () => boolean;
@@ -29,6 +32,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   profile: null,
   loading: false,
   initialized: false,
+  passwordRecovery: false,
 
   initialize: async () => {
     if (isInitializing) return;
@@ -65,27 +69,41 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        set({ passwordRecovery: true });
+        return;
+      }
+
       if (event === 'SIGNED_OUT') {
         const { data: { session: retrySession } } = await supabase.auth.getSession();
         if (retrySession?.user) return;
-        set({ user: null, profile: null });
+        set({ user: null, profile: null, passwordRecovery: false });
         return;
       }
 
       if (!session?.user) return;
 
+      if (event === 'TOKEN_REFRESHED') {
+        const currentProfile = get().profile;
+        if (currentProfile?.id === session.user.id) {
+          set({ user: { id: session.user.id, email: session.user.email ?? '' } });
+          return;
+        }
+      }
+
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        const currentProfile = get().profile;
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
           .eq('id', session.user.id)
           .single();
 
-        set(state => ({
+        set({
           user: { id: session.user.id, email: session.user.email ?? '' },
           profile: (profile as Profile | null) ??
-            (state.profile?.id === session.user.id ? state.profile : null),
-        }));
+            (currentProfile?.id === session.user.id ? currentProfile : null),
+        });
       }
     });
     authSubscription = subscription;
@@ -163,6 +181,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           console.warn('Invite code marking failed:', inviteErr.message);
         }
       }
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  resetPassword: async (email: string) => {
+    set({ loading: true });
+    try {
+      const redirectTo = window.location.origin + window.location.pathname;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) throw error;
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  updatePassword: async (newPassword: string) => {
+    set({ loading: true });
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      set({ passwordRecovery: false });
     } finally {
       set({ loading: false });
     }

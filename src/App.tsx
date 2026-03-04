@@ -2,10 +2,12 @@ import { useEffect, lazy, Suspense, Component, type ReactNode } from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { getDefaultPath } from './lib/roles';
+import { startSessionHeartbeat, stopSessionHeartbeat } from './lib/supabase';
 
 import Shell from './components/layout/Shell';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 import Login from './pages/Login';
+import UpdatePassword from './pages/UpdatePassword';
 
 function lazyRetry(factory: () => Promise<{ default: React.ComponentType }>) {
   return lazy(() =>
@@ -69,7 +71,7 @@ function PageLoader() {
 }
 
 export default function App() {
-  const { initialize, initialized, profile } = useAuthStore();
+  const { initialize, initialized, profile, passwordRecovery } = useAuthStore();
 
   useEffect(() => {
     initialize();
@@ -80,6 +82,15 @@ export default function App() {
     }, 8000);
     return () => clearTimeout(timeout);
   }, [initialize]);
+
+  useEffect(() => {
+    if (profile) {
+      startSessionHeartbeat();
+    } else {
+      stopSessionHeartbeat();
+    }
+    return () => stopSessionHeartbeat();
+  }, [profile]);
 
   if (!initialized) {
     return (
@@ -100,6 +111,7 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
 
           <Route
             element={
@@ -274,7 +286,9 @@ export default function App() {
           <Route
             path="*"
             element={
-              profile ? (
+              passwordRecovery ? (
+                <Navigate to="/update-password" replace />
+              ) : profile ? (
                 <Navigate to={getDefaultPath(profile.role)} replace />
               ) : (
                 <Navigate to="/login" replace />
