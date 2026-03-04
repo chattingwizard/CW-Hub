@@ -1,5 +1,5 @@
 import { useEffect, lazy, Suspense, Component, type ReactNode } from 'react';
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from './stores/authStore';
 import { getDefaultPath } from './lib/roles';
 import { startSessionHeartbeat, stopSessionHeartbeat } from './lib/supabase';
@@ -41,9 +41,14 @@ const ShiftReports = lazyRetry(() => import('./pages/ShiftReports'));
 const InflowwKPIs = lazyRetry(() => import('./pages/InflowwKPIs'));
 const HubstaffIssues = lazyRetry(() => import('./pages/HubstaffIssues'));
 
-class ErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { hasError: boolean }> {
   state = { hasError: false };
   static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidUpdate(prevProps: { resetKey?: string }) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false });
+    }
+  }
   render() {
     if (this.state.hasError) {
       return (
@@ -107,7 +112,16 @@ export default function App() {
 
   return (
     <HashRouter>
-      <ErrorBoundary>
+      <AppRoutes passwordRecovery={passwordRecovery} profile={profile} />
+    </HashRouter>
+  );
+}
+
+function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; profile: import('./types').Profile | null }) {
+  const location = useLocation();
+
+  return (
+    <ErrorBoundary resetKey={location.pathname}>
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/login" element={<Login />} />
@@ -297,7 +311,6 @@ export default function App() {
           />
         </Routes>
       </Suspense>
-      </ErrorBoundary>
-    </HashRouter>
+    </ErrorBoundary>
   );
 }

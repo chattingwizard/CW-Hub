@@ -6,6 +6,17 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 const timeoutFetch: typeof fetch = (input, init) => {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15000);
+
+  if (init?.signal) {
+    if (init.signal.aborted) {
+      controller.abort(init.signal.reason);
+    } else {
+      init.signal.addEventListener('abort', () => {
+        controller.abort(init.signal!.reason);
+      }, { once: true });
+    }
+  }
+
   return fetch(input, { ...init, signal: controller.signal }).finally(() => clearTimeout(timeout));
 };
 
@@ -46,23 +57,28 @@ export function stopSessionHeartbeat(): void {
 }
 
 /**
- * Force-refreshes the session and returns whether it's valid.
- * Use before critical write operations (inserts, updates, deletes).
+ * Checks session validity. Only force-refreshes when the token is
+ * within 5 minutes of expiry. Safe to call frequently — does NOT
+ * trigger a network request unless the token is actually stale.
  */
 export async function ensureFreshSession(): Promise<boolean> {
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session) return false;
 
-    const { data, error } = await supabase.auth.refreshSession();
-    if (error || !data.session) return false;
+    const expiresAt = session.expires_at ?? 0;
+    const now = Math.floor(Date.now() / 1000);
+    if (expiresAt - now < 300) {
+      const { data, error } = await supabase.auth.refreshSession();
+      if (error || !data.session) return false;
+    }
     return true;
   } catch {
     return false;
   }
 }
 
-/** @deprecated Use ensureFreshSession() for write operations. Kept for backward compat. */
+/** Lightweight session check. Does NOT force a refresh. */
 export async function ensureSession(): Promise<void> {
   await ensureFreshSession();
 }
