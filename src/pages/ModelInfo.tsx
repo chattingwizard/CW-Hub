@@ -257,16 +257,15 @@ export default function ModelInfo() {
                   key={model.id}
                   onClick={() => navigate(`/model-info/${model.id}`)}
                   className={cn(
-                    'relative bg-surface-1 border rounded-xl p-4 text-left transition-all hover:border-cw/30 hover:shadow-lg hover:shadow-cw/5',
+                    'bg-surface-1 border rounded-xl p-4 text-left transition-all hover:border-cw/30 hover:shadow-lg hover:shadow-cw/5',
                     unseenCount > 0 ? 'border-cw/40 ring-1 ring-cw/10' : 'border-border',
                   )}
                 >
-                  {/* Updated Badge */}
                   {unseenCount > 0 && (
-                    <div className="absolute -top-2 -right-2 z-10">
-                      <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-cw text-white shadow-lg shadow-cw/30 animate-pulse">
-                        <Sparkles size={10} />
-                        {unseenCount} {unseenCount === 1 ? 'update' : 'updates'}
+                    <div className="flex items-center gap-1.5 mb-2 px-2 py-1 rounded-lg bg-cw/10 border border-cw/20">
+                      <Sparkles size={11} className="text-cw shrink-0" />
+                      <span className="text-[11px] font-bold text-cw">
+                        {unseenCount} {unseenCount === 1 ? 'update' : 'updates'} since last visit
                       </span>
                     </div>
                   )}
