@@ -34,6 +34,7 @@ const Settings = lazyRetry(() => import('./pages/Settings'));
 const EmbeddedModule = lazyRetry(() => import('./pages/EmbeddedModule'));
 const UploadCenter = lazyRetry(() => import('./pages/UploadCenter'));
 const ModelInfo = lazyRetry(() => import('./pages/ModelInfo'));
+const ModelProfile = lazyRetry(() => import('./pages/ModelProfile'));
 const Tasks = lazyRetry(() => import('./pages/Tasks'));
 const ChatterScore = lazyRetry(() => import('./pages/ChatterScore'));
 const KnowledgeBase = lazyRetry(() => import('./pages/KnowledgeBase'));
@@ -238,6 +239,15 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
               element={
                 <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'chatter']}>
                   <ModelInfo />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/model-info/:modelId"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'chatter']}>
+                  <ModelProfile />
                 </ProtectedRoute>
               }
             />

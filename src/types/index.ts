@@ -42,7 +42,33 @@ export interface Model {
   team_names: string[];
   chatbot_active: boolean;
   scripts_url: string | null;
+  details: Record<string, Record<string, unknown>>;
   synced_at: string;
+}
+
+export interface ModelChange {
+  id: string;
+  model_id: string;
+  field_name: string;
+  old_value: string | null;
+  new_value: string | null;
+  changed_at: string;
+}
+
+export interface ModelProfileView {
+  user_id: string;
+  model_id: string;
+  last_viewed_at: string;
+}
+
+export interface ImportantNote {
+  id: string;
+  model_id: string;
+  note: string;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface Chatter {
