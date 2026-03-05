@@ -25,6 +25,15 @@ export const modules: HubModule[] = [
     disabled: true,
   },
   {
+    id: 'model-info',
+    name: 'Model Info',
+    icon: 'BookOpen',
+    type: 'internal',
+    path: '/model-info',
+    roles: ['owner', 'admin', 'team_leader', 'script_manager', 'chatter'],
+    section: 'main',
+  },
+  {
     id: 'dashboard',
     name: 'Model Metrics',
     icon: 'BarChart3',
@@ -140,16 +149,6 @@ export const modules: HubModule[] = [
     section: 'tools',
     dividerBefore: true,
   },
-  {
-    id: 'model-info',
-    name: 'Model Info',
-    icon: 'BookOpen',
-    type: 'internal',
-    path: '/model-info',
-    roles: ['owner', 'admin', 'team_leader', 'script_manager', 'chatter'],
-    section: 'tools',
-  },
-
   {
     id: 'shift-reports',
     name: 'Shift Reports',

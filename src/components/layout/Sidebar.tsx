@@ -3,6 +3,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useImpersonationStore } from '../../stores/impersonationStore';
 import { getModulesForRole } from '../../lib/modules';
 import { ROLE_LABELS } from '../../lib/roles';
+import { useUnseenModelChanges } from '../../hooks/useUnseenModelChanges';
 import type { HubModule } from '../../types';
 import {
   BarChart3, Calendar, Users, LayoutDashboard,
@@ -38,6 +39,7 @@ interface SidebarProps {
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const { profile, signOut } = useAuthStore();
   const effectiveRole = useImpersonationStore(s => s.getEffectiveRole(profile?.role ?? 'recruit'));
+  const { unseenCount: modelInfoUnseen } = useUnseenModelChanges();
 
   if (!profile) return null;
 
@@ -131,15 +133,26 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                       }`
                     }
                   >
-                    <Icon size={17} className="shrink-0" />
+                    <span className="relative shrink-0">
+                      <Icon size={17} />
+                      {!expanded && mod.id === 'model-info' && modelInfoUnseen > 0 && (
+                        <span className="absolute -top-1.5 -right-1.5 w-3.5 h-3.5 rounded-full bg-cw text-[8px] font-bold text-white flex items-center justify-center ring-2 ring-surface-1 animate-pulse">
+                          {modelInfoUnseen > 9 ? '9+' : modelInfoUnseen}
+                        </span>
+                      )}
+                    </span>
                     {expanded && (
                       <>
                         <span className="flex-1 truncate">{mod.name}</span>
-                        {mod.badge && (
+                        {mod.id === 'model-info' && modelInfoUnseen > 0 ? (
+                          <span className="text-[10px] min-w-[18px] h-[18px] px-1 rounded-full bg-cw text-white font-bold flex items-center justify-center animate-pulse">
+                            {modelInfoUnseen > 99 ? '99+' : modelInfoUnseen}
+                          </span>
+                        ) : mod.badge ? (
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-surface-3 text-text-muted font-bold">
                             {mod.badge}
                           </span>
-                        )}
+                        ) : null}
                       </>
                     )}
                   </NavLink>
