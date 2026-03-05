@@ -177,6 +177,15 @@ export const modules: HubModule[] = [
     roles: ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter'],
     section: 'tools',
   },
+  {
+    id: 'hiring-workflow',
+    name: 'Hiring Workflow',
+    icon: 'UserPlus',
+    type: 'internal',
+    path: '/hiring-workflow',
+    roles: ['owner', 'admin'],
+    section: 'tools',
+  },
 
   // ── Chatter Self-service ───────────────────────────────────
   {

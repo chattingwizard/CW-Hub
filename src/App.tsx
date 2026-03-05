@@ -40,6 +40,7 @@ const CoachingQueue = lazyRetry(() => import('./pages/CoachingQueue'));
 const CoachingOverview = lazyRetry(() => import('./pages/CoachingOverview'));
 const CoachingAnalytics = lazyRetry(() => import('./pages/CoachingAnalytics'));
 const CoachingWorkflow = lazyRetry(() => import('./pages/CoachingWorkflow'));
+const HiringWorkflow = lazyRetry(() => import('./pages/HiringWorkflow'));
 const ChatterDashboard = lazyRetry(() => import('./pages/ChatterDashboard'));
 const Settings = lazyRetry(() => import('./pages/Settings'));
 
@@ -252,6 +253,15 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
               element={
                 <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
                   <CoachingWorkflow />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/hiring-workflow"
+              element={
+                <ProtectedRoute roles={['owner', 'admin']}>
+                  <HiringWorkflow />
                 </ProtectedRoute>
               }
             />
