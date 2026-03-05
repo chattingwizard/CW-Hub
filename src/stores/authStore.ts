@@ -69,43 +69,47 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        set({ passwordRecovery: true });
-        return;
-      }
-
-      if (event === 'SIGNED_OUT') {
-        const { data: { session: retrySession } } = await supabase.auth.getSession();
-        if (retrySession?.user) return;
-        set({ user: null, profile: null, passwordRecovery: false });
-        return;
-      }
-
-      if (!session?.user) return;
-
-      if (event === 'TOKEN_REFRESHED') {
-        const currentProfile = get().profile;
-        if (currentProfile?.id === session.user.id) {
-          set({ user: { id: session.user.id, email: session.user.email ?? '' } });
+      try {
+        if (event === 'PASSWORD_RECOVERY') {
+          set({ passwordRecovery: true });
           return;
         }
-      }
 
-      if (event === 'SIGNED_IN') {
-        const currentProfile = get().profile;
-        if (currentProfile?.id === session.user.id) return;
+        if (event === 'SIGNED_OUT') {
+          const { data: { session: retrySession } } = await supabase.auth.getSession();
+          if (retrySession?.user) return;
+          set({ user: null, profile: null, passwordRecovery: false });
+          return;
+        }
 
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+        if (!session?.user) return;
 
-        set({
-          user: { id: session.user.id, email: session.user.email ?? '' },
-          profile: (profile as Profile | null) ??
-            (currentProfile?.id === session.user.id ? currentProfile : null),
-        });
+        if (event === 'TOKEN_REFRESHED') {
+          const currentProfile = get().profile;
+          if (currentProfile?.id === session.user.id) {
+            set({ user: { id: session.user.id, email: session.user.email ?? '' } });
+            return;
+          }
+        }
+
+        if (event === 'SIGNED_IN') {
+          const currentProfile = get().profile;
+          if (currentProfile?.id === session.user.id) return;
+
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          set({
+            user: { id: session.user.id, email: session.user.email ?? '' },
+            profile: (profile as Profile | null) ??
+              (currentProfile?.id === session.user.id ? currentProfile : null),
+          });
+        }
+      } catch (err) {
+        console.error('Auth state change error:', err);
       }
     });
     authSubscription = subscription;

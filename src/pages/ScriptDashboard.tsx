@@ -37,11 +37,11 @@ export default function ScriptDashboard() {
   const filtered = useMemo(() => {
     return models.filter(m => {
       const q = search.toLowerCase();
-      if (q && !m.name.toLowerCase().includes(q) && !m.niche.some(n => n.toLowerCase().includes(q))) return false;
+      if (q && !m.name.toLowerCase().includes(q) && !(m.niche ?? []).some(n => n.toLowerCase().includes(q))) return false;
       if (pageFilter !== 'All' && m.page_type !== pageFilter) return false;
       if (trafficFilter !== 'All Traffic') {
         const tf = trafficFilter.toLowerCase();
-        if (!m.traffic_sources.some(t => t.toLowerCase().includes(tf))) return false;
+        if (!(m.traffic_sources ?? []).some(t => t.toLowerCase().includes(tf))) return false;
       }
       return true;
     });
@@ -156,7 +156,7 @@ function ModelCard({ model }: { model: Model }) {
       <div className="p-3">
         <h3 className="text-sm font-bold text-white group-hover:text-cw transition-colors truncate">{model.name}</h3>
         <div className="flex flex-wrap gap-1 mt-1.5">
-          {model.traffic_sources.slice(0, 2).map(t => (
+          {(model.traffic_sources ?? []).slice(0, 2).map(t => (
             <span key={t} className="text-[9px] px-1.5 py-0.5 rounded bg-surface-2 text-text-muted">{t}</span>
           ))}
         </div>

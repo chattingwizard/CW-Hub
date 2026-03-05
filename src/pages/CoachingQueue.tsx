@@ -231,14 +231,14 @@ export default function CoachingQueue() {
     const task = tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    // Update task status
-    await supabase
+    const { error: taskErr } = await supabase
       .from('coaching_tasks')
       .update({ status: 'completed', completed_at: new Date().toISOString(), completed_by: profile?.id })
       .eq('id', taskId);
 
-    // Create coaching log
-    await supabase.from('coaching_logs').insert({
+    if (taskErr) { setFormLoadingId(null); console.error('Task update failed:', taskErr); return; }
+
+    const { error: logErr } = await supabase.from('coaching_logs').insert({
       task_id: taskId,
       date: task.date,
       chatter_name: task.chatter_name,
@@ -251,6 +251,8 @@ export default function CoachingQueue() {
       kpis: task.kpis,
     });
 
+    if (logErr) console.error('Coaching log insert failed:', logErr);
+
     setFormLoadingId(null);
     setCompletingId(null);
     setExpandedId(null);
@@ -258,12 +260,12 @@ export default function CoachingQueue() {
   };
 
   const handleUndo = async (taskId: number) => {
-    await supabase
+    const { error: e1 } = await supabase
       .from('coaching_tasks')
       .update({ status: 'pending', completed_at: null, completed_by: null })
       .eq('id', taskId);
+    if (e1) { console.error('Undo failed:', e1); return; }
 
-    // Remove the log too
     await supabase.from('coaching_logs').delete().eq('task_id', taskId);
     fetchTasks();
   };

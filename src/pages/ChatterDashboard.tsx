@@ -307,9 +307,9 @@ export default function ChatterDashboard() {
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-success/15 text-success">Live</span>
                   </div>
                 </div>
-                {model.niche.length > 0 && (
+                {(model.niche ?? []).length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {model.niche.slice(0, 2).map((n) => (
+                    {(model.niche ?? []).slice(0, 2).map((n) => (
                       <span key={n} className="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-text-muted">
                         {n}
                       </span>

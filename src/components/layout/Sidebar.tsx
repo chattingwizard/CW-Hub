@@ -7,7 +7,7 @@ import type { HubModule } from '../../types';
 import {
   BarChart3, Calendar, Users, LayoutDashboard,
   GraduationCap, FileText, Settings, Activity,
-  ClipboardCheck, Shield, Upload, BookOpen, Radio,
+  ClipboardCheck, ClipboardList, Shield, Upload, BookOpen, Radio,
   CheckSquare, BookMarked, Star, Bug, UserPlus, Info,
   LogOut, ChevronLeft, Menu,
 } from 'lucide-react';
@@ -15,7 +15,7 @@ import {
 const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   BarChart3, Calendar, Users, LayoutDashboard,
   GraduationCap, FileText, Settings, Activity,
-  ClipboardCheck, Shield, Upload, BookOpen, Radio,
+  ClipboardCheck, ClipboardList, Shield, Upload, BookOpen, Radio,
   CheckSquare, BookMarked, Star, Bug, UserPlus, Info,
 };
 
