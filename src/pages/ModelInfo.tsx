@@ -252,6 +252,8 @@ export default function ModelInfo() {
               const chatterCount = getChatterCount(model.id);
               const unseenCount = unseenCountMap.get(model.id) ?? 0;
 
+              const hasNotes = modelsWithNotes.has(model.id);
+
               return (
                 <button
                   key={model.id}
@@ -261,20 +263,11 @@ export default function ModelInfo() {
                     unseenCount > 0 ? 'border-cw/40 ring-1 ring-cw/10' : 'border-border',
                   )}
                 >
-                  {unseenCount > 0 && (
-                    <div className="flex items-center gap-1.5 mb-2 px-2 py-1 rounded-lg bg-cw/10 border border-cw/20">
-                      <Sparkles size={11} className="text-cw shrink-0" />
-                      <span className="text-[11px] font-bold text-cw">
-                        {unseenCount} {unseenCount === 1 ? 'update' : 'updates'} since last visit
-                      </span>
-                    </div>
-                  )}
-
                   <div className="flex items-center gap-3 mb-3">
                     <ModelAvatar name={model.name} pictureUrl={model.profile_picture_url} size="lg" />
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-text-primary text-sm truncate">{model.name}</p>
-                      <div className="flex items-center gap-1.5 mt-1">
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
                         <span className={cn(
                           'text-[10px] px-1.5 py-0.5 rounded-full font-medium',
                           STATUS_COLORS[model.status] || 'bg-surface-3 text-text-muted',
@@ -282,21 +275,21 @@ export default function ModelInfo() {
                           {model.status}
                         </span>
                         <PageTypeBadge pageType={model.page_type as PageType} size="sm" />
+                        {hasNotes && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-red-500/15 text-red-400 flex items-center gap-0.5">
+                            <AlertTriangle size={9} />
+                            Instructions
+                          </span>
+                        )}
+                        {unseenCount > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold bg-cw/15 text-cw flex items-center gap-0.5 animate-pulse">
+                            <Sparkles size={9} />
+                            {unseenCount} new
+                          </span>
+                        )}
                       </div>
                     </div>
-                    {modelsWithNotes.has(model.id) && (
-                      <div className="w-7 h-7 rounded-lg bg-red-500/20 border border-red-500/40 flex items-center justify-center shrink-0 animate-pulse">
-                        <AlertTriangle size={14} className="text-red-400" />
-                      </div>
-                    )}
                   </div>
-
-                  {modelsWithNotes.has(model.id) && (
-                    <div className="flex items-center gap-2 px-2.5 py-1.5 -mx-1 mb-2 rounded-lg bg-red-500/10 border border-red-500/25">
-                      <span className="text-red-400 text-xs">⚠️</span>
-                      <span className="text-[11px] font-bold text-red-300 uppercase tracking-wide">Has instructions</span>
-                    </div>
-                  )}
 
                   {/* Quick stats row */}
                   <div className="flex items-center gap-3 text-[11px] text-text-muted">
