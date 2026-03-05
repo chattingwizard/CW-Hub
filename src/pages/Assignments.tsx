@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import ModelAvatar from '../components/ModelAvatar';
 import TrafficBadge, { PageTypeBadge } from '../components/TrafficBadge';
+import ErrorState from '../components/ErrorState';
 import { useTrafficData } from '../hooks/useTrafficData';
 import type {
   Model, Chatter, Schedule,
@@ -29,6 +30,7 @@ export default function Assignments() {
   const [overrides, setOverrides] = useState<AssignmentGroupOverride[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const { getModelTraffic } = useTrafficData();
 
@@ -56,23 +58,31 @@ export default function Assignments() {
   // ── Fetch all data ──
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [modelsRes, chattersRes, groupsRes, gmRes, gcRes, overRes, schedRes] = await Promise.all([
-      supabase.from('models').select('*').order('name'),
-      supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
-      supabase.from('assignment_groups').select('*').eq('active', true).order('sort_order'),
-      supabase.from('assignment_group_models').select('*'),
-      supabase.from('assignment_group_chatters').select('*'),
-      supabase.from('assignment_group_overrides').select('*').gte('date', weekStart).lte('date', weekDates[6]!),
-      supabase.from('schedules').select('*').eq('week_start', weekStart),
-    ]);
-    setModels((modelsRes.data ?? []) as Model[]);
-    setChatters((chattersRes.data ?? []) as Chatter[]);
-    setGroups((groupsRes.data ?? []) as AssignmentGroup[]);
-    setGroupModels((gmRes.data ?? []) as AssignmentGroupModel[]);
-    setGroupChatters((gcRes.data ?? []) as AssignmentGroupChatter[]);
-    setOverrides((overRes.data ?? []) as AssignmentGroupOverride[]);
-    setSchedules((schedRes.data ?? []) as Schedule[]);
-    setLoading(false);
+    setError(null);
+    try {
+      const [modelsRes, chattersRes, groupsRes, gmRes, gcRes, overRes, schedRes] = await Promise.all([
+        supabase.from('models').select('*').order('name'),
+        supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
+        supabase.from('assignment_groups').select('*').eq('active', true).order('sort_order'),
+        supabase.from('assignment_group_models').select('*'),
+        supabase.from('assignment_group_chatters').select('*'),
+        supabase.from('assignment_group_overrides').select('*').gte('date', weekStart).lte('date', weekDates[6]!),
+        supabase.from('schedules').select('*').eq('week_start', weekStart),
+      ]);
+      const err = modelsRes.error || chattersRes.error || groupsRes.error || gmRes.error || gcRes.error || overRes.error || schedRes.error;
+      if (err) throw new Error(err.message);
+      setModels((modelsRes.data ?? []) as Model[]);
+      setChatters((chattersRes.data ?? []) as Chatter[]);
+      setGroups((groupsRes.data ?? []) as AssignmentGroup[]);
+      setGroupModels((gmRes.data ?? []) as AssignmentGroupModel[]);
+      setGroupChatters((gcRes.data ?? []) as AssignmentGroupChatter[]);
+      setOverrides((overRes.data ?? []) as AssignmentGroupOverride[]);
+      setSchedules((schedRes.data ?? []) as Schedule[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load assignments');
+    } finally {
+      setLoading(false);
+    }
   }, [weekStart, weekDates]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -245,6 +255,10 @@ export default function Assignments() {
         </div>
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="p-6"><ErrorState message={error} onRetry={fetchData} /></div>;
   }
 
   return (

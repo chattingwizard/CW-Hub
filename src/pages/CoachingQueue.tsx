@@ -7,6 +7,7 @@ import {
   ChevronDown, ChevronUp, Target, MessageSquare, Clock, BarChart3,
   Phone, Loader2, RefreshCw, Filter,
 } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 const TL_OPTIONS = [
   { key: 'huckle', name: 'Huckle', shift: '00:00 – 08:00 UTC' },
@@ -158,6 +159,7 @@ export default function CoachingQueue() {
   const { profile } = useAuthStore();
   const [tasks, setTasks] = useState<CoachingTask[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedTl, setSelectedTl] = useState('');
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [completingId, setCompletingId] = useState<number | null>(null);
@@ -174,15 +176,17 @@ export default function CoachingQueue() {
 
   const fetchTasks = useCallback(async () => {
     setLoading(true);
-    const today = new Date().toISOString().split('T')[0];
-    const { data, error } = await supabase
-      .from('coaching_tasks')
-      .select('*')
-      .eq('date', today)
-      .order('priority', { ascending: false });
+    setError(null);
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const { data, error: qErr } = await supabase
+        .from('coaching_tasks')
+        .select('*')
+        .eq('date', today)
+        .order('priority', { ascending: false });
 
-    if (!error && data) {
-      setTasks(data.map((row) => {
+      if (qErr) throw new Error(qErr.message);
+      setTasks((data ?? []).map((row) => {
         const r = row as Record<string, unknown>;
         return {
           ...r,
@@ -194,8 +198,11 @@ export default function CoachingQueue() {
           recent_reports: parseJsonField(r.recent_reports, []),
         } as unknown as CoachingTask;
       }));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load coaching tasks');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
@@ -363,6 +370,8 @@ export default function CoachingQueue() {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="animate-spin text-cw" size={24} />
         </div>
+      ) : error ? (
+        <ErrorState message={error} onRetry={fetchTasks} />
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-text-muted">
           <Phone size={32} className="mx-auto mb-3 opacity-30" />

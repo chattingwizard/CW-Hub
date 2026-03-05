@@ -15,7 +15,16 @@ function lazyRetry(factory: () => Promise<{ default: React.ComponentType }>) {
         sessionStorage.setItem(key, '1');
         window.location.reload();
       }
-      return factory();
+      return factory().catch(() => ({
+        default: () => (
+          <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
+            <p className="text-text-secondary text-sm">Failed to load this page.</p>
+            <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg bg-cw text-white text-sm font-medium hover:bg-cw/90">
+              Reload
+            </button>
+          </div>
+        ),
+      }));
     }),
   );
 }

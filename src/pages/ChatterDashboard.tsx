@@ -8,6 +8,7 @@ import {
 } from '../lib/scoreUtils';
 import { Clock, Calendar, CheckCircle, AlertCircle, Users as UsersIcon, Star, TrendingUp, TrendingDown } from 'lucide-react';
 import ModelAvatar from '../components/ModelAvatar';
+import ErrorState from '../components/ErrorState';
 import type { Schedule, Model, ChatterHours, Chatter, ScoreConfig, ScoreEvent, ScoreWeeklyReport } from '../types';
 
 export default function ChatterDashboard() {
@@ -17,6 +18,7 @@ export default function ChatterDashboard() {
   const [models, setModels] = useState<Model[]>([]);
   const [weekHours, setWeekHours] = useState<ChatterHours[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [scoreConfig, setScoreConfig] = useState<ScoreConfig | null>(null);
   const [myEvents, setMyEvents] = useState<ScoreEvent[]>([]);
@@ -40,54 +42,60 @@ export default function ChatterDashboard() {
   const fetchData = useCallback(async () => {
     if (!profile) return;
     setLoading(true);
+    setError(null);
+    try {
+      const { data: chatterData, error: chErr } = await supabase
+        .from('chatters')
+        .select('*')
+        .eq('profile_id', profile.id)
+        .single();
 
-    // Get my chatter record
-    const { data: chatterData } = await supabase
-      .from('chatters')
-      .select('*')
-      .eq('profile_id', profile.id)
-      .single();
+      if (chErr && chErr.code !== 'PGRST116') throw new Error(chErr.message);
+      if (!chatterData) {
+        setLoading(false);
+        return;
+      }
 
-    if (!chatterData) {
+      const chatter = chatterData as Chatter;
+      setMyChatter(chatter);
+
+      const weekEnd = new Date(weekStart + 'T00:00:00');
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const weekEndStr = weekEnd.toISOString().split('T')[0]!;
+
+      const [schedulesRes, modelsRes, hoursRes] = await Promise.all([
+        supabase.from('schedules').select('*').eq('chatter_id', chatter.id).eq('week_start', weekStart),
+        chatter.team_name
+          ? supabase.from('models').select('*').contains('team_names', [chatter.team_name])
+          : Promise.resolve({ data: null, error: null }),
+        supabase.from('chatter_hours').select('*').eq('chatter_id', chatter.id).gte('date', weekStart).lte('date', weekEndStr),
+      ]);
+
+      const err1 = schedulesRes.error || modelsRes.error || hoursRes.error;
+      if (err1) throw new Error(err1.message);
+
+      setSchedules((schedulesRes.data ?? []) as Schedule[]);
+      setModels((modelsRes.data ?? []) as Model[]);
+      setWeekHours((hoursRes.data ?? []) as ChatterHours[]);
+
+      const [cfgRes, evRes, rwRes, evLastRes, rwLastRes] = await Promise.all([
+        supabase.from('score_config').select('*').eq('id', 1).single(),
+        supabase.from('score_events').select('*, event_type:score_event_types(*)').eq('chatter_id', chatter.id).eq('week', currentWeekKey),
+        supabase.from('score_weekly_reports').select('*').eq('chatter_id', chatter.id).eq('week', currentWeekKey).maybeSingle(),
+        supabase.from('score_events').select('*, event_type:score_event_types(*)').eq('chatter_id', chatter.id).eq('week', lastWeekKey),
+        supabase.from('score_weekly_reports').select('*').eq('chatter_id', chatter.id).eq('week', lastWeekKey).maybeSingle(),
+      ]);
+
+      setScoreConfig(cfgRes.data as ScoreConfig | null);
+      setMyEvents((evRes.data ?? []) as ScoreEvent[]);
+      setMyWeeklyReport((rwRes.data as ScoreWeeklyReport) ?? null);
+      setLastWeekEvents((evLastRes.data ?? []) as ScoreEvent[]);
+      setLastWeekReport((rwLastRes.data as ScoreWeeklyReport) ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load dashboard');
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const chatter = chatterData as Chatter;
-    setMyChatter(chatter);
-
-    const weekEnd = new Date(weekStart + 'T00:00:00');
-    weekEnd.setDate(weekEnd.getDate() + 6);
-    const weekEndStr = weekEnd.toISOString().split('T')[0]!;
-
-    // Fetch schedule, team models, and hours
-    const [schedulesRes, modelsRes, hoursRes] = await Promise.all([
-      supabase.from('schedules').select('*').eq('chatter_id', chatter.id).eq('week_start', weekStart),
-      chatter.team_name
-        ? supabase.from('models').select('*').contains('team_names', [chatter.team_name])
-        : Promise.resolve({ data: [] }),
-      supabase.from('chatter_hours').select('*').eq('chatter_id', chatter.id).gte('date', weekStart).lte('date', weekEndStr),
-    ]);
-
-    setSchedules((schedulesRes.data ?? []) as Schedule[]);
-    setModels((modelsRes.data ?? []) as Model[]);
-    setWeekHours((hoursRes.data ?? []) as ChatterHours[]);
-
-    const [cfgRes, evRes, rwRes, evLastRes, rwLastRes] = await Promise.all([
-      supabase.from('score_config').select('*').eq('id', 1).single(),
-      supabase.from('score_events').select('*, event_type:score_event_types(*)').eq('chatter_id', chatter.id).eq('week', currentWeekKey),
-      supabase.from('score_weekly_reports').select('*').eq('chatter_id', chatter.id).eq('week', currentWeekKey).maybeSingle(),
-      supabase.from('score_events').select('*, event_type:score_event_types(*)').eq('chatter_id', chatter.id).eq('week', lastWeekKey),
-      supabase.from('score_weekly_reports').select('*').eq('chatter_id', chatter.id).eq('week', lastWeekKey).maybeSingle(),
-    ]);
-
-    setScoreConfig(cfgRes.data as ScoreConfig | null);
-    setMyEvents((evRes.data ?? []) as ScoreEvent[]);
-    setMyWeeklyReport((rwRes.data as ScoreWeeklyReport) ?? null);
-    setLastWeekEvents((evLastRes.data ?? []) as ScoreEvent[]);
-    setLastWeekReport((rwLastRes.data as ScoreWeeklyReport) ?? null);
-
-    setLoading(false);
   }, [profile, weekStart, currentWeekKey, lastWeekKey]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -108,6 +116,10 @@ export default function ChatterDashboard() {
         </div>
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="p-6"><ErrorState message={error} onRetry={fetchData} /></div>;
   }
 
   if (!myChatter) {

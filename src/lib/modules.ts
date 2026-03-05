@@ -188,7 +188,7 @@ export const modules: HubModule[] = [
     name: 'Scripts',
     icon: 'FileText',
     type: 'iframe',
-    path: `${GITHUB_PAGES_BASE}/chattingwizard.github.io/`,
+    path: `${GITHUB_PAGES_BASE}/CW-ScriptManager/`,
     roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager'],
     section: 'tools',
   },

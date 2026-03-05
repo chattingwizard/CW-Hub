@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import CreatorReportUpload from '../components/CreatorReportUpload';
 import EmployeeReportUpload from '../components/EmployeeReportUpload';
+import ErrorState from '../components/ErrorState';
 
 interface CsvUpload {
   id: string;
@@ -54,6 +55,7 @@ export default function UploadCenter() {
   const [activeUpload, setActiveUpload] = useState<string | null>(null);
   const [uploads, setUploads] = useState<CsvUpload[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>('uploaded_at');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -63,7 +65,8 @@ export default function UploadCenter() {
 
   const fetchHistory = useCallback(async () => {
     setLoadingHistory(true);
-
+    setHistoryError(null);
+    try {
     const [uploadsRes, creatorDatesRes, employeeDatesRes] = await Promise.all([
       supabase
         .from('csv_uploads')
@@ -126,7 +129,11 @@ export default function UploadCenter() {
     });
 
     setUploads(enriched);
-    setLoadingHistory(false);
+    } catch (e) {
+      setHistoryError(e instanceof Error ? e.message : 'Failed to load upload history');
+    } finally {
+      setLoadingHistory(false);
+    }
   }, []);
 
   useEffect(() => { fetchHistory(); }, [fetchHistory]);
@@ -480,6 +487,8 @@ export default function UploadCenter() {
             Loading history...
           </div>
         </div>
+      ) : historyError ? (
+        <ErrorState message={historyError} onRetry={fetchHistory} />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Creator Reports Section */}

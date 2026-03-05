@@ -7,6 +7,7 @@ import {
   LayoutGrid, List, ChevronDown, MessageSquare,
   Clock, MoreHorizontal, Check, AlertCircle,
 } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -70,6 +71,7 @@ export default function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<'board' | 'list'>('board');
   const [search, setSearch] = useState('');
   const [filterAssignee, setFilterAssignee] = useState<string>('all');
@@ -80,27 +82,33 @@ export default function Tasks() {
 
   // ── Fetch ────────────────────────────────────────────────
 
-  const fetchTasks = useCallback(async () => {
-    const { data } = await supabase
-      .from('tasks')
-      .select('*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, email, role, avatar_url), creator:profiles!tasks_creator_id_fkey(id, full_name, email, role)')
-      .not('status', 'eq', 'cancelled')
-      .order('created_at', { ascending: false });
-
-    if (data) setTasks(data as Task[]);
-    setLoading(false);
+  const fetchData = useCallback(async () => {
+    setError(null);
+    try {
+      const [tasksRes, membersRes] = await Promise.all([
+        supabase
+          .from('tasks')
+          .select('*, assignee:profiles!tasks_assignee_id_fkey(id, full_name, email, role, avatar_url), creator:profiles!tasks_creator_id_fkey(id, full_name, email, role)')
+          .not('status', 'eq', 'cancelled')
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('profiles')
+          .select('id, full_name, email, role, avatar_url')
+          .eq('is_active', true)
+          .order('full_name'),
+      ]);
+      if (tasksRes.error) throw new Error(tasksRes.error.message);
+      if (membersRes.error) throw new Error(membersRes.error.message);
+      setTasks((tasksRes.data ?? []) as Task[]);
+      setMembers((membersRes.data ?? []) as Profile[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load tasks');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const fetchMembers = useCallback(async () => {
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, role, avatar_url')
-      .eq('is_active', true)
-      .order('full_name');
-    if (data) setMembers(data as Profile[]);
-  }, []);
-
-  useEffect(() => { fetchTasks(); fetchMembers(); }, [fetchTasks, fetchMembers]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   // ── Filters ──────────────────────────────────────────────
 
@@ -545,6 +553,10 @@ export default function Tasks() {
         <div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" />
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="p-6"><ErrorState message={error} onRetry={fetchData} /></div>;
   }
 
   return (

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { Shield, UserPlus, Copy, Check, RefreshCw, Search, Users, ShieldCheck } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 import type { Profile, UserRole } from '../types';
 
 const DocPermissions = lazy(() => import('./DocPermissions'));
@@ -14,6 +15,7 @@ export default function Settings() {
   const [users, setUsers] = useState<Profile[]>([]);
   const [inviteCodes, setInviteCodes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState('');
   const [generating, setGenerating] = useState(false);
@@ -21,13 +23,21 @@ export default function Settings() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [usersRes, invitesRes] = await Promise.all([
-      supabase.rpc('hub_get_users'),
-      supabase.from('invite_codes').select('*').order('created_at', { ascending: false }).limit(20),
-    ]);
-    setUsers(usersRes.data ?? []);
-    setInviteCodes(invitesRes.data ?? []);
-    setLoading(false);
+    setError(null);
+    try {
+      const [usersRes, invitesRes] = await Promise.all([
+        supabase.rpc('hub_get_users'),
+        supabase.from('invite_codes').select('*').order('created_at', { ascending: false }).limit(20),
+      ]);
+      if (usersRes.error) throw new Error(usersRes.error.message);
+      if (invitesRes.error) throw new Error(invitesRes.error.message);
+      setUsers(usersRes.data ?? []);
+      setInviteCodes(invitesRes.data ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load settings');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -233,6 +243,12 @@ export default function Settings() {
                       <div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" />
                       Loading...
                     </div>
+                  </td>
+                </tr>
+              ) : error ? (
+                <tr>
+                  <td colSpan={5}>
+                    <ErrorState message={error} onRetry={fetchData} />
                   </td>
                 </tr>
               ) : filteredUsers.length === 0 ? (

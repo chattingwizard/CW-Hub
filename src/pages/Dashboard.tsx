@@ -10,13 +10,14 @@ import ModelAvatar from '../components/ModelAvatar';
 import TrafficBadge from '../components/TrafficBadge';
 import { PageTypeBadge } from '../components/TrafficBadge';
 import CreatorReportUpload from '../components/CreatorReportUpload';
+import ErrorState from '../components/ErrorState';
 import { useTrafficData } from '../hooks/useTrafficData';
 
 export default function Dashboard() {
   const [showCreatorUpload, setShowCreatorUpload] = useState(false);
   const [statusFilter, setStatusFilter] = useState('Live');
   const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'fans' | 'workload'>('workload');
-  const { modelTraffic, loading, refresh: refreshTraffic } = useTrafficData();
+  const { modelTraffic, loading, error, refresh: refreshTraffic } = useTrafficData();
 
   // Filter and sort
   const tableData = modelTraffic
@@ -75,6 +76,10 @@ export default function Dashboard() {
     { label: 'New Fans / day', value: formatNumber(Math.round(totalNewFansPerDay)), icon: TrendingUp, color: 'text-cw-light', bgColor: 'bg-cw-light/10' },
     { label: 'Tips / day', value: formatCurrency(totalTipsPerDay), icon: Heart, color: 'text-warning', bgColor: 'bg-warning/10' },
   ];
+
+  if (error) {
+    return <div className="p-6"><ErrorState message={error} onRetry={refreshTraffic} /></div>;
+  }
 
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto">

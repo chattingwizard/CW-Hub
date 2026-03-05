@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Document, DocCategory, UserRole } from '../types';
 import { Search, Shield, Check, X, Filter } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 const ALL_ROLES: UserRole[] = ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant', 'chatter', 'recruit'];
 
@@ -24,18 +25,26 @@ const CAT_LABELS: Record<DocCategory, string> = {
 export default function DocPermissions() {
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState<string>('all');
   const [saving, setSaving] = useState<string | null>(null);
 
   const fetchDocs = useCallback(async () => {
-    const { data } = await supabase
-      .from('documents')
-      .select('id, title, category, target_roles, icon, is_published')
-      .order('category')
-      .order('title');
-    if (data) setDocs(data as Document[]);
-    setLoading(false);
+    setError(null);
+    try {
+      const { data, error: qErr } = await supabase
+        .from('documents')
+        .select('id, title, category, target_roles, icon, is_published')
+        .order('category')
+        .order('title');
+      if (qErr) throw new Error(qErr.message);
+      setDocs((data ?? []) as Document[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
@@ -105,6 +114,10 @@ export default function DocPermissions() {
         <div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" />
       </div>
     );
+  }
+
+  if (error) {
+    return <ErrorState message={error} onRetry={fetchDocs} />;
   }
 
   return (

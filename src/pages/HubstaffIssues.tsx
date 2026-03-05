@@ -17,6 +17,7 @@ import {
   ChevronUp,
   ExternalLink,
 } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 const ISSUE_TYPES = [
   { value: 'not_tracking', label: 'Not tracking hours' },
@@ -95,6 +96,7 @@ export default function HubstaffIssues() {
   // ── Issues list state ──
   const [issues, setIssues] = useState<HubstaffIssue[]>([]);
   const [loadingIssues, setLoadingIssues] = useState(true);
+  const [issuesError, setIssuesError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [resolveNotes, setResolveNotes] = useState('');
@@ -104,7 +106,9 @@ export default function HubstaffIssues() {
   const loadIssues = useCallback(async () => {
     if (!profile) return;
     setLoadingIssues(true);
+    setIssuesError(null);
 
+    try {
     let query = supabase
       .from('hubstaff_issues')
       .select('*, submitter:profiles!submitted_by(full_name)')
@@ -114,7 +118,8 @@ export default function HubstaffIssues() {
       query = query.eq('submitted_by', profile.id);
     }
 
-    const { data } = await query;
+    const { data, error: qErr } = await query;
+    if (qErr) throw new Error(qErr.message);
 
     const mapped: HubstaffIssue[] = (data ?? []).map((row: Record<string, unknown>) => ({
       id: row.id as string,
@@ -135,11 +140,15 @@ export default function HubstaffIssues() {
     }));
 
     setIssues(mapped);
-    setLoadingIssues(false);
 
     const allScreenshots = mapped.flatMap(i => i.screenshot_urls);
     if (allScreenshots.length > 0) {
       resolveSignedUrls(allScreenshots).then(setSignedUrlMap);
+    }
+    } catch (e) {
+      setIssuesError(e instanceof Error ? e.message : 'Failed to load issues');
+    } finally {
+      setLoadingIssues(false);
     }
   }, [profile, isAdmin]);
 
@@ -484,6 +493,8 @@ export default function HubstaffIssues() {
             <div className="flex items-center justify-center py-16">
               <Loader2 size={20} className="animate-spin text-cw" />
             </div>
+          ) : issuesError ? (
+            <ErrorState message={issuesError} onRetry={loadIssues} />
           ) : filteredIssues.length === 0 ? (
             <div className="text-center py-16 text-text-muted text-sm">
               No issues found.

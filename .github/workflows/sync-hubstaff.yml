@@ -1,8 +1,8 @@
-name: Sync Hubstaff Hours
+name: Sync Hubstaff Hours (DISABLED — use pipeline.yml instead)
 
 on:
-  schedule:
-    - cron: '15 0 * * *' # 00:15 UTC daily
+  # schedule disabled: pipeline.yml runs the Python sync every 6h with 14-day backfill
+  # - cron: '15 0 * * *'
   workflow_dispatch:
     inputs:
       backfill_days:

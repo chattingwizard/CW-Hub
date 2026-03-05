@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import {
   ChevronLeft, ChevronRight, Save, Copy, Users, AlertTriangle, X, GripVertical, ChevronDown,
 } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 import type { Chatter, Schedule, ShiftSlot, AssignmentGroup, AssignmentGroupChatter, AssignmentGroupModel, Model } from '../types';
 
 /* ── TL config ────────────────────────────────────────────────── */
@@ -28,6 +29,7 @@ export default function Schedules() {
   const [groupModels, setGroupModels] = useState<AssignmentGroupModel[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
@@ -70,33 +72,38 @@ export default function Schedules() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [chattersRes, modelsRes, schedulesRes, groupsRes, gcRes, gmRes, shiftRefRes] = await Promise.all([
-      supabase.from('chatters').select('*').eq('status', 'Active').order('full_name'),
-      supabase.from('models').select('*').eq('status', 'Live').order('name'),
-      supabase.from('schedules').select('*, chatter:chatters!schedules_chatter_id_fkey(*)').eq('week_start', weekStart),
-      supabase.from('assignment_groups').select('*').eq('active', true).order('sort_order'),
-      supabase.from('assignment_group_chatters').select('*'),
-      supabase.from('assignment_group_models').select('*'),
-      // Fetch shifts from ALL weeks to build canonical chatter→shift mapping
-      supabase.from('schedules').select('chatter_id, shift').order('week_start', { ascending: false }).limit(500),
-    ]);
-    setChatters((chattersRes.data ?? []) as Chatter[]);
-    setModels((modelsRes.data ?? []) as Model[]);
-    setSchedules((schedulesRes.data ?? []) as Schedule[]);
-    setGroups((groupsRes.data ?? []) as AssignmentGroup[]);
-    setGroupChatters((gcRes.data ?? []) as AssignmentGroupChatter[]);
-    setGroupModels((gmRes.data ?? []) as AssignmentGroupModel[]);
+    setError(null);
+    try {
+      const [chattersRes, modelsRes, schedulesRes, groupsRes, gcRes, gmRes, shiftRefRes] = await Promise.all([
+        supabase.from('chatters').select('*').eq('status', 'Active').order('full_name'),
+        supabase.from('models').select('*').eq('status', 'Live').order('name'),
+        supabase.from('schedules').select('*, chatter:chatters!schedules_chatter_id_fkey(*)').eq('week_start', weekStart),
+        supabase.from('assignment_groups').select('*').eq('active', true).order('sort_order'),
+        supabase.from('assignment_group_chatters').select('*'),
+        supabase.from('assignment_group_models').select('*'),
+        supabase.from('schedules').select('chatter_id, shift').order('week_start', { ascending: false }).limit(500),
+      ]);
+      const err = chattersRes.error || modelsRes.error || schedulesRes.error || groupsRes.error || gcRes.error || gmRes.error || shiftRefRes.error;
+      if (err) throw new Error(err.message);
+      setChatters((chattersRes.data ?? []) as Chatter[]);
+      setModels((modelsRes.data ?? []) as Model[]);
+      setSchedules((schedulesRes.data ?? []) as Schedule[]);
+      setGroups((groupsRes.data ?? []) as AssignmentGroup[]);
+      setGroupChatters((gcRes.data ?? []) as AssignmentGroupChatter[]);
+      setGroupModels((gmRes.data ?? []) as AssignmentGroupModel[]);
 
-    // Build canonical shift reference (most recent entry wins)
-    const refMap = new Map<string, ShiftSlot>();
-    for (const r of (shiftRefRes.data ?? []) as { chatter_id: string; shift: ShiftSlot }[]) {
-      if (!refMap.has(r.chatter_id)) refMap.set(r.chatter_id, r.shift);
+      const refMap = new Map<string, ShiftSlot>();
+      for (const r of (shiftRefRes.data ?? []) as { chatter_id: string; shift: ShiftSlot }[]) {
+        if (!refMap.has(r.chatter_id)) refMap.set(r.chatter_id, r.shift);
+      }
+      setShiftRef(refMap);
+      setCoverageMap(new Map());
+      setDirty(false);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load schedules');
+    } finally {
+      setLoading(false);
     }
-    setShiftRef(refMap);
-
-    setCoverageMap(new Map());
-    setLoading(false);
-    setDirty(false);
   }, [weekStart]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -422,6 +429,10 @@ export default function Schedules() {
         </div>
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="p-6"><ErrorState message={error} onRetry={fetchData} /></div>;
   }
 
   const tlScheduleCount = schedules.filter(s => s.shift === currentTL.shift).length;

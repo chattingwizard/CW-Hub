@@ -7,6 +7,7 @@ import {
   DollarSign, Target, MessageSquare, Users as UsersIcon,
   TrendingUp, AlertTriangle, UserPlus,
 } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 // ── Constants ────────────────────────────────────────────────
 const MIN_HOURS_FULL_SHIFT = 4;
@@ -140,6 +141,7 @@ function aggregateByEmployee(rows: ChatterDailyStat[]): ChatterDailyStat[] {
 export default function ChatterPerformance() {
   const [allStats, setAllStats] = useState<ChatterDailyStat[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dates, setDates] = useState<string[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [viewMode, setViewMode] = useState<ViewMode>('week');
@@ -253,29 +255,32 @@ export default function ChatterPerformance() {
   const fetchStats = useCallback(async () => {
     if (!selectedDate && viewMode === 'day') return;
     setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('chatter_daily_stats')
+        .select('*')
+        .order('sales', { ascending: false });
 
-    let query = supabase
-      .from('chatter_daily_stats')
-      .select('*')
-      .order('sales', { ascending: false });
+      if (viewMode === 'week') {
+        const monday = getMondayUTC();
+        const nextMonday = new Date(new Date(monday + 'T00:00:00Z').getTime() + 7 * 86400000)
+          .toISOString().slice(0, 10);
+        query = query.gte('date', monday).lt('date', nextMonday);
+      } else {
+        query = query.eq('date', selectedDate);
+      }
 
-    if (viewMode === 'week') {
-      const monday = getMondayUTC();
-      const nextMonday = new Date(new Date(monday + 'T00:00:00Z').getTime() + 7 * 86400000)
-        .toISOString().slice(0, 10);
-      query = query.gte('date', monday).lt('date', nextMonday);
-    } else {
-      query = query.eq('date', selectedDate);
-    }
+      const { data, error: qErr } = await query;
+      if (qErr) throw new Error(qErr.message);
 
-    const { data, error } = await query;
-
-    if (!error && data) {
-      const raw = data as ChatterDailyStat[];
-      console.log(`[ChatterPerf] ${viewMode === 'week' ? 'week' : selectedDate}: ${raw.length} rows, ${new Set(raw.map(r => r.employee_name)).size} unique employees`);
+      const raw = (data ?? []) as ChatterDailyStat[];
       setAllStats(viewMode === 'week' ? aggregateByEmployee(raw) : raw);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load performance data');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [selectedDate, viewMode]);
 
   useEffect(() => { fetchDates(); }, [fetchDates]);
@@ -565,6 +570,8 @@ export default function ChatterPerformance() {
         <div className="flex items-center justify-center h-40">
           <div className="text-text-secondary text-sm">Loading...</div>
         </div>
+      ) : error ? (
+        <ErrorState message={error} onRetry={fetchStats} />
       ) : (
         <div className="bg-surface-1 rounded-xl border border-border overflow-x-auto">
           <table className="w-full min-w-[900px]">
