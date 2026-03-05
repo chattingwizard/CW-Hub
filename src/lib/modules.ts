@@ -3,7 +3,7 @@ import { getDefaultPath as getRoleDefaultPath } from './roles';
 
 
 export const modules: HubModule[] = [
-  // ── Main ───────────────────────────────────────────────────
+  // ── Main (Operations) ──────────────────────────────────────
   {
     id: 'overview',
     name: 'Overview',
