@@ -94,8 +94,17 @@ export default function ModelInfo() {
         map.set(ch.model_id, (map.get(ch.model_id) ?? 0) + 1);
       }
     }
+
+    for (const n of importantNotes) {
+      const lastViewed = viewMap.get(n.model_id);
+      const noteTime = n.updated_at || n.created_at;
+      if (!lastViewed || new Date(noteTime) > new Date(lastViewed)) {
+        map.set(n.model_id, (map.get(n.model_id) ?? 0) + 1);
+      }
+    }
+
     return map;
-  }, [recentChanges, profileViews]);
+  }, [recentChanges, profileViews, importantNotes]);
 
   const modelsWithNotes = useMemo(() => {
     const set = new Set<string>();
