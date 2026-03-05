@@ -128,21 +128,20 @@ export default function ScriptDashboard() {
 }
 
 function ModelCard({ model }: { model: Model }) {
-  const slug = slugify(model.name);
   const initials = model.name.slice(0, 2).toUpperCase();
+  const [imgError, setImgError] = useState(false);
 
   return (
     <Link
       to={`/scripts/${model.id}`}
       className="group bg-surface-1 border border-border rounded-xl overflow-hidden hover:border-cw/30 hover:shadow-lg hover:shadow-cw/5 transition-all"
     >
-      {/* Photo */}
       <div className="aspect-[4/3] bg-surface-2 relative overflow-hidden">
-        {model.profile_picture_url ? (
-          <img src={model.profile_picture_url} alt={model.name} className="w-full h-full object-cover" />
+        {model.profile_picture_url && !imgError ? (
+          <img src={model.profile_picture_url} alt={model.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <span className="text-2xl font-extrabold text-text-muted/30">{initials}</span>
+          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-surface-2 to-surface-3">
+            <span className="text-3xl font-extrabold text-text-muted/20">{initials}</span>
           </div>
         )}
         {model.page_type && (
@@ -154,7 +153,6 @@ function ModelCard({ model }: { model: Model }) {
         )}
       </div>
 
-      {/* Info */}
       <div className="p-3">
         <h3 className="text-sm font-bold text-white group-hover:text-cw transition-colors truncate">{model.name}</h3>
         <div className="flex flex-wrap gap-1 mt-1.5">

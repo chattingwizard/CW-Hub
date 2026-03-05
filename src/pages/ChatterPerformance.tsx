@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/utils';
 import type { ChatterDailyStat } from '../types';
 import {
-  Search, ChevronDown, ChevronUp, ArrowUpDown,
+  Search, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, ArrowUpDown,
   DollarSign, Target, MessageSquare, Users as UsersIcon,
-  TrendingUp, AlertTriangle, UserPlus,
+  TrendingUp, AlertTriangle, UserPlus, Calendar,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 
@@ -82,12 +82,19 @@ type SortField = 'employee_name' | 'sales' | 'fan_cvr' | 'golden_ratio' | 'unloc
 type SortDir = 'asc' | 'desc';
 type ViewMode = 'day' | 'week';
 
-function getMondayUTC(): string {
+function getMondayUTC(offset = 0): string {
   const now = new Date();
   const day = now.getUTCDay();
   const diff = day === 0 ? 6 : day - 1;
-  const mon = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff));
+  const mon = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - diff + offset * 7));
   return mon.toISOString().slice(0, 10);
+}
+
+function formatWeekRange(monday: string): string {
+  const mon = new Date(monday + 'T00:00:00Z');
+  const sun = new Date(mon.getTime() + 6 * 86400000);
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${fmt(mon)} – ${fmt(sun)}`;
 }
 
 function aggregateByEmployee(rows: ChatterDailyStat[]): ChatterDailyStat[] {
@@ -155,6 +162,7 @@ export default function ChatterPerformance() {
   const [lostBoxOpen, setLostBoxOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<string | null>(null);
   const [savingOverride, setSavingOverride] = useState<string | null>(null);
+  const [weekOffset, setWeekOffset] = useState(0);
 
   // ── Load canonical chatter→team mapping from Supabase ─────
   useEffect(() => {
@@ -263,7 +271,7 @@ export default function ChatterPerformance() {
         .order('sales', { ascending: false });
 
       if (viewMode === 'week') {
-        const monday = getMondayUTC();
+        const monday = getMondayUTC(weekOffset);
         const nextMonday = new Date(new Date(monday + 'T00:00:00Z').getTime() + 7 * 86400000)
           .toISOString().slice(0, 10);
         query = query.gte('date', monday).lt('date', nextMonday);
@@ -281,7 +289,7 @@ export default function ChatterPerformance() {
     } finally {
       setLoading(false);
     }
-  }, [selectedDate, viewMode]);
+  }, [selectedDate, viewMode, weekOffset]);
 
   useEffect(() => { fetchDates(); }, [fetchDates]);
   useEffect(() => { fetchStats(); }, [fetchStats]);
@@ -449,7 +457,21 @@ export default function ChatterPerformance() {
               Day
             </button>
           </div>
-          {/* Date selector — only for day mode */}
+          {viewMode === 'week' && (
+            <div className="flex items-center gap-1.5">
+              <button onClick={() => setWeekOffset(o => o - 1)} className="p-1.5 rounded-lg bg-surface-2 border border-border text-text-muted hover:text-white hover:border-cw/30 transition-colors">
+                <ChevronLeft size={14} />
+              </button>
+              <div className="flex items-center gap-1.5 bg-surface-2 border border-border rounded-lg px-3 py-1.5 min-w-[170px] justify-center">
+                <Calendar size={12} className="text-text-muted shrink-0" />
+                <span className="text-xs font-medium text-white">{formatWeekRange(getMondayUTC(weekOffset))}</span>
+                {weekOffset === 0 && <span className="text-[9px] px-1 py-0.5 rounded bg-cw/15 text-cw font-bold">NOW</span>}
+              </div>
+              <button onClick={() => setWeekOffset(o => Math.min(o + 1, 0))} disabled={weekOffset >= 0} className="p-1.5 rounded-lg bg-surface-2 border border-border text-text-muted hover:text-white hover:border-cw/30 transition-colors disabled:opacity-30 disabled:cursor-not-allowed">
+                <ChevronRight size={14} />
+              </button>
+            </div>
+          )}
           {viewMode === 'day' && (
             <select
               value={selectedDate}

@@ -39,6 +39,7 @@ const ChatterPerformance = lazyRetry(() => import('./pages/ChatterPerformance'))
 const CoachingQueue = lazyRetry(() => import('./pages/CoachingQueue'));
 const CoachingOverview = lazyRetry(() => import('./pages/CoachingOverview'));
 const CoachingAnalytics = lazyRetry(() => import('./pages/CoachingAnalytics'));
+const CoachingWorkflow = lazyRetry(() => import('./pages/CoachingWorkflow'));
 const ChatterDashboard = lazyRetry(() => import('./pages/ChatterDashboard'));
 const Settings = lazyRetry(() => import('./pages/Settings'));
 
@@ -248,6 +249,15 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             />
 
             <Route
+              path="/coaching-workflow"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
+                  <CoachingWorkflow />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/upload-center"
               element={
                 <ProtectedRoute roles={['owner', 'admin', 'script_manager', 'va']}>
@@ -320,7 +330,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/knowledge-base"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter', 'recruit']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter']}>
                   <KnowledgeBase />
                 </ProtectedRoute>
               }

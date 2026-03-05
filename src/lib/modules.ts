@@ -119,6 +119,15 @@ export const modules: HubModule[] = [
     roles: ['owner', 'admin', 'team_leader'],
     section: 'coaching',
   },
+  {
+    id: 'coaching-workflow',
+    name: 'How It Works',
+    icon: 'Info',
+    type: 'internal',
+    path: '/coaching-workflow',
+    roles: ['owner', 'admin', 'team_leader'],
+    section: 'coaching',
+  },
 
   // ── Tools ──────────────────────────────────────────────────
   {
@@ -165,7 +174,7 @@ export const modules: HubModule[] = [
     icon: 'BookMarked',
     type: 'internal',
     path: '/knowledge-base',
-    roles: ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter', 'recruit'],
+    roles: ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter'],
     section: 'tools',
   },
 
