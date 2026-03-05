@@ -231,6 +231,8 @@ export interface ModelTraffic {
   earnings_trend_pct: number;
   renew_pct: number;
   avg_spend_per_spender: number;
+  avg_sub_length_days: number;
+  ltv: number;
 }
 
 export interface TeamTraffic {

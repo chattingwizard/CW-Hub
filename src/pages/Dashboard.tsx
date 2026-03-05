@@ -12,11 +12,12 @@ import { PageTypeBadge } from '../components/TrafficBadge';
 import CreatorReportUpload from '../components/CreatorReportUpload';
 import ErrorState from '../components/ErrorState';
 import { useTrafficData } from '../hooks/useTrafficData';
+import LtvGauge, { getColor, getScaleMax } from '../components/LtvGauge';
 
 export default function Dashboard() {
   const [showCreatorUpload, setShowCreatorUpload] = useState(false);
   const [statusFilter, setStatusFilter] = useState('Live');
-  const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'fans' | 'workload'>('workload');
+  const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'fans' | 'workload' | 'ltv'>('workload');
   const { modelTraffic, loading, error, refresh: refreshTraffic } = useTrafficData();
 
   // Filter and sort
@@ -26,6 +27,7 @@ export default function Dashboard() {
       if (sortBy === 'revenue') return b.earnings_per_day - a.earnings_per_day;
       if (sortBy === 'fans') return b.new_fans_avg - a.new_fans_avg;
       if (sortBy === 'workload') return b.workload_pct - a.workload_pct;
+      if (sortBy === 'ltv') return b.ltv - a.ltv;
       return a.model_name.localeCompare(b.model_name);
     });
 
@@ -36,6 +38,13 @@ export default function Dashboard() {
   const totalNewFansPerDay = liveModels.reduce((sum, t) => sum + t.new_fans_avg, 0);
   const activeModelCount = liveModels.length;
   const modelsWithRevenue = liveModels.filter((t) => t.earnings_per_day > 0).length;
+
+  // LTV data
+  const modelsWithLtv = liveModels.filter((t) => t.ltv > 0);
+  const avgLtv = modelsWithLtv.length > 0
+    ? modelsWithLtv.reduce((sum, t) => sum + t.ltv, 0) / modelsWithLtv.length
+    : 0;
+  const topLtvModels = [...modelsWithLtv].sort((a, b) => b.ltv - a.ltv).slice(0, 6);
 
   // Status options from actual data
   const statuses = [...new Set(modelTraffic.map((t) => t.model_status))].sort();
@@ -151,6 +160,40 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* LTV Section */}
+      {!loading && modelsWithLtv.length > 0 && (
+        <div className="bg-surface-1 border border-border rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-sm font-semibold text-white">Fan Lifetime Value (LTV)</h2>
+              <p className="text-[11px] text-text-muted mt-0.5">
+                Revenue per fan &times; avg subscription length &middot; {modelsWithLtv.length} models with data
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-lg font-bold text-white">{formatCurrency(avgLtv)}</p>
+              <p className="text-[10px] text-text-muted">Portfolio avg</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-3 lg:grid-cols-7 gap-4 items-end">
+            <div className="col-span-3 lg:col-span-1 flex justify-center">
+              <LtvGauge value={Math.round(avgLtv)} label="All Models" sublabel="Portfolio Average" size="lg" />
+            </div>
+            {topLtvModels.map((t) => (
+              <div key={t.model_id} className="flex justify-center">
+                <LtvGauge
+                  value={Math.round(t.ltv)}
+                  label={t.model_name}
+                  sublabel={`${Math.round(t.avg_sub_length_days)}d avg sub`}
+                  size="sm"
+                  pageType={t.page_type}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Table controls */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
@@ -161,6 +204,7 @@ export default function Dashboard() {
           </select>
           <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)} className="bg-surface-1 border border-border rounded-lg px-3 py-1.5 text-sm text-white focus:border-cw focus:outline-none">
             <option value="revenue">Sort: Revenue</option>
+            <option value="ltv">Sort: LTV</option>
             <option value="fans">Sort: New Fans</option>
             <option value="workload">Sort: Workload</option>
             <option value="name">Sort: Name</option>
@@ -175,18 +219,18 @@ export default function Dashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border">
-                {['Model', 'Type', 'Revenue/day', 'Trend', 'New Fans/day', 'Tips/day', 'Msg Rev/day', 'Workload'].map((h) => (
+                {['Model', 'Type', 'Revenue/day', 'Trend', 'LTV', 'New Fans/day', 'Tips/day', 'Msg Rev/day', 'Workload'].map((h) => (
                   <th key={h} className="text-left px-4 py-3.5 text-text-secondary font-medium text-xs uppercase tracking-wider">{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={8} className="px-5 py-12 text-center text-text-secondary">
+                <tr><td colSpan={9} className="px-5 py-12 text-center text-text-secondary">
                   <div className="flex items-center justify-center gap-2"><div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" />Loading...</div>
                 </td></tr>
               ) : tableData.length === 0 ? (
-                <tr><td colSpan={8} className="px-5 py-12 text-center text-text-secondary">No models found. Upload a Creator Report to see performance data.</td></tr>
+                <tr><td colSpan={9} className="px-5 py-12 text-center text-text-secondary">No models found. Upload a Creator Report to see performance data.</td></tr>
               ) : (
                 tableData.map((t) => (
                   <tr key={t.model_id} className="border-b border-border/50 hover:bg-surface-2/50">
@@ -212,6 +256,24 @@ export default function Dashboard() {
                     </td>
                     <td className="px-4 py-3">
                       <TrendBadge pct={t.earnings_trend_pct} />
+                    </td>
+                    <td className="px-4 py-3">
+                      {t.ltv > 0 ? (
+                        <div className="flex items-center gap-2">
+                          <div className="w-16 h-1.5 bg-surface-3 rounded-full overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${Math.min((t.ltv / getScaleMax(t.page_type)) * 100, 100)}%`,
+                                backgroundColor: getColor(t.ltv, t.page_type),
+                              }}
+                            />
+                          </div>
+                          <span className="text-white font-medium text-xs">{formatCurrency(t.ltv)}</span>
+                        </div>
+                      ) : (
+                        <span className="text-text-muted text-xs">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-text-secondary">

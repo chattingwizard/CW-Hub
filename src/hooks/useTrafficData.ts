@@ -143,6 +143,7 @@ export function useTrafficData(): UseTrafficDataReturn {
         const recentSubMedian = median(recent.map((s) => s.subscription_earnings));
         const renewPct = latestStat?.renew_pct ?? 0;
         const avgSpend = latestStat?.avg_spend_per_spender ?? 0;
+        const avgSubLengthDays = median(recent.filter(s => s.avg_sub_length_days > 0).map(s => s.avg_sub_length_days)) || 0;
 
         // Traffic trend (comparing medians)
         let trend: TrafficTrend = 'stable';
@@ -158,6 +159,9 @@ export function useTrafficData(): UseTrafficDataReturn {
         if (previousEarningsMedian > 0) {
           earningsTrendPct = ((recentEarningsMedian - previousEarningsMedian) / previousEarningsMedian) * 100;
         }
+
+        const revenuePerFanPerDay = activeFans > 0 ? recentEarningsMedian / activeFans : 0;
+        const ltv = avgSubLengthDays > 0 ? Math.round(revenuePerFanPerDay * avgSubLengthDays * 100) / 100 : 0;
 
         const chatters = chattersPerModel.get(modelId) ?? 0;
         const pageType = (model.page_type as PageType) ?? null;
@@ -187,6 +191,8 @@ export function useTrafficData(): UseTrafficDataReturn {
           earnings_trend_pct: Math.round(earningsTrendPct),
           renew_pct: Math.round(renewPct * 10) / 10,
           avg_spend_per_spender: Math.round(avgSpend * 100) / 100,
+          avg_sub_length_days: Math.round(avgSubLengthDays * 10) / 10,
+          ltv,
         });
       }
 
@@ -208,6 +214,7 @@ export function useTrafficData(): UseTrafficDataReturn {
           earnings_per_day: 0, tips_per_day: 0,
           message_earnings_per_day: 0, subscription_earnings_per_day: 0,
           earnings_trend_pct: 0, renew_pct: 0, avg_spend_per_spender: 0,
+          avg_sub_length_days: 0, ltv: 0,
         });
       }
 
