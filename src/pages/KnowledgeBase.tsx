@@ -10,6 +10,7 @@ import {
   Building2, Users, ClipboardList, GraduationCap, Shield, BookOpen,
   ChevronRight, FileText, ArrowLeft, Menu,
 } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -23,12 +24,12 @@ const CATEGORY_CONFIG: Record<DocCategory, { label: string; icon: typeof Buildin
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  owner: 'Owner', admin: 'Admin', chatter_manager: 'Chatter Manager',
+  owner: 'Owner', admin: 'Admin',
   team_leader: 'Team Leader', script_manager: 'Script Manager',
-  va: 'VA', personal_assistant: 'PA', chatter: 'Chatter', recruit: 'Recruit',
+  va: 'VA', chatter: 'Chatter', recruit: 'Recruit',
 };
 
-const ALL_ROLES: UserRole[] = ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant', 'chatter', 'recruit'];
+const ALL_ROLES: UserRole[] = ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter', 'recruit'];
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -131,10 +132,11 @@ const markdownComponents = {
 
 export default function KnowledgeBase() {
   const { profile } = useAuthStore();
-  const isEditor = profile && ['owner', 'admin', 'chatter_manager'].includes(profile.role);
+  const isEditor = profile && ['owner', 'admin'].includes(profile.role);
 
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<DocCategory | 'all'>('all');
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [search, setSearch] = useState('');
@@ -145,22 +147,27 @@ export default function KnowledgeBase() {
   // ── Fetch ────────────────────────────────────────────────
 
   const fetchDocs = useCallback(async () => {
-    const { data } = await supabase
-      .from('documents')
-      .select('*, author:profiles!documents_author_id_fkey(id, full_name)')
-      .order('sort_order', { ascending: true })
-      .order('title', { ascending: true });
+    setError(null);
+    try {
+      const { data, error: qErr } = await supabase
+        .from('documents')
+        .select('*, author:profiles!documents_author_id_fkey(id, full_name)')
+        .order('sort_order', { ascending: true })
+        .order('title', { ascending: true });
 
-    if (data) {
-      let filtered = data as Document[];
+      if (qErr) throw new Error(qErr.message);
+      let filtered = (data ?? []) as Document[];
       if (profile && !isEditor) {
         filtered = filtered.filter(d =>
-          d.target_roles.length === 0 || d.target_roles.includes(profile.role)
+          (d.target_roles ?? []).length === 0 || (d.target_roles ?? []).includes(profile.role)
         );
       }
       setDocs(filtered);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load documents');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, [profile, isEditor]);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
@@ -336,7 +343,7 @@ export default function KnowledgeBase() {
                 {!doc.is_published && <span className="text-xs px-1.5 py-0.5 bg-yellow-500/15 text-yellow-400 rounded">Draft</span>}
                 <span className="text-xs text-text-muted">by {(doc.author as any)?.full_name}</span>
               </div>
-              {doc.target_roles.length > 0 && (
+              {(doc.target_roles ?? []).length > 0 && (
                 <div className="flex gap-1 mt-2 flex-wrap">
                   {doc.target_roles.map(r => (
                     <span key={r} className="text-xs px-1.5 py-0.5 bg-surface-3 text-text-muted rounded">{ROLE_LABELS[r as UserRole] || r}</span>
@@ -404,6 +411,10 @@ export default function KnowledgeBase() {
         <div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" />
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="p-6"><ErrorState message={error} onRetry={fetchDocs} /></div>;
   }
 
   return (

@@ -5,6 +5,7 @@ import {
   CheckCircle2, XCircle, Clock, Users, AlertTriangle, TrendingUp,
   Loader2, RefreshCw, BarChart3, Calendar, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 const TLS = [
   { key: 'huckle', name: 'Huckle', shift: '00:00–08:00', color: 'bg-orange-500' },
@@ -180,25 +181,29 @@ export default function CoachingOverview() {
   const [tasks, setTasks] = useState<CoachingTask[]>([]);
   const [logs, setLogs] = useState<CoachingLog[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string[]>(TLS.map((t) => t.key));
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [tasksRes, logsRes] = await Promise.all([
-      supabase
-        .from('coaching_tasks')
-        .select('*')
-        .eq('date', selectedDate)
-        .order('priority', { ascending: false }),
-      supabase
-        .from('coaching_logs')
-        .select('*')
-        .eq('date', selectedDate),
-    ]);
+    setError(null);
+    try {
+      const [tasksRes, logsRes] = await Promise.all([
+        supabase
+          .from('coaching_tasks')
+          .select('*')
+          .eq('date', selectedDate)
+          .order('priority', { ascending: false }),
+        supabase
+          .from('coaching_logs')
+          .select('*')
+          .eq('date', selectedDate),
+      ]);
+      if (tasksRes.error) throw new Error(tasksRes.error.message);
+      if (logsRes.error) throw new Error(logsRes.error.message);
 
-    if (tasksRes.data) {
-      setTasks(tasksRes.data.map((row) => {
+      setTasks((tasksRes.data ?? []).map((row) => {
         const r = row as Record<string, unknown>;
         return {
           ...r,
@@ -210,9 +215,12 @@ export default function CoachingOverview() {
           recent_reports: parseJson(r.recent_reports, []),
         } as unknown as CoachingTask;
       }));
+      setLogs((logsRes.data ?? []) as CoachingLog[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load coaching data');
+    } finally {
+      setLoading(false);
     }
-    if (logsRes.data) setLogs(logsRes.data as CoachingLog[]);
-    setLoading(false);
   }, [selectedDate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -281,6 +289,8 @@ export default function CoachingOverview() {
         <div className="flex items-center justify-center py-16">
           <Loader2 className="animate-spin text-cw" size={24} />
         </div>
+      ) : error ? (
+        <ErrorState message={error} onRetry={fetchData} />
       ) : (
         <div className="space-y-3">
           {TLS.map((tl) => (

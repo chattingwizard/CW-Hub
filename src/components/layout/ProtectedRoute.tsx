@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { useImpersonationStore } from '../../stores/impersonationStore';
 import { getDefaultPath } from '../../lib/roles';
 import type { UserRole } from '../../types';
 
@@ -10,6 +11,7 @@ interface Props {
 
 export default function ProtectedRoute({ children, roles }: Props) {
   const { user, profile, initialized } = useAuthStore();
+  const getEffectiveRole = useImpersonationStore(s => s.getEffectiveRole);
 
   if (!initialized) {
     return (
@@ -28,8 +30,10 @@ export default function ProtectedRoute({ children, roles }: Props) {
     return <Navigate to="/login" replace />;
   }
 
-  if (roles && !roles.includes(profile.role)) {
-    return <Navigate to={getDefaultPath(profile.role)} replace />;
+  const viewRole = getEffectiveRole(profile.role);
+
+  if (roles && !roles.includes(viewRole)) {
+    return <Navigate to={getDefaultPath(viewRole)} replace />;
   }
 
   return <>{children}</>;

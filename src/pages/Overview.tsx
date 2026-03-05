@@ -8,6 +8,7 @@ import { BarChart, Bar, ResponsiveContainer, Tooltip, XAxis } from 'recharts';
 import ModelAvatar from '../components/ModelAvatar';
 import { TeamTrafficBar, ModelTrafficRow, PageTypeBadge } from '../components/TrafficBadge';
 import { AnnouncementBanner, AnnouncementComposer } from '../components/Announcements';
+import ErrorState from '../components/ErrorState';
 import { useTrafficData } from '../hooks/useTrafficData';
 import type { Model, Chatter, AssignmentGroupModel, AssignmentGroupChatter, Schedule } from '../types';
 
@@ -19,6 +20,7 @@ export default function Overview() {
   const [groupChatters, setGroupChatters] = useState<AssignmentGroupChatter[]>([]);
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { modelTraffic, teamTraffic, getModelTraffic, globalAvg } = useTrafficData();
 
   const weekStart = useMemo(() => {
@@ -31,6 +33,7 @@ export default function Overview() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [modelsRes, chattersRes, gmRes, gcRes, schedRes] = await Promise.all([
         supabase.from('models').select('*'),
@@ -39,13 +42,15 @@ export default function Overview() {
         supabase.from('assignment_group_chatters').select('*'),
         supabase.from('schedules').select('*').eq('week_start', weekStart),
       ]);
+      const err = modelsRes.error || chattersRes.error || gmRes.error || gcRes.error || schedRes.error;
+      if (err) throw new Error(err.message);
       setModels((modelsRes.data ?? []) as Model[]);
       setChatters((chattersRes.data ?? []) as Chatter[]);
       setGroupModels((gmRes.data ?? []) as AssignmentGroupModel[]);
       setGroupChatters((gcRes.data ?? []) as AssignmentGroupChatter[]);
       setSchedules((schedRes.data ?? []) as Schedule[]);
-    } catch (err) {
-      console.error('Overview fetch error:', err);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load overview');
     } finally {
       setLoading(false);
     }
@@ -122,6 +127,10 @@ export default function Overview() {
         </div>
       </div>
     );
+  }
+
+  if (error) {
+    return <div className="p-6"><ErrorState message={error} onRetry={fetchData} /></div>;
   }
 
   return (
@@ -266,7 +275,7 @@ export default function Overview() {
                   <TeamTrafficBar
                     key={team.team_name}
                     team={team}
-                    maxWorkloadPct={teamTraffic[0]!.total_workload_pct}
+                    maxWorkloadPct={teamTraffic[0]?.total_workload_pct ?? 0}
                   />
                 ))}
               </div>

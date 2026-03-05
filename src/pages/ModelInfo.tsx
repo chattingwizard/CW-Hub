@@ -9,6 +9,7 @@ import { cn, formatCurrency, STATUS_COLORS } from '../lib/utils';
 import { useTrafficData } from '../hooks/useTrafficData';
 import ModelAvatar from '../components/ModelAvatar';
 import { PageTypeBadge } from '../components/TrafficBadge';
+import ErrorState from '../components/ErrorState';
 import type { Model, Chatter, AssignmentGroupModel, AssignmentGroupChatter, AssignmentGroup, ModelChange, ModelProfileView, PageType, ImportantNote } from '../types';
 
 export default function ModelInfo() {
@@ -20,6 +21,7 @@ export default function ModelInfo() {
   const [groupChatters, setGroupChatters] = useState<AssignmentGroupChatter[]>([]);
   const [groups, setGroups] = useState<AssignmentGroup[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('Live');
 
@@ -32,25 +34,33 @@ export default function ModelInfo() {
   const fetchData = useCallback(async () => {
     if (!user) return;
     setLoading(true);
-    const [modelsRes, chattersRes, gmRes, gcRes, groupsRes, viewsRes, changesRes, notesRes] = await Promise.all([
-      supabase.from('models').select('*').order('name'),
-      supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
-      supabase.from('assignment_group_models').select('*'),
-      supabase.from('assignment_group_chatters').select('*'),
-      supabase.from('assignment_groups').select('*').eq('active', true),
-      supabase.from('model_profile_views').select('*').eq('user_id', user.id),
-      supabase.from('model_changes').select('*').order('changed_at', { ascending: false }).limit(500),
-      supabase.from('model_important_notes').select('*').eq('active', true),
-    ]);
-    setModels((modelsRes.data as Model[]) ?? []);
-    setChatters((chattersRes.data as Chatter[]) ?? []);
-    setGroupModels((gmRes.data as AssignmentGroupModel[]) ?? []);
-    setGroupChatters((gcRes.data as AssignmentGroupChatter[]) ?? []);
-    setGroups((groupsRes.data as AssignmentGroup[]) ?? []);
-    setProfileViews((viewsRes.data as ModelProfileView[]) ?? []);
-    setRecentChanges((changesRes.data as ModelChange[]) ?? []);
-    setImportantNotes((notesRes.data as ImportantNote[]) ?? []);
-    setLoading(false);
+    setError(null);
+    try {
+      const [modelsRes, chattersRes, gmRes, gcRes, groupsRes, viewsRes, changesRes, notesRes] = await Promise.all([
+        supabase.from('models').select('*').order('name'),
+        supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
+        supabase.from('assignment_group_models').select('*'),
+        supabase.from('assignment_group_chatters').select('*'),
+        supabase.from('assignment_groups').select('*').eq('active', true),
+        supabase.from('model_profile_views').select('*').eq('user_id', user.id),
+        supabase.from('model_changes').select('*').order('changed_at', { ascending: false }).limit(500),
+        supabase.from('model_important_notes').select('*').eq('active', true),
+      ]);
+      const err = modelsRes.error || chattersRes.error || gmRes.error || gcRes.error || groupsRes.error;
+      if (err) throw new Error(err.message);
+      setModels((modelsRes.data as Model[]) ?? []);
+      setChatters((chattersRes.data as Chatter[]) ?? []);
+      setGroupModels((gmRes.data as AssignmentGroupModel[]) ?? []);
+      setGroupChatters((gcRes.data as AssignmentGroupChatter[]) ?? []);
+      setGroups((groupsRes.data as AssignmentGroup[]) ?? []);
+      setProfileViews((viewsRes.data as ModelProfileView[]) ?? []);
+      setRecentChanges((changesRes.data as ModelChange[]) ?? []);
+      setImportantNotes((notesRes.data as ImportantNote[]) ?? []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load model data');
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
@@ -74,7 +84,6 @@ export default function ModelInfo() {
     return result;
   }, [models, statusFilter, search]);
 
-  // Build map: modelId → number of unseen changes
   const unseenCountMap = useMemo(() => {
     const map = new Map<string, number>();
     const viewMap = new Map(profileViews.map(v => [v.model_id, v.last_viewed_at]));
@@ -218,6 +227,8 @@ export default function ModelInfo() {
               </div>
             ))}
           </div>
+        ) : error ? (
+          <ErrorState message={error} onRetry={fetchData} />
         ) : sortedFiltered.length === 0 ? (
           <div className="bg-surface-1 border border-border rounded-xl p-12 text-center">
             <BookOpen size={32} className="mx-auto text-text-muted mb-3" />

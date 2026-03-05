@@ -1,26 +1,29 @@
 import { NavLink } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
+import { useImpersonationStore } from '../../stores/impersonationStore';
 import { getModulesForRole } from '../../lib/modules';
 import { ROLE_LABELS } from '../../lib/roles';
 import type { HubModule } from '../../types';
 import {
   BarChart3, Calendar, Users, LayoutDashboard,
   GraduationCap, FileText, Settings, Activity,
-  ClipboardCheck, Shield, Upload, BookOpen, Radio,
-  CheckSquare, BookMarked, Star, Bug,
-  LogOut, ChevronLeft, Menu, ExternalLink,
+  ClipboardCheck, ClipboardList, Shield, Upload, BookOpen, Radio,
+  CheckSquare, BookMarked, Star, Bug, UserPlus, Info,
+  LogOut, ChevronLeft, Menu,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ComponentType<{ size?: number; className?: string }>> = {
   BarChart3, Calendar, Users, LayoutDashboard,
   GraduationCap, FileText, Settings, Activity,
-  ClipboardCheck, Shield, Upload, BookOpen, Radio,
-  CheckSquare, BookMarked, Star, Bug,
+  ClipboardCheck, ClipboardList, Shield, Upload, BookOpen, Radio,
+  CheckSquare, BookMarked, Star, Bug, UserPlus, Info,
 };
 
 const SECTION_LABELS: Record<string, string> = {
   main: 'Operations',
   coaching: 'Coaching',
+  scripts: 'Scripts',
+  training: 'Training',
   tools: 'Tools',
   system: 'System',
 };
@@ -34,10 +37,11 @@ interface SidebarProps {
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }: SidebarProps) {
   const { profile, signOut } = useAuthStore();
+  const effectiveRole = useImpersonationStore(s => s.getEffectiveRole(profile?.role ?? 'recruit'));
 
   if (!profile) return null;
 
-  const visibleModules = getModulesForRole(profile.role);
+  const visibleModules = getModulesForRole(effectiveRole);
   const expanded = !collapsed || mobileOpen;
 
   const handleSignOut = async () => {
@@ -45,10 +49,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     window.location.reload();
   };
 
-  const getModulePath = (mod: HubModule) => {
-    if (mod.type === 'iframe') return `/embed/${mod.id}`;
-    return mod.path;
-  };
+  const getModulePath = (mod: HubModule) => mod.path;
 
   const handleNavClick = (mod: HubModule, e: React.MouseEvent) => {
     if (mod.disabled) {
@@ -76,12 +77,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
       <div className="flex items-center justify-between h-14 px-4 border-b border-border shrink-0">
         {expanded && (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cw/30 to-cw/10 flex items-center justify-center">
-              <span className="text-cw font-extrabold text-sm">CW</span>
-            </div>
-            <div>
-              <span className="font-extrabold text-text-primary text-sm tracking-tight">CW Hub</span>
-            </div>
+            <img src={`${import.meta.env.BASE_URL}cw-logo.png`} alt="CW" className="w-8 h-8 rounded-lg object-cover" />
+            <span className="font-extrabold text-text-primary text-sm tracking-tight">CW Hub</span>
           </div>
         )}
         <button
@@ -142,9 +139,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
                           <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-surface-3 text-text-muted font-bold">
                             {mod.badge}
                           </span>
-                        )}
-                        {mod.type === 'iframe' && !mod.disabled && (
-                          <ExternalLink size={11} className="text-text-muted/50" />
                         )}
                       </>
                     )}

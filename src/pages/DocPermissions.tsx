@@ -2,17 +2,18 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Document, DocCategory, UserRole } from '../types';
 import { Search, Shield, Check, X, Filter } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
-const ALL_ROLES: UserRole[] = ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant', 'chatter', 'recruit'];
+const ALL_ROLES: UserRole[] = ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter', 'recruit'];
 
 const ROLE_SHORT: Record<UserRole, string> = {
-  owner: 'OWN', admin: 'ADM', chatter_manager: 'CHM', team_leader: 'TL',
-  script_manager: 'SM', va: 'VA', personal_assistant: 'PA', chatter: 'CHT', recruit: 'REC',
+  owner: 'OWN', admin: 'ADM', team_leader: 'TL',
+  script_manager: 'SM', va: 'VA', chatter: 'CHT', recruit: 'REC',
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
-  owner: 'bg-cw', admin: 'bg-purple-500', chatter_manager: 'bg-blue-500', team_leader: 'bg-orange-500',
-  script_manager: 'bg-pink-500', va: 'bg-indigo-500', personal_assistant: 'bg-teal-500',
+  owner: 'bg-cw', admin: 'bg-purple-500', team_leader: 'bg-orange-500',
+  script_manager: 'bg-pink-500', va: 'bg-indigo-500',
   chatter: 'bg-green-500', recruit: 'bg-yellow-500',
 };
 
@@ -24,18 +25,26 @@ const CAT_LABELS: Record<DocCategory, string> = {
 export default function DocPermissions() {
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState<string>('all');
   const [saving, setSaving] = useState<string | null>(null);
 
   const fetchDocs = useCallback(async () => {
-    const { data } = await supabase
-      .from('documents')
-      .select('id, title, category, target_roles, icon, is_published')
-      .order('category')
-      .order('title');
-    if (data) setDocs(data as Document[]);
-    setLoading(false);
+    setError(null);
+    try {
+      const { data, error: qErr } = await supabase
+        .from('documents')
+        .select('id, title, category, target_roles, icon, is_published')
+        .order('category')
+        .order('title');
+      if (qErr) throw new Error(qErr.message);
+      setDocs((data ?? []) as Document[]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load documents');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchDocs(); }, [fetchDocs]);
@@ -105,6 +114,10 @@ export default function DocPermissions() {
         <div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" />
       </div>
     );
+  }
+
+  if (error) {
+    return <ErrorState message={error} onRetry={fetchDocs} />;
   }
 
   return (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getDefaultPath } from '../lib/modules';
@@ -17,6 +17,18 @@ export default function Login() {
 
   const { signIn, signUp, resetPassword, loading, user, profile } = useAuthStore();
   const navigate = useNavigate();
+
+  const loginTimer = useRef<ReturnType<typeof setTimeout>>(null);
+
+  useEffect(() => {
+    if (loading) {
+      loginTimer.current = setTimeout(() => {
+        useAuthStore.setState({ loading: false });
+        setError('Sign in is taking too long. Please try again.');
+      }, 15_000);
+    }
+    return () => { if (loginTimer.current) clearTimeout(loginTimer.current); };
+  }, [loading]);
 
   if (user && profile) {
     return <Navigate to={getDefaultPath(profile.role)} replace />;

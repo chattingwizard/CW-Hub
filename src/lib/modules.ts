@@ -1,7 +1,6 @@
 import type { HubModule, UserRole } from '../types';
 import { getDefaultPath as getRoleDefaultPath } from './roles';
 
-const GITHUB_PAGES_BASE = 'https://chattingwizard.github.io';
 
 export const modules: HubModule[] = [
   // ── Main ───────────────────────────────────────────────────
@@ -11,7 +10,7 @@ export const modules: HubModule[] = [
     icon: 'LayoutDashboard',
     type: 'internal',
     path: '/overview',
-    roles: ['owner', 'admin', 'chatter_manager'],
+    roles: ['owner', 'admin'],
     section: 'main',
   },
   {
@@ -20,7 +19,7 @@ export const modules: HubModule[] = [
     icon: 'Radio',
     type: 'internal',
     path: '/live-monitor',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    roles: ['owner', 'admin', 'team_leader'],
     section: 'main',
     badge: 'Soon',
     disabled: true,
@@ -31,7 +30,7 @@ export const modules: HubModule[] = [
     icon: 'BarChart3',
     type: 'internal',
     path: '/dashboard',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    roles: ['owner', 'admin', 'team_leader'],
     section: 'main',
   },
   {
@@ -40,7 +39,7 @@ export const modules: HubModule[] = [
     icon: 'Activity',
     type: 'internal',
     path: '/chatter-performance',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    roles: ['owner', 'admin', 'team_leader'],
     section: 'main',
   },
   {
@@ -49,7 +48,7 @@ export const modules: HubModule[] = [
     icon: 'BarChart3',
     type: 'internal',
     path: '/infloww-kpis',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    roles: ['owner', 'admin', 'team_leader'],
     section: 'main',
   },
   {
@@ -58,7 +57,7 @@ export const modules: HubModule[] = [
     icon: 'Calendar',
     type: 'internal',
     path: '/schedules',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    roles: ['owner', 'admin', 'team_leader'],
     section: 'main',
   },
   {
@@ -67,7 +66,7 @@ export const modules: HubModule[] = [
     icon: 'Users',
     type: 'internal',
     path: '/assignments',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    roles: ['owner', 'admin', 'team_leader'],
     section: 'main',
   },
 
@@ -77,7 +76,7 @@ export const modules: HubModule[] = [
     icon: 'Star',
     type: 'internal',
     path: '/chatter-score',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    roles: ['owner', 'admin', 'team_leader'],
     section: 'main',
   },
 
@@ -87,7 +86,7 @@ export const modules: HubModule[] = [
     icon: 'CheckSquare',
     type: 'internal',
     path: '/tasks',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant'],
+    roles: ['owner', 'admin', 'team_leader', 'script_manager', 'va'],
     section: 'main',
   },
 
@@ -98,7 +97,7 @@ export const modules: HubModule[] = [
     icon: 'ClipboardCheck',
     type: 'internal',
     path: '/coaching-queue',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader'],
+    roles: ['owner', 'admin', 'team_leader'],
     section: 'coaching',
     dividerBefore: true,
   },
@@ -108,7 +107,25 @@ export const modules: HubModule[] = [
     icon: 'Shield',
     type: 'internal',
     path: '/coaching-overview',
-    roles: ['owner', 'admin', 'chatter_manager'],
+    roles: ['owner', 'admin'],
+    section: 'coaching',
+  },
+  {
+    id: 'coaching-analytics',
+    name: 'Coaching Analytics',
+    icon: 'BarChart3',
+    type: 'internal',
+    path: '/coaching-analytics',
+    roles: ['owner', 'admin', 'team_leader'],
+    section: 'coaching',
+  },
+  {
+    id: 'coaching-workflow',
+    name: 'How It Works',
+    icon: 'Info',
+    type: 'internal',
+    path: '/coaching-workflow',
+    roles: ['owner', 'admin', 'team_leader'],
     section: 'coaching',
   },
 
@@ -119,7 +136,7 @@ export const modules: HubModule[] = [
     icon: 'Upload',
     type: 'internal',
     path: '/upload-center',
-    roles: ['owner', 'admin', 'chatter_manager', 'script_manager', 'va', 'personal_assistant'],
+    roles: ['owner', 'admin', 'script_manager', 'va'],
     section: 'tools',
     dividerBefore: true,
   },
@@ -129,7 +146,7 @@ export const modules: HubModule[] = [
     icon: 'BookOpen',
     type: 'internal',
     path: '/model-info',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'chatter'],
+    roles: ['owner', 'admin', 'team_leader', 'script_manager', 'chatter'],
     section: 'tools',
   },
 
@@ -139,7 +156,7 @@ export const modules: HubModule[] = [
     icon: 'ClipboardList',
     type: 'internal',
     path: '/shift-reports',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'chatter'],
+    roles: ['owner', 'admin', 'team_leader', 'chatter'],
     section: 'tools',
   },
   {
@@ -157,7 +174,16 @@ export const modules: HubModule[] = [
     icon: 'BookMarked',
     type: 'internal',
     path: '/knowledge-base',
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant', 'chatter', 'recruit'],
+    roles: ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter'],
+    section: 'tools',
+  },
+  {
+    id: 'hiring-workflow',
+    name: 'Hiring Workflow',
+    icon: 'UserPlus',
+    type: 'internal',
+    path: '/hiring-workflow',
+    roles: ['owner', 'admin'],
     section: 'tools',
   },
 
@@ -172,25 +198,28 @@ export const modules: HubModule[] = [
     section: 'main',
   },
 
-  // ── Embedded ───────────────────────────────────────────────
-  {
-    id: 'school',
-    name: 'School',
-    icon: 'GraduationCap',
-    type: 'iframe',
-    path: `${GITHUB_PAGES_BASE}/CW-ChattingSchool/`,
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'chatter', 'recruit'],
-    section: 'tools',
-    dividerBefore: true,
-  },
+  // ── Scripts ──────────────────────────────────────────────────
   {
     id: 'scripts',
     name: 'Scripts',
     icon: 'FileText',
-    type: 'iframe',
-    path: `${GITHUB_PAGES_BASE}/chattingwizard.github.io/`,
-    roles: ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager'],
-    section: 'tools',
+    type: 'internal',
+    path: '/scripts',
+    roles: ['owner', 'admin', 'team_leader', 'script_manager', 'chatter'],
+    section: 'scripts',
+    dividerBefore: true,
+  },
+
+  // ── Training ──────────────────────────────────────────────
+  {
+    id: 'school',
+    name: 'Chatting School',
+    icon: 'GraduationCap',
+    type: 'internal',
+    path: '/school',
+    roles: ['owner', 'admin', 'team_leader', 'chatter', 'recruit'],
+    section: 'training',
+    dividerBefore: true,
   },
 
   // ── System ─────────────────────────────────────────────────

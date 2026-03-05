@@ -27,6 +27,7 @@ import {
   CalendarDays,
   Trash2,
 } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 const TEAMS = ['Team Danilyn', 'Team Huckle', 'Team Ezekiel'] as const;
 const MODEL_TEAMS = [1, 2, 3, 4, 5, 6, 7, 8] as const;
@@ -47,16 +48,24 @@ export default function ShiftReports() {
   const [activeTab, setActiveTab] = useState<Tab>('submit');
   const [chatters, setChatters] = useState<Chatter[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const loadChatters = useCallback(async () => {
-    const { data } = await supabase
-      .from('chatters')
-      .select('*')
-      .eq('status', 'Active')
-      .eq('airtable_role', 'Chatter')
-      .order('full_name');
-    setChatters(data || []);
-    setLoading(false);
+    setError(null);
+    try {
+      const { data, error: qErr } = await supabase
+        .from('chatters')
+        .select('*')
+        .eq('status', 'Active')
+        .eq('airtable_role', 'Chatter')
+        .order('full_name');
+      if (qErr) throw new Error(qErr.message);
+      setChatters(data || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to load shift reports');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -68,6 +77,10 @@ export default function ShiftReports() {
     { id: 'reports', label: 'Reports', icon: FileText },
     ...(isAdmin ? [{ id: 'alerts' as Tab, label: 'Alerts', icon: AlertTriangle }] : []),
   ];
+
+  if (error) {
+    return <div className="p-6"><ErrorState message={error} onRetry={loadChatters} /></div>;
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -402,30 +415,33 @@ function ReportsTab({ chatters }: { chatters: Chatter[] }) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  const loadReports = useCallback(async () => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('shift_reports')
+        .select('*, chatter:chatters(*)')
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (isChatter && profile) {
+        const myChatter = chatters.find(c => c.profile_id === profile.id);
+        if (myChatter) {
+          query = query.eq('chatter_id', myChatter.id);
+        }
+      }
+
+      const { data } = await query;
+      setReports(data || []);
+    } finally {
+      setLoading(false);
+    }
+  }, [isChatter, profile, chatters]);
+
   useEffect(() => {
     loadReports();
-  }, []);
-
-  async function loadReports() {
-    setLoading(true);
-    let query = supabase
-      .from('shift_reports')
-      .select('*, chatter:chatters(*)')
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(100);
-
-    if (isChatter && profile) {
-      const myChatter = chatters.find(c => c.profile_id === profile.id);
-      if (myChatter) {
-        query = query.eq('chatter_id', myChatter.id);
-      }
-    }
-
-    const { data } = await query;
-    setReports(data || []);
-    setLoading(false);
-  }
+  }, [loadReports]);
 
   async function handleDelete(reportId: string) {
     setDeleting(true);
@@ -680,11 +696,7 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
   const [processing, setProcessing] = useState<string | null>(null);
   const [actionResult, setActionResult] = useState<{ key: string; ok: boolean; msg: string } | null>(null);
 
-  useEffect(() => {
-    detectMissing();
-  }, [chatters]);
-
-  async function detectMissing() {
+  const detectMissing = useCallback(async () => {
     setLoading(true);
 
     const today = new Date();
@@ -750,7 +762,11 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
     missingList.sort((a, b) => b.date.localeCompare(a.date) || a.chatter_name.localeCompare(b.chatter_name));
     setMissing(missingList);
     setLoading(false);
-  }
+  }, [chatters]);
+
+  useEffect(() => {
+    detectMissing();
+  }, [detectMissing]);
 
   async function handleAction(item: MissingReport, action: 'accepted' | 'dismissed') {
     if (!profile) return;

@@ -14,6 +14,7 @@ import ScoreEndOfWeek from '../components/score/ScoreEndOfWeek';
 import ScoreConfigPanel from '../components/score/ScoreConfig';
 import ScoreDrawer from '../components/score/ScoreDrawer';
 import { Star, ChevronLeft, ChevronRight, Plus, Trophy, AlertTriangle, FileText, DollarSign } from 'lucide-react';
+import ErrorState from '../components/ErrorState';
 
 type Tab = 'leaderboard' | 'log-event' | 'end-of-week' | 'config';
 
@@ -27,6 +28,7 @@ export default function ChatterScore() {
   const [chatters, setChatters] = useState<Chatter[]>([]);
   const [events, setEvents] = useState<ScoreEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [scores, setScores] = useState<ChatterWeeklyScore[]>([]);
   const [teamFilter, setTeamFilter] = useState('all');
@@ -38,6 +40,7 @@ export default function ChatterScore() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
       const [configRes, typesRes, chattersRes, eventsRes, reportsRes] = await Promise.all([
         supabase.from('score_config').select('*').eq('id', 1).single(),
@@ -83,7 +86,7 @@ export default function ChatterScore() {
         setScores(computed);
       }
     } catch (err) {
-      console.error('ChatterScore load failed:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load score data');
     } finally {
       setLoading(false);
     }
@@ -185,6 +188,8 @@ export default function ChatterScore() {
       {/* Tab content */}
       {loading ? (
         <div className="text-sm text-text-muted text-center py-16">Loading score data...</div>
+      ) : error ? (
+        <ErrorState message={error} onRetry={loadData} />
       ) : (
         <>
           {tab === 'leaderboard' && config && (
