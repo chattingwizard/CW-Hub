@@ -6,7 +6,7 @@ alwaysApply: true
 # CW Hub — Project Context
 
 ## What This Is
-CW Hub is the **centralized web panel** for Chatting Wizard. All employees (chatters, team leaders, chatter manager, COO) access it with their own account. It replaces Google Sheets for schedules, centralizes model metrics, and embeds existing tools (School, Coaching Dashboard, Scripts).
+CW Hub is the **single centralized platform** for all Chatting Wizard operations. All employees (chatters, team leaders, COO) access it with their own account. It replaces Google Sheets for schedules, centralizes model metrics, and is progressively absorbing all external tools (School, Coaching Dashboard, Scripts) as native React pages.
 
 ## Tech Stack
 - **Frontend:** React 19 + TypeScript + Vite
@@ -16,19 +16,17 @@ CW Hub is the **centralized web panel** for Chatting Wizard. All employees (chat
   - URL: `https://bnmrdlqqzxenyqjknqhy.supabase.co`
   - Auth: email + password with invite codes
   - RLS on all tables
-- **Hosting:** GitHub Pages now → `hub.chattingwizard.com` (Hostinger) when ready
+- **Hosting:** `hub.chattingwizard.com` (migrating to Cloudflare Pages)
 
-## Roles (8 levels)
+## Roles (7 levels)
 | Role | Who | Access |
 |---|---|---|
-| `owner` | Pau | Everything + settings |
+| `owner` | Pau (COO) | Everything + settings |
 | `admin` | Mileh (Head of Sales) | Everything except settings |
-| `chatter_manager` | Rycel | All chatters, coaching oversight, schedules, assignments, performance |
 | `team_leader` | Huckle, Danilyn, Ezekiel | Their team's chatters, coaching queue, schedules, assignments, performance |
-| `script_manager` | (TBD) | Scripts management, model info |
-| `va` | Content VAs | Content-related tasks (posts, stories, vaults, promotions) |
-| `personal_assistant` | Daniela | Upload reports, operational support |
-| `chatter` | ~30+ chatters | Own dashboard, schedule, models, School |
+| `script_manager` | Rei (+ Cath as assistant) | Scripts management, model info |
+| `va` | Content VAs, assistants | Content-related tasks, uploads |
+| `chatter` | ~80-90 chatters | Own dashboard, schedule, models, School |
 | `recruit` | New hires | School only |
 
 ## Current Views Built
@@ -72,14 +70,16 @@ Add new modules in `src/lib/modules.ts`. Supports `internal` (React pages) and `
 ## Team Structure
 | Role | People |
 |---|---|
+| CEO | Santi Jiang |
 | COO (Owner) | Pau Lopez |
 | Head of Sales (Admin) | Mileh |
-| Chatter Manager | Rycel Monique |
-| Personal Assistant | Daniela |
 | TL Night (00-08 chatters) | Huckle (works 23:00-07:00 UTC) |
 | TL Day (08-16 chatters) | Danilyn (works 07:00-15:00 UTC) |
 | TL Evening (16-00 chatters) | Ezekiel (works 15:00-23:00 UTC) |
-| Chatters | ~30+ across 3 teams |
+| Script Manager | Rei |
+| Script Assistant | Cath |
+| Account Manager | Angeles |
+| Chatters | ~80-90 across 3 teams |
 
 **TL shift logic:** Each TL starts 1 hour before their chatters' shift to prepare handoff. All TLs manage the SAME models — the assignment is how each TL distributes their chatters across those models.
 
@@ -137,10 +137,11 @@ Hub shows: "⚠️ Ana — ABSENT (should have started 15min ago)"
 - Modular architecture for easy expansion
 
 ## Future Plans
-- Custom domain: `hub.chattingwizard.com` (Hostinger)
-- Replace Google Sheets entirely for schedules
-- Add more embedded modules (Script Manager, future tools)
-- Eventually migrate iframe modules to native React components
+- Migrate to Cloudflare Pages (private repo + Cloudflare Access)
+- Absorb Script Manager as native React pages (Phase 3)
+- Absorb Coaching Analytics dashboard as native React page (Phase 4)
+- Absorb Chatting School as native React pages (Phase 5)
+- Role impersonation feature for owner debugging (Phase 2)
 - **CW Tracker integration:** Merge Tracker into Hub as microservice + shared DB (waiting for Santi coordination)
 - **Slack replacement:** In-app notifications, announcements feed, automated alerts (phased)
 - **Real-time features:** Socket.io client for live chatter status, alerts, coaching notifications

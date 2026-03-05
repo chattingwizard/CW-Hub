@@ -24,12 +24,12 @@ const CATEGORY_CONFIG: Record<DocCategory, { label: string; icon: typeof Buildin
 };
 
 const ROLE_LABELS: Record<UserRole, string> = {
-  owner: 'Owner', admin: 'Admin', chatter_manager: 'Chatter Manager',
+  owner: 'Owner', admin: 'Admin',
   team_leader: 'Team Leader', script_manager: 'Script Manager',
-  va: 'VA', personal_assistant: 'PA', chatter: 'Chatter', recruit: 'Recruit',
+  va: 'VA', chatter: 'Chatter', recruit: 'Recruit',
 };
 
-const ALL_ROLES: UserRole[] = ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant', 'chatter', 'recruit'];
+const ALL_ROLES: UserRole[] = ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter', 'recruit'];
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -132,7 +132,7 @@ const markdownComponents = {
 
 export default function KnowledgeBase() {
   const { profile } = useAuthStore();
-  const isEditor = profile && ['owner', 'admin', 'chatter_manager'].includes(profile.role);
+  const isEditor = profile && ['owner', 'admin'].includes(profile.role);
 
   const [docs, setDocs] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);

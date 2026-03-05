@@ -38,9 +38,10 @@ const Assignments = lazyRetry(() => import('./pages/Assignments'));
 const ChatterPerformance = lazyRetry(() => import('./pages/ChatterPerformance'));
 const CoachingQueue = lazyRetry(() => import('./pages/CoachingQueue'));
 const CoachingOverview = lazyRetry(() => import('./pages/CoachingOverview'));
+const CoachingAnalytics = lazyRetry(() => import('./pages/CoachingAnalytics'));
 const ChatterDashboard = lazyRetry(() => import('./pages/ChatterDashboard'));
 const Settings = lazyRetry(() => import('./pages/Settings'));
-const EmbeddedModule = lazyRetry(() => import('./pages/EmbeddedModule'));
+
 const UploadCenter = lazyRetry(() => import('./pages/UploadCenter'));
 const ModelInfo = lazyRetry(() => import('./pages/ModelInfo'));
 const Tasks = lazyRetry(() => import('./pages/Tasks'));
@@ -49,6 +50,10 @@ const KnowledgeBase = lazyRetry(() => import('./pages/KnowledgeBase'));
 const ShiftReports = lazyRetry(() => import('./pages/ShiftReports'));
 const InflowwKPIs = lazyRetry(() => import('./pages/InflowwKPIs'));
 const HubstaffIssues = lazyRetry(() => import('./pages/HubstaffIssues'));
+const ScriptDashboard = lazyRetry(() => import('./pages/ScriptDashboard'));
+const ModelGuide = lazyRetry(() => import('./pages/ModelGuide'));
+const School = lazyRetry(() => import('./pages/School'));
+const SchoolModule = lazyRetry(() => import('./pages/SchoolModule'));
 
 class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { hasError: boolean }> {
   state = { hasError: false };
@@ -146,7 +151,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/overview"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager']}>
+                <ProtectedRoute roles={['owner', 'admin']}>
                   <Overview />
                 </ProtectedRoute>
               }
@@ -155,7 +160,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
                   <Dashboard />
                 </ProtectedRoute>
               }
@@ -164,7 +169,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/schedules"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
                   <Schedules />
                 </ProtectedRoute>
               }
@@ -173,7 +178,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/assignments"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
                   <Assignments />
                 </ProtectedRoute>
               }
@@ -182,7 +187,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/tasks"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'script_manager', 'va']}>
                   <Tasks />
                 </ProtectedRoute>
               }
@@ -191,7 +196,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/chatter-score"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
                   <ChatterScore />
                 </ProtectedRoute>
               }
@@ -200,7 +205,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/chatter-performance"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
                   <ChatterPerformance />
                 </ProtectedRoute>
               }
@@ -209,7 +214,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/infloww-kpis"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
                   <InflowwKPIs />
                 </ProtectedRoute>
               }
@@ -218,7 +223,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/coaching-queue"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
                   <CoachingQueue />
                 </ProtectedRoute>
               }
@@ -227,8 +232,17 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/coaching-overview"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager']}>
+                <ProtectedRoute roles={['owner', 'admin']}>
                   <CoachingOverview />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/coaching-analytics"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
+                  <CoachingAnalytics />
                 </ProtectedRoute>
               }
             />
@@ -236,7 +250,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/upload-center"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'script_manager', 'va', 'personal_assistant']}>
+                <ProtectedRoute roles={['owner', 'admin', 'script_manager', 'va']}>
                   <UploadCenter />
                 </ProtectedRoute>
               }
@@ -245,7 +259,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/model-info"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'chatter']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'script_manager', 'chatter']}>
                   <ModelInfo />
                 </ProtectedRoute>
               }
@@ -254,7 +268,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/shift-reports"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'chatter']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'chatter']}>
                   <ShiftReports />
                 </ProtectedRoute>
               }
@@ -270,9 +284,43 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             />
 
             <Route
+              path="/scripts"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'script_manager', 'chatter']}>
+                  <ScriptDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/scripts/:modelId"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'script_manager', 'chatter']}>
+                  <ModelGuide />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/school"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'chatter', 'recruit']}>
+                  <School />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/school/:sectionId/:moduleId"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'chatter', 'recruit']}>
+                  <SchoolModule />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
               path="/knowledge-base"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant', 'chatter', 'recruit']}>
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter', 'recruit']}>
                   <KnowledgeBase />
                 </ProtectedRoute>
               }
@@ -296,14 +344,6 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
               }
             />
 
-            <Route
-              path="/embed/:moduleId"
-              element={
-                <ProtectedRoute roles={['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'chatter', 'recruit']}>
-                  <EmbeddedModule />
-                </ProtectedRoute>
-              }
-            />
           </Route>
 
           <Route

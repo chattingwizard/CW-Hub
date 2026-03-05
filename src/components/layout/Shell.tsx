@@ -2,10 +2,13 @@ import { useState, Suspense, useRef, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Menu, LogOut, ChevronDown } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { useImpersonationStore } from '../../stores/impersonationStore';
 import { ROLE_LABELS } from '../../lib/roles';
 import { ensureFreshSession } from '../../lib/supabase';
 import Sidebar from './Sidebar';
 import NotificationBell from '../NotificationBell';
+import ImpersonationSelector from '../ImpersonationSelector';
+import ImpersonationBanner from '../ImpersonationBanner';
 
 function PageLoader() {
   return (
@@ -24,6 +27,7 @@ export default function Shell() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const { profile, signOut } = useAuthStore();
+  const impersonating = useImpersonationStore(s => s.active);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -49,8 +53,12 @@ export default function Shell() {
     window.location.reload();
   };
 
+  const bannerOffset = impersonating ? 'top-8' : 'top-0';
+  const mainPadding = impersonating ? 'pt-[84px]' : 'pt-13';
+
   return (
     <div className="min-h-screen bg-surface-0 text-text-primary">
+      <ImpersonationBanner />
       <Sidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed(!collapsed)}
@@ -59,7 +67,7 @@ export default function Shell() {
       />
 
       {/* Mobile top bar */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 h-13 bg-surface-1/95 backdrop-blur-md border-b border-border flex items-center justify-between px-4 z-30">
+      <div className={`lg:hidden fixed ${bannerOffset} left-0 right-0 h-13 bg-surface-1/95 backdrop-blur-md border-b border-border flex items-center justify-between px-4 z-30`}>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMobileOpen(true)}
@@ -87,8 +95,9 @@ export default function Shell() {
       </div>
 
       {/* Desktop header bar with notifications */}
-      <div className={`hidden lg:flex fixed top-0 right-0 h-13 items-center gap-2 px-5 z-20 transition-all bg-surface-1/95 backdrop-blur-md border-b border-border ${collapsed ? 'left-14' : 'left-56'}`}>
+      <div className={`hidden lg:flex fixed ${bannerOffset} right-0 h-13 items-center gap-2 px-5 z-20 transition-all bg-surface-1/95 backdrop-blur-md border-b border-border ${collapsed ? 'left-14' : 'left-56'}`}>
         <div className="ml-auto flex items-center gap-2">
+          <ImpersonationSelector />
           <NotificationBell />
           {profile && (
             <div className="relative" ref={userMenuRef}>
@@ -128,7 +137,7 @@ export default function Shell() {
       </div>
 
       <main
-        className={`transition-all duration-200 min-h-screen pt-13 ${
+        className={`transition-all duration-200 min-h-screen ${mainPadding} ${
           collapsed ? 'lg:ml-14' : 'lg:ml-56'
         }`}
       >

@@ -17,11 +17,9 @@ type StatusFilter = 'all' | 'active' | 'inactive';
 const ROLE_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
   admin: 'Admin',
-  chatter_manager: 'Chatter Manager',
   team_leader: 'Team Leader',
   script_manager: 'Script Manager',
   va: 'VA',
-  personal_assistant: 'Personal Assistant',
   chatter: 'Chatter',
   recruit: 'Recruit',
 };
@@ -29,10 +27,8 @@ const ROLE_LABELS: Record<UserRole, string> = {
 const ROLE_COLORS: Record<string, string> = {
   owner: 'bg-cw/15 text-cw border-cw/30',
   admin: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-  chatter_manager: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   team_leader: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
   script_manager: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
-  personal_assistant: 'bg-teal-500/15 text-teal-400 border-teal-500/30',
   va: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
   chatter: 'bg-success/15 text-success border-success/30',
   recruit: 'bg-warning/15 text-warning border-warning/30',
