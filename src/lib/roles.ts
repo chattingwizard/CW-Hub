@@ -5,10 +5,8 @@ import type { UserRole } from '../types';
 export const ROLE_HIERARCHY: Record<UserRole, number> = {
   owner: 100,
   admin: 90,
-  chatter_manager: 80,
   team_leader: 70,
   script_manager: 60,
-  personal_assistant: 50,
   va: 40,
   chatter: 30,
   recruit: 10,
@@ -17,25 +15,23 @@ export const ROLE_HIERARCHY: Record<UserRole, number> = {
 export const ROLE_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
   admin: 'Admin',
-  chatter_manager: 'Chatter Manager',
   team_leader: 'Team Leader',
   script_manager: 'Script Manager',
-  personal_assistant: 'Personal Assistant',
   va: 'VA',
   chatter: 'Chatter',
   recruit: 'Recruit',
 };
 
 export const ALL_ROLES: UserRole[] = [
-  'owner', 'admin', 'chatter_manager', 'team_leader',
-  'script_manager', 'personal_assistant', 'va', 'chatter', 'recruit',
+  'owner', 'admin', 'team_leader',
+  'script_manager', 'va', 'chatter', 'recruit',
 ];
 
 // ── Role Groups ──────────────────────────────────────────────
 
-const MANAGEMENT: UserRole[] = ['owner', 'admin', 'chatter_manager', 'team_leader'];
-const LEADERSHIP: UserRole[] = ['owner', 'admin', 'chatter_manager'];
-const ALL_STAFF: UserRole[] = ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'personal_assistant', 'va', 'chatter'];
+const MANAGEMENT: UserRole[] = ['owner', 'admin', 'team_leader'];
+const LEADERSHIP: UserRole[] = ['owner', 'admin'];
+const ALL_STAFF: UserRole[] = ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter'];
 
 export const ROLE_GROUPS = {
   management: MANAGEMENT,
@@ -74,7 +70,7 @@ export function canEditAssignments(role: UserRole): boolean {
 }
 
 export function canUploadReports(role: UserRole): boolean {
-  return ['owner', 'admin', 'chatter_manager', 'personal_assistant'].includes(role);
+  return ['owner', 'admin'].includes(role);
 }
 
 export function canManageCoaching(role: UserRole): boolean {
@@ -105,20 +101,16 @@ export function getDefaultPath(role: UserRole): string {
   switch (role) {
     case 'owner':
     case 'admin':
-    case 'chatter_manager':
-      return '/overview';
     case 'team_leader':
       return '/coaching-queue';
     case 'script_manager':
       return '/model-info';
-    case 'personal_assistant':
-      return '/upload-center';
     case 'va':
       return '/my-dashboard';
     case 'chatter':
       return '/my-dashboard';
     case 'recruit':
-      return '/embed/school';
+      return '/school';
     default:
       return '/login';
   }

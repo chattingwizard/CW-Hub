@@ -7,11 +7,9 @@
 export type UserRole =
   | 'owner'
   | 'admin'
-  | 'chatter_manager'
   | 'team_leader'
   | 'script_manager'
   | 'va'
-  | 'personal_assistant'
   | 'chatter'
   | 'recruit';
 
@@ -396,7 +394,7 @@ export interface CsvUpload {
 
 // ── Module System ────────────────────────────────────────────
 
-export type ModuleType = 'internal' | 'iframe';
+export type ModuleType = 'internal';
 
 export interface HubModule {
   id: string;

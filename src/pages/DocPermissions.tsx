@@ -4,16 +4,16 @@ import type { Document, DocCategory, UserRole } from '../types';
 import { Search, Shield, Check, X, Filter } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 
-const ALL_ROLES: UserRole[] = ['owner', 'admin', 'chatter_manager', 'team_leader', 'script_manager', 'va', 'personal_assistant', 'chatter', 'recruit'];
+const ALL_ROLES: UserRole[] = ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter', 'recruit'];
 
 const ROLE_SHORT: Record<UserRole, string> = {
-  owner: 'OWN', admin: 'ADM', chatter_manager: 'CHM', team_leader: 'TL',
-  script_manager: 'SM', va: 'VA', personal_assistant: 'PA', chatter: 'CHT', recruit: 'REC',
+  owner: 'OWN', admin: 'ADM', team_leader: 'TL',
+  script_manager: 'SM', va: 'VA', chatter: 'CHT', recruit: 'REC',
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
-  owner: 'bg-cw', admin: 'bg-purple-500', chatter_manager: 'bg-blue-500', team_leader: 'bg-orange-500',
-  script_manager: 'bg-pink-500', va: 'bg-indigo-500', personal_assistant: 'bg-teal-500',
+  owner: 'bg-cw', admin: 'bg-purple-500', team_leader: 'bg-orange-500',
+  script_manager: 'bg-pink-500', va: 'bg-indigo-500',
   chatter: 'bg-green-500', recruit: 'bg-yellow-500',
 };
 

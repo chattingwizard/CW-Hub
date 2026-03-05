@@ -10,18 +10,18 @@ alwaysApply: true
 | Data | Source | Notes |
 |---|---|---|
 | Hours worked | **Hubstaff API** | The ONLY authority on whether a chatter worked. < 1h = didn't work (day off). |
-| Sales, CVR, Unlock, Golden Ratio, Msg/hr, Reply Time, Fans | **Inflow CSV** (exported daily by Daniela) | Daniela uploads to Slack DM. System downloads and parses. |
+| Sales, CVR, Unlock, Golden Ratio, Msg/hr, Reply Time, Fans | **Inflow CSV** (exported daily) | Uploaded to Hub or ingested via pipeline. |
 | Chatter names & team assignments | **Airtable "Chatters" table** | Canonical names. Inflow names must match these. |
 | Daily aggregated performance | **Airtable "Daily Performance" table** | Merged Inflow + Hubstaff data per chatter per day. |
 | Weekly aggregated performance | **Airtable "Performance" table** | Historical weekly data. |
-| Model traffic (new fans/day, active fans) | **Infloww Creator Reports** (.xlsx) | Exported by Rycel daily. Uploaded via CW Hub or ingested via Slack. |
+| Model traffic (new fans/day, active fans) | **Infloww Creator Reports** (.xlsx) | Uploaded via CW Hub or ingested via pipeline. |
 | Model account type (Free/Paid/Mixed) | **Airtable "Models" table → `Page Type`** | Synced to Supabase as `page_type`. Determines workload weighting. |
 
 ## Key Rules
 
 - **Hubstaff hours < 1 = chatter didn't work.** Don't calculate scores, don't flag KPI alarms, show as "Day off".
-- **Name matching**: Inflow names may differ from Airtable. Use normalization (lowercase, collapse spaces) + fuzzy alias mapping. When mismatch is unresolvable, ask Daniela to fix in Inflow.
-- **Mondays**: Daniela can't export before ~2pm UTC. Daily ingest defers to 15:30 UTC cron on Mondays.
+- **Name matching**: Inflow names may differ from Airtable. Use normalization (lowercase, collapse spaces) + fuzzy alias mapping.
+- **Mondays**: Inflow export may be delayed until ~2pm UTC. Daily ingest defers to 15:30 UTC cron on Mondays.
 - **TL briefings**: Sent 30min before each TL's shift start (not after). 3 briefings/day.
 - **Dashboard**: GitHub Pages at chattingwizard.github.io/cw-coaching/. Auto-switches to daily view. Inactive chatters go to bottom.
 
@@ -42,7 +42,7 @@ Each TL starts 1 hour before their chatters' shift to prepare the handoff (login
 ## Pipeline Flow
 
 ```
-Daniela exports Inflow CSV → Slack DM → ingest_daily.py downloads
+Inflow CSV uploaded → Hub Upload Center or pipeline ingest
   ↓
 Hubstaff API → fetch hours per chatter
   ↓
@@ -58,7 +58,7 @@ send_briefings.py --pau → Daily summary to management
 
 - **At end of each TL's shift**, the system checks which recommended coaching calls were completed.
 - Compares chatters who were overdue (days_since ≥ 2) vs coaching logs for today.
-- Report sent to `#0-management-chatter` tagging **Rycel** (chatter manager, `U08SZB25CJV`).
+- Report sent to `#0-management-chatter` channel (no personal tag — CHM role is vacant).
 - Schedule: Huckle checked at 06:30 UTC, Danilyn at 14:30 UTC, Ezekiel at 22:30 UTC.
 - Shows: completion rate, completed list, missed list (with red flags + days since last coaching).
 - Missed chatters are automatically re-assigned in the next briefing.
