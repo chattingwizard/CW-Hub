@@ -8,7 +8,7 @@ import {
   BarChart3, Calendar, Users, LayoutDashboard,
   GraduationCap, FileText, Settings, Activity,
   ClipboardCheck, Shield, Upload, BookOpen, Radio,
-  CheckSquare, BookMarked, Star, Bug,
+  CheckSquare, BookMarked, Star, Bug, UserPlus, Info,
   LogOut, ChevronLeft, Menu,
 } from 'lucide-react';
 
@@ -16,7 +16,7 @@ const iconMap: Record<string, React.ComponentType<{ size?: number; className?: s
   BarChart3, Calendar, Users, LayoutDashboard,
   GraduationCap, FileText, Settings, Activity,
   ClipboardCheck, Shield, Upload, BookOpen, Radio,
-  CheckSquare, BookMarked, Star, Bug,
+  CheckSquare, BookMarked, Star, Bug, UserPlus, Info,
 };
 
 const SECTION_LABELS: Record<string, string> = {
@@ -77,12 +77,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
       <div className="flex items-center justify-between h-14 px-4 border-b border-border shrink-0">
         {expanded && (
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-cw/30 to-cw/10 flex items-center justify-center">
-              <span className="text-cw font-extrabold text-sm">CW</span>
-            </div>
-            <div>
-              <span className="font-extrabold text-text-primary text-sm tracking-tight">CW Hub</span>
-            </div>
+            <img src={`${import.meta.env.BASE_URL}cw-logo.png`} alt="CW" className="w-8 h-8 rounded-lg object-cover" />
+            <span className="font-extrabold text-text-primary text-sm tracking-tight">CW Hub</span>
           </div>
         )}
         <button

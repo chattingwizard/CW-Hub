@@ -12,21 +12,22 @@ import UpdatePassword from './pages/UpdatePassword';
 function lazyRetry(factory: () => Promise<{ default: React.ComponentType }>) {
   return lazy(() =>
     factory().catch(() => {
-      const key = 'lazyRetry_' + factory.toString().slice(0, 50);
-      if (!sessionStorage.getItem(key)) {
-        sessionStorage.setItem(key, '1');
+      if (!sessionStorage.getItem('cw_chunk_retry')) {
+        sessionStorage.setItem('cw_chunk_retry', '1');
         window.location.reload();
+        return new Promise<{ default: React.ComponentType }>(() => {});
       }
-      return factory().catch(() => ({
+      sessionStorage.removeItem('cw_chunk_retry');
+      return {
         default: () => (
           <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
             <p className="text-text-secondary text-sm">Failed to load this page.</p>
-            <button onClick={() => window.location.reload()} className="px-4 py-2 rounded-lg bg-cw text-white text-sm font-medium hover:bg-cw/90">
+            <button onClick={() => { sessionStorage.removeItem('cw_chunk_retry'); window.location.reload(); }} className="px-4 py-2 rounded-lg bg-cw text-white text-sm font-medium hover:bg-cw/90">
               Reload
             </button>
           </div>
         ),
-      }));
+      };
     }),
   );
 }
@@ -116,9 +117,7 @@ export default function App() {
     return (
       <div className="min-h-screen bg-surface-0 flex items-center justify-center">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-cw/20 flex items-center justify-center animate-pulse">
-            <span className="text-cw font-extrabold text-lg">CW</span>
-          </div>
+          <img src={`${import.meta.env.BASE_URL}cw-logo.png`} alt="CW" className="w-12 h-12 rounded-xl animate-pulse" />
           <p className="text-text-secondary text-sm font-medium">Loading CW Hub...</p>
         </div>
       </div>
@@ -134,6 +133,10 @@ export default function App() {
 
 function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; profile: import('./types').Profile | null }) {
   const location = useLocation();
+
+  useEffect(() => {
+    sessionStorage.removeItem('cw_chunk_retry');
+  }, [location.pathname]);
 
   return (
     <ErrorBoundary resetKey={location.pathname}>

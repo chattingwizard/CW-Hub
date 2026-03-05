@@ -43,13 +43,14 @@ export default function Settings() {
 
   const [tab, setTab] = useState<SettingsTab>('users');
   const [users, setUsers] = useState<Profile[]>([]);
-  const [inviteCodes, setInviteCodes] = useState<{ code: string; used_by: string | null; created_at: string }[]>([]);
+  const [inviteCodes, setInviteCodes] = useState<{ code: string; used_by: string | null; created_at: string; role?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState('');
   const [generating, setGenerating] = useState(false);
+  const [inviteRole, setInviteRole] = useState<string>('recruit');
 
   const [userSearch, setUserSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
@@ -172,13 +173,13 @@ export default function Settings() {
   const handleGenerateInvite = async () => {
     setGenerating(true);
     try {
-      const { data, error } = await supabase.rpc('generate_invite_code');
+      const { data, error } = await supabase.rpc('generate_invite_code', { p_role: inviteRole });
       if (error) throw error;
       fetchData();
       if (data) {
-        navigator.clipboard.writeText(data);
-        setCopiedCode(data);
-        setStatusMsg('Code generated and copied!');
+        navigator.clipboard.writeText(data as string);
+        setCopiedCode(data as string);
+        setStatusMsg(`${ROLE_LABELS[inviteRole as UserRole] ?? inviteRole} invite code generated and copied!`);
         setTimeout(() => { setCopiedCode(null); setStatusMsg(''); }, 3000);
       }
     } catch (err: unknown) {
@@ -309,6 +310,15 @@ export default function Settings() {
                   );
                 })}
               </div>
+              <select
+                value={inviteRole}
+                onChange={(e) => setInviteRole(e.target.value)}
+                className="bg-surface-2 border border-border text-white text-xs rounded-lg px-2.5 py-2 focus:border-cw focus:outline-none"
+              >
+                {ROLE_OPTIONS.map(([val, label]) => (
+                  <option key={val} value={val}>{label}</option>
+                ))}
+              </select>
               <button
                 onClick={handleGenerateInvite}
                 disabled={generating}
@@ -331,8 +341,11 @@ export default function Settings() {
                   key={code.code}
                   className="flex items-center justify-between bg-surface-2 rounded-lg px-4 py-2.5"
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <code className="text-sm text-cw font-mono">{code.code}</code>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-surface-3 text-text-muted font-medium">
+                      {ROLE_LABELS[(code.role ?? 'recruit') as UserRole] ?? code.role ?? 'Recruit'}
+                    </span>
                     {code.used_by ? (
                       <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-3 text-text-muted">Used</span>
                     ) : (

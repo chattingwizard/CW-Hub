@@ -91,8 +91,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         }
       }
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (event === 'SIGNED_IN') {
         const currentProfile = get().profile;
+        if (currentProfile?.id === session.user.id) return;
+
         const { data: profile } = await supabase
           .from('profiles')
           .select('*')
