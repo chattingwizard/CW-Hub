@@ -696,6 +696,7 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
   const [missing, setMissing] = useState<MissingReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
+  const [dismissingAll, setDismissingAll] = useState(false);
   const [actionResult, setActionResult] = useState<{ key: string; ok: boolean; msg: string } | null>(null);
 
   const detectMissing = useCallback(async () => {
@@ -834,6 +835,35 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
     }
   }
 
+  async function handleDismissAll() {
+    if (!profile || missing.length === 0) return;
+    setDismissingAll(true);
+    setActionResult(null);
+
+    try {
+      const rows = missing.map(item => ({
+        chatter_id: item.chatter_id,
+        chatter_name: item.chatter_name,
+        date: item.date,
+        shift: item.shift,
+        action: 'dismissed' as const,
+        resolved_by: profile.id,
+      }));
+
+      const { error } = await supabase.from('shift_report_alerts').insert(rows);
+      if (error) throw error;
+
+      const count = missing.length;
+      setMissing([]);
+      setActionResult({ key: 'all', ok: true, msg: `${count} alerts dismissed` });
+    } catch (err: unknown) {
+      console.error('Dismiss all failed:', err);
+      setActionResult({ key: 'all', ok: false, msg: 'Could not dismiss all. Some may have duplicates — try refreshing.' });
+    } finally {
+      setDismissingAll(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -848,12 +878,24 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
         <p className="text-xs text-text-muted">
           Showing missing shift reports for the last 7 days
         </p>
-        <button
-          onClick={detectMissing}
-          className="text-xs text-cw hover:text-cw/80 font-medium transition-colors"
-        >
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          {missing.length > 0 && (
+            <button
+              onClick={handleDismissAll}
+              disabled={dismissingAll}
+              className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-surface-2 border border-border text-text-secondary hover:text-text-primary hover:border-zinc-600 disabled:opacity-40 transition-all"
+            >
+              {dismissingAll ? <Loader2 size={12} className="animate-spin" /> : <X size={12} />}
+              Dismiss All ({missing.length})
+            </button>
+          )}
+          <button
+            onClick={detectMissing}
+            className="text-xs text-cw hover:text-cw/80 font-medium transition-colors"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       {actionResult && (
