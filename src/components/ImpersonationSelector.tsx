@@ -25,10 +25,11 @@ export default function ImpersonationSelector() {
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  if (!profile || profile.role !== 'owner') return null;
+  if (!profile || (profile.role !== 'owner' && profile.role !== 'admin')) return null;
 
+  const realRole = profile.role;
   const currentLabel = !active
-    ? 'Owner'
+    ? (ROLE_LABELS[realRole] ?? realRole)
     : userName
       ? `${userName}`
       : ROLE_LABELS[impRole!] ?? impRole;
@@ -44,7 +45,7 @@ export default function ImpersonationSelector() {
   }, []);
 
   const handleRoleSelect = (role: UserRole) => {
-    if (role === 'owner') {
+    if (role === realRole) {
       deactivate();
     } else {
       activateRole(role);
@@ -110,16 +111,16 @@ export default function ImpersonationSelector() {
             </div>
             <div className="p-1 max-h-64 overflow-y-auto">
               <button
-                onClick={() => handleRoleSelect('owner')}
+                onClick={() => handleRoleSelect(realRole)}
                 className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-lg text-xs hover:bg-surface-2 transition-colors text-left"
               >
-                <span className="flex-1 text-text-primary font-medium">Owner (your view)</span>
+                <span className="flex-1 text-text-primary font-medium">{ROLE_LABELS[realRole] ?? realRole} (your view)</span>
                 {!active && <Check size={13} className="text-cw" />}
               </button>
 
               <div className="mx-2 my-1 border-t border-border" />
 
-              {ALL_ROLES.filter(r => r !== 'owner').map(role => (
+              {ALL_ROLES.filter(r => r !== realRole).map(role => (
                 <button
                   key={role}
                   onClick={() => handleRoleSelect(role)}
