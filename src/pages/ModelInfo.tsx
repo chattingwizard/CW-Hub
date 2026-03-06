@@ -37,7 +37,7 @@ export default function ModelInfo() {
     setError(null);
     try {
       const [modelsRes, chattersRes, gmRes, gcRes, groupsRes, viewsRes, changesRes, notesRes] = await Promise.all([
-        supabase.from('models').select('*').neq('status', 'Dead').order('name'),
+        supabase.from('models').select('*').neq('status', 'Dead').neq('status', 'Pending Invoice').order('name'),
         supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
         supabase.from('assignment_group_models').select('*'),
         supabase.from('assignment_group_chatters').select('*'),
