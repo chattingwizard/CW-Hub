@@ -116,7 +116,7 @@ export default function Assignments() {
     (groupId: string) => {
       const ids = groupModels.filter((gm) => gm.group_id === groupId).map((gm) => gm.model_id);
       return models
-        .filter((m) => ids.includes(m.id))
+        .filter((m) => ids.includes(m.id) && m.status === 'Live')
         .sort((a, b) => {
           const ta = getModelTraffic(a.id);
           const tb = getModelTraffic(b.id);
