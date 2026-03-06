@@ -169,7 +169,7 @@ export default function ModelInfo() {
             )}
           </p>
         </div>
-        {isAdmin && totalUnseen > 0 && (
+        {isAdmin && (
           <button
             onClick={markAllAsSeen}
             disabled={markingAllSeen}
