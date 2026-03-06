@@ -97,6 +97,8 @@ export const modules: HubModule[] = [
     path: '/tasks',
     roles: ['owner', 'admin', 'team_leader', 'script_manager', 'va'],
     section: 'main',
+    badge: 'Soon',
+    disabled: true,
   },
 
   // ── Coaching ───────────────────────────────────────────────
