@@ -112,6 +112,16 @@ body {
   background: rgba(250,204,21,0.12);
 }
 .topbar-right .admin-link:hover { background: rgba(250,204,21,0.25); }
+.nav .school-admin-link {
+  flex: 0 0 auto;
+  min-width: auto;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #0a6da8;
+  padding: 14px 16px;
+  border-bottom: 2px solid transparent;
+}
+.nav .school-admin-link:hover { color: #1a90c8; border-bottom-color: #1a90c8; }
 .topbar-right .logout-btn {
   background: rgba(255,255,255,0.12);
   color: rgba(255,255,255,0.8);

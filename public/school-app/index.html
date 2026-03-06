@@ -4605,18 +4605,15 @@ var CW_USER_ID = null;
       if (_inIframe) {
         var nav = document.querySelector('.nav');
         if (nav) {
+          var sep = document.createElement('span');
+          sep.style.cssText = 'margin-left:auto;';
+          nav.appendChild(sep);
           var adminNav = document.createElement('a');
-          adminNav.href = 'admin.html';
-          adminNav.textContent = 'Admin';
+          adminNav.href = 'https://chattingwizard.github.io/CW-ChattingSchool/admin.html';
+          adminNav.textContent = '⚙ School Admin';
           adminNav.target = '_blank';
-          adminNav.style.cssText = 'color:#facc15;font-weight:700;margin-left:auto;font-size:0.82rem;padding:3px 12px;border-radius:6px;background:rgba(250,204,21,0.15);';
-          var hiringNav = document.createElement('a');
-          hiringNav.href = 'hiring-workflow.html';
-          hiringNav.textContent = 'Hiring';
-          hiringNav.target = '_blank';
-          hiringNav.style.cssText = 'color:rgba(255,255,255,0.7);font-weight:600;font-size:0.82rem;padding:3px 12px;';
+          adminNav.className = 'school-admin-link';
           nav.appendChild(adminNav);
-          nav.appendChild(hiringNav);
         }
       }
     }
