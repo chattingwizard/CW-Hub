@@ -322,11 +322,13 @@ export default function Assignments() {
           <CompactGroupsView
             groups={groups}
             unassignedModels={unassignedModels}
+            unassignedChatters={unassignedChatters}
             getModelsForGroup={getModelsForGroup}
             getChattersForGroup={getChattersForGroup}
             saving={saving}
             onMoveModel={handleMoveModel}
             onAssignModel={handleAssignModel}
+            onAssignChatter={handleAssignChatter}
           />
         ) : (
           <GroupsTab
@@ -402,24 +404,27 @@ function getPillColor(groupIndex: number, pageType: string | null): string {
 interface CompactGroupsViewProps {
   groups: AssignmentGroup[];
   unassignedModels: Model[];
+  unassignedChatters: Chatter[];
   getModelsForGroup: (groupId: string) => Model[];
   getChattersForGroup: (groupId: string) => Chatter[];
   saving: boolean;
   onMoveModel: (modelId: string, fromGroupId: string, toGroupId: string) => void;
   onAssignModel: (groupId: string, modelId: string) => void;
+  onAssignChatter: (groupId: string, chatterId: string) => void;
 }
 
 function CompactGroupsView({
-  groups, unassignedModels, getModelsForGroup, getChattersForGroup,
-  saving, onMoveModel, onAssignModel,
+  groups, unassignedModels, unassignedChatters, getModelsForGroup, getChattersForGroup,
+  saving, onMoveModel, onAssignModel, onAssignChatter,
 }: CompactGroupsViewProps) {
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
   const [searchGroupId, setSearchGroupId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
 
-  const handleDragStart = useCallback((e: React.DragEvent, modelId: string, fromGroupId: string) => {
-    e.dataTransfer.setData('modelId', modelId);
+  const handleDragStart = useCallback((e: React.DragEvent, itemId: string, fromGroupId: string, type: 'model' | 'chatter') => {
+    e.dataTransfer.setData('itemId', itemId);
     e.dataTransfer.setData('fromGroupId', fromGroupId);
+    e.dataTransfer.setData('dragType', type);
     e.dataTransfer.effectAllowed = 'move';
   }, []);
 
@@ -436,15 +441,21 @@ function CompactGroupsView({
   const handleDrop = useCallback((e: React.DragEvent, targetGroupId: string) => {
     e.preventDefault();
     setDragOverGroupId(null);
-    const modelId = e.dataTransfer.getData('modelId');
+    const itemId = e.dataTransfer.getData('itemId');
     const fromGroupId = e.dataTransfer.getData('fromGroupId');
-    if (!modelId) return;
-    if (!fromGroupId) {
-      onAssignModel(targetGroupId, modelId);
-    } else if (fromGroupId !== targetGroupId) {
-      onMoveModel(modelId, fromGroupId, targetGroupId);
+    const dragType = e.dataTransfer.getData('dragType');
+    if (!itemId) return;
+
+    if (dragType === 'chatter') {
+      if (fromGroupId !== targetGroupId) onAssignChatter(targetGroupId, itemId);
+    } else {
+      if (!fromGroupId) {
+        onAssignModel(targetGroupId, itemId);
+      } else if (fromGroupId !== targetGroupId) {
+        onMoveModel(itemId, fromGroupId, targetGroupId);
+      }
     }
-  }, [onMoveModel, onAssignModel]);
+  }, [onMoveModel, onAssignModel, onAssignChatter]);
 
   const searchResults = useMemo(() => {
     if (!searchText.trim()) return unassignedModels.slice(0, 8);
@@ -498,7 +509,7 @@ function CompactGroupsView({
                     <div
                       key={model.id}
                       draggable
-                      onDragStart={(e) => handleDragStart(e, model.id, group.id)}
+                      onDragStart={(e) => handleDragStart(e, model.id, group.id, 'model')}
                       className={`w-full flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-white cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity ${getPillColor(groupIdx, model.page_type)}`}
                     >
                       <GripVertical size={9} className="shrink-0 opacity-40" />
@@ -565,9 +576,12 @@ function CompactGroupsView({
                   {gChatters.map((chatter) => (
                     <div
                       key={chatter.id}
-                      className="w-full px-2.5 py-1 rounded-full text-[10px] font-medium bg-surface-2/80 text-text-secondary border border-border/40 truncate"
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, chatter.id, group.id, 'chatter')}
+                      className="w-full flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-surface-2/80 text-text-secondary border border-border/40 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
                     >
-                      {chatter.full_name}
+                      <GripVertical size={8} className="shrink-0 opacity-30" />
+                      <span className="truncate">{chatter.full_name}</span>
                     </div>
                   ))}
 
@@ -581,28 +595,53 @@ function CompactGroupsView({
         </div>
       </div>
 
-      {unassignedModels.length > 0 && (
+      {(unassignedModels.length > 0 || unassignedChatters.length > 0) && (
         <div className="mt-4 bg-surface-1 border border-warning/30 rounded-xl p-3">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={13} className="text-warning" />
             <span className="text-[11px] font-semibold text-warning uppercase tracking-wider">
-              Unassigned ({unassignedModels.length})
+              Unassigned ({unassignedModels.length + unassignedChatters.length})
             </span>
             <span className="text-[10px] text-text-muted ml-1">Drag to a group above</span>
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {unassignedModels.map((m) => (
-              <div
-                key={m.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, m.id, '')}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-medium bg-warning/10 text-warning border border-warning/20 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
-              >
-                <GripVertical size={9} className="shrink-0 opacity-40" />
-                <span className="truncate">{m.name}</span>
+
+          {unassignedModels.length > 0 && (
+            <div className="mb-2">
+              <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold mb-1">Models</div>
+              <div className="flex flex-wrap gap-1.5">
+                {unassignedModels.map((m) => (
+                  <div
+                    key={m.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, m.id, '', 'model')}
+                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-medium bg-warning/10 text-warning border border-warning/20 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
+                  >
+                    <GripVertical size={9} className="shrink-0 opacity-40" />
+                    <span className="truncate">{m.name}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {unassignedChatters.length > 0 && (
+            <div>
+              <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold mb-1">Chatters</div>
+              <div className="flex flex-wrap gap-1.5">
+                {unassignedChatters.map((c) => (
+                  <div
+                    key={c.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, c.id, '', 'chatter')}
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-warning/10 text-amber-300 border border-warning/20 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
+                  >
+                    <GripVertical size={8} className="shrink-0 opacity-40" />
+                    <span className="truncate">{c.full_name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
