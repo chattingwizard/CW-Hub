@@ -163,6 +163,28 @@ export default function Assignments() {
     setSaving(false);
   };
 
+  const handleSwapGroups = async (groupId1: string, groupId2: string) => {
+    if (groupId1 === groupId2) return;
+    const g1 = groups.find((g) => g.id === groupId1);
+    const g2 = groups.find((g) => g.id === groupId2);
+    if (!g1 || !g2) return;
+    setSaving(true);
+    await Promise.all([
+      supabase.from('assignment_groups').update({ sort_order: g2.sort_order }).eq('id', groupId1),
+      supabase.from('assignment_groups').update({ sort_order: g1.sort_order }).eq('id', groupId2),
+    ]);
+    setGroups((prev) =>
+      prev
+        .map((g) => {
+          if (g.id === groupId1) return { ...g, sort_order: g2.sort_order };
+          if (g.id === groupId2) return { ...g, sort_order: g1.sort_order };
+          return g;
+        })
+        .sort((a, b) => a.sort_order - b.sort_order),
+    );
+    setSaving(false);
+  };
+
   // ── Model assignment ──
   const handleAssignModel = async (groupId: string, modelId: string) => {
     setSaving(true);
@@ -329,6 +351,7 @@ export default function Assignments() {
             onMoveModel={handleMoveModel}
             onAssignModel={handleAssignModel}
             onAssignChatter={handleAssignChatter}
+            onSwapGroups={handleSwapGroups}
           />
         ) : (
           <GroupsTab
@@ -411,13 +434,15 @@ interface CompactGroupsViewProps {
   onMoveModel: (modelId: string, fromGroupId: string, toGroupId: string) => void;
   onAssignModel: (groupId: string, modelId: string) => void;
   onAssignChatter: (groupId: string, chatterId: string) => void;
+  onSwapGroups: (groupId1: string, groupId2: string) => void;
 }
 
 function CompactGroupsView({
   groups, unassignedModels, unassignedChatters, getModelsForGroup, getChattersForGroup,
-  saving, onMoveModel, onAssignModel, onAssignChatter,
+  saving, onMoveModel, onAssignModel, onAssignChatter, onSwapGroups,
 }: CompactGroupsViewProps) {
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+  const [dragOverHeaderId, setDragOverHeaderId] = useState<string | null>(null);
   const [searchGroupId, setSearchGroupId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
 
@@ -441,12 +466,15 @@ function CompactGroupsView({
   const handleDrop = useCallback((e: React.DragEvent, targetGroupId: string) => {
     e.preventDefault();
     setDragOverGroupId(null);
+    setDragOverHeaderId(null);
     const itemId = e.dataTransfer.getData('itemId');
     const fromGroupId = e.dataTransfer.getData('fromGroupId');
     const dragType = e.dataTransfer.getData('dragType');
     if (!itemId) return;
 
-    if (dragType === 'chatter') {
+    if (dragType === 'group') {
+      onSwapGroups(itemId, targetGroupId);
+    } else if (dragType === 'chatter') {
       if (fromGroupId !== targetGroupId) onAssignChatter(targetGroupId, itemId);
     } else {
       if (!fromGroupId) {
@@ -455,7 +483,7 @@ function CompactGroupsView({
         onMoveModel(itemId, fromGroupId, targetGroupId);
       }
     }
-  }, [onMoveModel, onAssignModel, onAssignChatter]);
+  }, [onMoveModel, onAssignModel, onAssignChatter, onSwapGroups]);
 
   const searchResults = useMemo(() => {
     if (!searchText.trim()) return unassignedModels.slice(0, 8);
@@ -500,8 +528,34 @@ function CompactGroupsView({
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, group.id)}
               >
-                <div className={`px-2 py-2.5 text-center font-bold text-xs border-b transition-colors ${isDragOver ? 'border-cw bg-cw/10 text-cw' : `border-border ${palette.header}`}`}>
-                  {group.name}
+                <div
+                  draggable
+                  onDragStart={(e) => {
+                    e.stopPropagation();
+                    handleDragStart(e, group.id, '', 'group');
+                  }}
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setDragOverHeaderId(group.id);
+                  }}
+                  onDragLeave={() => setDragOverHeaderId(null)}
+                  onDrop={(e) => {
+                    e.stopPropagation();
+                    handleDrop(e, group.id);
+                  }}
+                  className={`px-2 py-2.5 text-center font-bold text-xs border-b transition-colors cursor-grab active:cursor-grabbing ${
+                    dragOverHeaderId === group.id
+                      ? 'border-cw bg-cw/15 text-cw ring-1 ring-cw/30'
+                      : isDragOver
+                        ? 'border-cw bg-cw/10 text-cw'
+                        : `border-border ${palette.header}`
+                  }`}
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <GripVertical size={10} className="opacity-40" />
+                    <span>{group.name}</span>
+                  </div>
                 </div>
 
                 <div className="px-1.5 py-2 flex flex-col gap-1">
