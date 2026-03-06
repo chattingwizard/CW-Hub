@@ -74,8 +74,10 @@ export default function ShiftReports() {
 
   const tabs: { id: Tab; label: string; icon: typeof ClipboardList }[] = [
     { id: 'submit', label: 'Submit Report', icon: Send },
-    { id: 'reports', label: 'Reports', icon: FileText },
-    ...(isAdmin ? [{ id: 'alerts' as Tab, label: 'Alerts', icon: AlertTriangle }] : []),
+    ...(isAdmin ? [
+      { id: 'reports' as Tab, label: 'Reports', icon: FileText },
+      { id: 'alerts' as Tab, label: 'Alerts', icon: AlertTriangle },
+    ] : []),
   ];
 
   if (error) {
@@ -119,7 +121,7 @@ export default function ShiftReports() {
       ) : (
         <>
           {activeTab === 'submit' && <SubmitTab chatters={chatters} />}
-          {activeTab === 'reports' && <ReportsTab chatters={chatters} />}
+          {activeTab === 'reports' && isAdmin && <ReportsTab chatters={chatters} />}
           {activeTab === 'alerts' && isAdmin && <AlertsTab chatters={chatters} />}
         </>
       )}
