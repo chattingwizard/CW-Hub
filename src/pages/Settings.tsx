@@ -145,7 +145,8 @@ export default function Settings() {
       setTimeout(() => setStatusMsg(''), 2000);
     } catch (err: unknown) {
       console.error('Role change failed:', err);
-      setStatusMsg('Error: Could not update role.');
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Unknown error';
+      setStatusMsg(`Error: ${msg}`);
     }
   };
 
