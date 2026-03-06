@@ -409,7 +409,7 @@ export default function ModelProfile() {
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl font-extrabold text-text-primary">{model.name}</h1>
             <p className="text-sm text-text-secondary mt-1">
-              {model.client_name || 'No client'} &middot; {model.page_type || 'Unknown type'}
+              {model.page_type || 'Unknown type'}
             </p>
             <div className="flex items-center gap-2 flex-wrap mt-3">
               <span className={cn(
@@ -732,7 +732,6 @@ export default function ModelProfile() {
             Overview
           </h2>
           <div className="space-y-3">
-            <InfoRow label="Client" value={model.client_name ?? '—'} />
             <InfoRow label="Page Type" value={model.page_type ?? '—'} />
             <InfoRow label="Chatbot" value={model.chatbot_active ? 'Active' : 'Inactive'} />
             {model.niche?.length > 0 && (

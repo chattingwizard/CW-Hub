@@ -37,7 +37,7 @@ export default function ModelInfo() {
     setError(null);
     try {
       const [modelsRes, chattersRes, gmRes, gcRes, groupsRes, viewsRes, changesRes, notesRes] = await Promise.all([
-        supabase.from('models').select('*').order('name'),
+        supabase.from('models').select('*').neq('status', 'Dead').order('name'),
         supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter'),
         supabase.from('assignment_group_models').select('*'),
         supabase.from('assignment_group_chatters').select('*'),
@@ -77,8 +77,7 @@ export default function ModelInfo() {
       const q = search.toLowerCase();
       result = result.filter(m =>
         m.name.toLowerCase().includes(q) ||
-        m.niche?.some(n => n.toLowerCase().includes(q)) ||
-        m.client_name?.toLowerCase().includes(q),
+        m.niche?.some(n => n.toLowerCase().includes(q)),
       );
     }
     return result;
@@ -187,7 +186,7 @@ export default function ModelInfo() {
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
             type="text"
-            placeholder="Search by name, niche, or client..."
+            placeholder="Search by name or niche..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-8 pr-3 py-2 bg-surface-1 border border-border rounded-lg text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cw/50"
