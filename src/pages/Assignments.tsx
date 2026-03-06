@@ -3,9 +3,9 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { TEAM_COLORS } from '../lib/utils';
 import {
-  Plus, X, Search, Users, ChevronLeft, ChevronRight,
+  Plus, X, Search, Users, ChevronLeft, ChevronRight, ChevronDown,
   Monitor, Calendar, Trash2, GripVertical, AlertTriangle,
-  Layers, CalendarDays, UserPlus, Check,
+  Layers, CalendarDays, UserPlus, Check, LayoutGrid, List,
 } from 'lucide-react';
 import ModelAvatar from '../components/ModelAvatar';
 import TrafficBadge, { PageTypeBadge } from '../components/TrafficBadge';
@@ -18,10 +18,12 @@ import type {
 } from '../types';
 
 type Tab = 'groups' | 'weekly';
+type ViewMode = 'compact' | 'detailed';
 
 export default function Assignments() {
   const { profile } = useAuthStore();
   const [tab, setTab] = useState<Tab>('groups');
+  const [viewMode, setViewMode] = useState<ViewMode>('compact');
   const [models, setModels] = useState<Model[]>([]);
   const [chatters, setChatters] = useState<Chatter[]>([]);
   const [groups, setGroups] = useState<AssignmentGroup[]>([]);
@@ -290,32 +292,64 @@ export default function Assignments() {
               <CalendarDays size={13} /> Weekly View
             </button>
           </div>
+          {tab === 'groups' && (
+            <div className="flex bg-surface-2 rounded-lg p-0.5">
+              <button
+                onClick={() => setViewMode('compact')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  viewMode === 'compact' ? 'bg-cw/15 text-cw' : 'text-text-muted hover:text-white'
+                }`}
+                title="Compact view"
+              >
+                <LayoutGrid size={13} />
+              </button>
+              <button
+                onClick={() => setViewMode('detailed')}
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  viewMode === 'detailed' ? 'bg-cw/15 text-cw' : 'text-text-muted hover:text-white'
+                }`}
+                title="Detailed view"
+              >
+                <List size={13} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
       {tab === 'groups' ? (
-        <GroupsTab
-          groups={groups}
-          models={models}
-          liveModels={liveModels}
-          chatters={chatters}
-          groupModels={groupModels}
-          groupChatters={groupChatters}
-          unassignedModels={unassignedModels}
-          unassignedChatters={unassignedChatters}
-          getModelsForGroup={getModelsForGroup}
-          getChattersForGroup={getChattersForGroup}
-          getModelTraffic={getModelTraffic}
-          saving={saving}
-          onCreateGroup={handleCreateGroup}
-          onRenameGroup={handleRenameGroup}
-          onDeleteGroup={handleDeleteGroup}
-          onAssignModel={handleAssignModel}
-          onUnassignModel={handleUnassignModel}
-          onMoveModel={handleMoveModel}
-          onAssignChatter={handleAssignChatter}
-          onUnassignChatter={handleUnassignChatter}
-        />
+        viewMode === 'compact' ? (
+          <CompactGroupsView
+            groups={groups}
+            getModelsForGroup={getModelsForGroup}
+            getChattersForGroup={getChattersForGroup}
+            saving={saving}
+            onMoveModel={handleMoveModel}
+          />
+        ) : (
+          <GroupsTab
+            groups={groups}
+            models={models}
+            liveModels={liveModels}
+            chatters={chatters}
+            groupModels={groupModels}
+            groupChatters={groupChatters}
+            unassignedModels={unassignedModels}
+            unassignedChatters={unassignedChatters}
+            getModelsForGroup={getModelsForGroup}
+            getChattersForGroup={getChattersForGroup}
+            getModelTraffic={getModelTraffic}
+            saving={saving}
+            onCreateGroup={handleCreateGroup}
+            onRenameGroup={handleRenameGroup}
+            onDeleteGroup={handleDeleteGroup}
+            onAssignModel={handleAssignModel}
+            onUnassignModel={handleUnassignModel}
+            onMoveModel={handleMoveModel}
+            onAssignChatter={handleAssignChatter}
+            onUnassignChatter={handleUnassignChatter}
+          />
+        )
       ) : (
         <WeeklyTab
           groups={groups}
@@ -338,7 +372,145 @@ export default function Assignments() {
 }
 
 // ════════════════════════════════════════════════════════════════
-// Tab 1: Groups Setup
+// Compact View: Team Composition Grid
+// ════════════════════════════════════════════════════════════════
+
+const GROUP_PALETTES = [
+  { paid: 'bg-slate-600',   free: 'bg-slate-400',   mixed: 'bg-slate-500',   header: 'bg-slate-500/15 text-slate-300' },
+  { paid: 'bg-pink-600',    free: 'bg-pink-400',    mixed: 'bg-pink-500',    header: 'bg-pink-500/15 text-pink-300' },
+  { paid: 'bg-purple-600',  free: 'bg-purple-400',  mixed: 'bg-purple-500',  header: 'bg-purple-500/15 text-purple-300' },
+  { paid: 'bg-emerald-600', free: 'bg-emerald-400', mixed: 'bg-emerald-500', header: 'bg-emerald-500/15 text-emerald-300' },
+  { paid: 'bg-blue-600',    free: 'bg-blue-400',    mixed: 'bg-blue-500',    header: 'bg-blue-500/15 text-blue-300' },
+  { paid: 'bg-orange-600',  free: 'bg-orange-400',  mixed: 'bg-orange-500',  header: 'bg-orange-500/15 text-orange-300' },
+  { paid: 'bg-teal-600',    free: 'bg-teal-400',    mixed: 'bg-teal-500',    header: 'bg-teal-500/15 text-teal-300' },
+  { paid: 'bg-rose-600',    free: 'bg-rose-400',    mixed: 'bg-rose-500',    header: 'bg-rose-500/15 text-rose-300' },
+  { paid: 'bg-indigo-600',  free: 'bg-indigo-400',  mixed: 'bg-indigo-500',  header: 'bg-indigo-500/15 text-indigo-300' },
+  { paid: 'bg-amber-600',   free: 'bg-amber-400',   mixed: 'bg-amber-500',   header: 'bg-amber-500/15 text-amber-300' },
+];
+
+function getPillColor(groupIndex: number, pageType: string | null): string {
+  const p = GROUP_PALETTES[groupIndex % GROUP_PALETTES.length]!;
+  if (!pageType) return p.paid;
+  const pt = pageType.toLowerCase();
+  if (pt.includes('free')) return p.free;
+  if (pt.includes('mixed')) return p.mixed;
+  return p.paid;
+}
+
+interface CompactGroupsViewProps {
+  groups: AssignmentGroup[];
+  getModelsForGroup: (groupId: string) => Model[];
+  getChattersForGroup: (groupId: string) => Chatter[];
+  saving: boolean;
+  onMoveModel: (modelId: string, fromGroupId: string, toGroupId: string) => void;
+}
+
+function CompactGroupsView({
+  groups, getModelsForGroup, getChattersForGroup, saving, onMoveModel,
+}: CompactGroupsViewProps) {
+  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+
+  if (groups.length === 0) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="bg-surface-1 border border-border rounded-xl p-12 text-center">
+          <Layers size={40} className="mx-auto text-text-muted mb-3" />
+          <p className="text-text-muted text-sm">No groups yet. Switch to detailed view to create groups.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-auto min-h-0 relative">
+      {openDropdown && (
+        <div className="fixed inset-0 z-20" onClick={() => setOpenDropdown(null)} />
+      )}
+
+      <div className="bg-lime-400 text-[#1a1a1a] text-center font-extrabold py-2.5 text-sm tracking-wider rounded-t-xl uppercase">
+        Team Composition
+      </div>
+
+      <div className="border border-border border-t-0 rounded-b-xl overflow-hidden bg-surface-1 overflow-x-auto">
+        <div className="flex divide-x divide-border" style={{ minWidth: `${groups.length * 150}px` }}>
+          {groups.map((group, groupIdx) => {
+            const palette = GROUP_PALETTES[groupIdx % GROUP_PALETTES.length]!;
+            const gModels = getModelsForGroup(group.id);
+            const gChatters = getChattersForGroup(group.id);
+
+            return (
+              <div key={group.id} className="flex-1 min-w-[140px]">
+                <div className={`px-2 py-2.5 text-center font-bold text-xs border-b border-border ${palette.header}`}>
+                  {group.name}
+                </div>
+
+                <div className="px-1.5 py-2 flex flex-col gap-1">
+                  {gModels.map((model) => (
+                    <div key={model.id} className="relative">
+                      <button
+                        onClick={() => setOpenDropdown(openDropdown === model.id ? null : model.id)}
+                        disabled={saving}
+                        className={`w-full flex items-center justify-between gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-50 cursor-pointer ${getPillColor(groupIdx, model.page_type)}`}
+                      >
+                        <span className="truncate">{model.name}</span>
+                        <ChevronDown size={10} className="shrink-0 opacity-60" />
+                      </button>
+
+                      {openDropdown === model.id && (
+                        <div className="absolute left-0 top-full mt-1 bg-surface-2 border border-border rounded-lg shadow-xl z-30 min-w-[130px] py-1">
+                          <div className="px-2 py-1 text-[9px] text-text-muted uppercase tracking-wider font-semibold border-b border-border mb-0.5">
+                            Move to
+                          </div>
+                          {groups.filter((g) => g.id !== group.id).map((g) => (
+                            <button
+                              key={g.id}
+                              onClick={() => {
+                                onMoveModel(model.id, group.id, g.id);
+                                setOpenDropdown(null);
+                              }}
+                              disabled={saving}
+                              className="w-full text-left px-3 py-1.5 text-[11px] text-white hover:bg-surface-3 transition-colors disabled:opacity-50"
+                            >
+                              {g.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {gModels.length > 0 && gChatters.length > 0 && (
+                    <div className="flex items-center gap-2 my-1">
+                      <div className="flex-1 border-t border-border/40" />
+                      <Users size={9} className="text-text-muted" />
+                      <div className="flex-1 border-t border-border/40" />
+                    </div>
+                  )}
+
+                  {gChatters.map((chatter) => (
+                    <div
+                      key={chatter.id}
+                      className="w-full px-2.5 py-1 rounded-full text-[10px] font-medium bg-surface-2/80 text-text-secondary border border-border/40 truncate"
+                    >
+                      {chatter.full_name}
+                    </div>
+                  ))}
+
+                  {gModels.length === 0 && gChatters.length === 0 && (
+                    <p className="text-[9px] text-text-muted text-center py-6 italic">Empty</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
+// Tab 1: Groups Setup (Detailed View)
 // ════════════════════════════════════════════════════════════════
 
 interface GroupsTabProps {
