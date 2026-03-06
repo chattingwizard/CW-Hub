@@ -43,6 +43,15 @@ export const modules: HubModule[] = [
     section: 'main',
   },
   {
+    id: 'revenue',
+    name: 'Revenue',
+    icon: 'DollarSign',
+    type: 'internal',
+    path: '/revenue',
+    roles: ['owner', 'admin', 'team_leader'],
+    section: 'main',
+  },
+  {
     id: 'chatter-performance',
     name: 'Chatter Performance',
     icon: 'Activity',

@@ -57,6 +57,7 @@ const HubstaffIssues = lazyRetry(() => import('./pages/HubstaffIssues'));
 const ScriptDashboard = lazyRetry(() => import('./pages/ScriptDashboard'));
 const ModelGuide = lazyRetry(() => import('./pages/ModelGuide'));
 const School = lazyRetry(() => import('./pages/School'));
+const Revenue = lazyRetry(() => import('./pages/Revenue'));
 
 class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { hasError: boolean }> {
   state = { hasError: false };
@@ -203,6 +204,15 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
               element={
                 <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
                   <ChatterScore />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/revenue"
+              element={
+                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
+                  <Revenue />
                 </ProtectedRoute>
               }
             />
