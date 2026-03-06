@@ -2,7 +2,7 @@
 Sync chatters, models, and teams from Airtable → Supabase.
 Runs every 6 hours via GitHub Actions.
 """
-import os, json, requests
+import os, json, requests, hashlib
 from datetime import datetime, timezone
 
 AIRTABLE_TOKEN = os.environ["AIRTABLE_TOKEN"]
@@ -304,6 +304,40 @@ def _resolve_linked(val, name_map):
         return name_map.get(val)
     return val
 
+def _upload_avatar(airtable_id, airtable_pic_url):
+    """Download photo from Airtable and upload to Supabase Storage. Returns permanent public URL or None."""
+    try:
+        resp = requests.get(airtable_pic_url, timeout=15)
+        if resp.status_code != 200:
+            return None
+        content_type = resp.headers.get("Content-Type", "image/jpeg")
+        ext = "jpg"
+        if "png" in content_type:
+            ext = "png"
+        elif "webp" in content_type:
+            ext = "webp"
+        elif "gif" in content_type:
+            ext = "gif"
+
+        file_path = f"{airtable_id}.{ext}"
+        upload_url = f"{SUPABASE_URL}/storage/v1/object/model-avatars/{file_path}"
+        upload_headers = {
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": content_type,
+            "x-upsert": "true",
+        }
+        up = requests.put(upload_url, headers=upload_headers, data=resp.content)
+        if up.status_code in (200, 201):
+            return f"{SUPABASE_URL}/storage/v1/object/public/model-avatars/{file_path}"
+        else:
+            print(f"    ⚠️ Upload failed for {airtable_id}: {up.status_code} {up.text[:100]}")
+            return None
+    except Exception as e:
+        print(f"    ⚠️ Avatar error for {airtable_id}: {e}")
+        return None
+
+
 def sync_models():
     """Sync Models table from Airtable with change detection and details JSONB."""
     print("🎭 Syncing models...")
@@ -347,7 +381,10 @@ def sync_models():
         if pics and isinstance(pics, list) and len(pics) > 0:
             first = pics[0]
             if isinstance(first, dict):
-                pic_url = first.get("url")
+                airtable_pic_url = first.get("url")
+                if airtable_pic_url:
+                    permanent_url = _upload_avatar(rec["id"], airtable_pic_url)
+                    pic_url = permanent_url or airtable_pic_url
 
         # Combine "Video Calls" + "VC Medium" into a single field
         vc_answer = f.get("Video Calls", "")
