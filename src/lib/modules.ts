@@ -228,7 +228,7 @@ export const modules: HubModule[] = [
     icon: 'Settings',
     type: 'internal',
     path: '/settings',
-    roles: ['owner'],
+    roles: ['owner', 'admin'],
     section: 'system',
     dividerBefore: true,
   },

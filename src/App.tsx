@@ -361,7 +361,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/settings"
               element={
-                <ProtectedRoute roles={['owner']}>
+                <ProtectedRoute roles={['owner', 'admin']}>
                   <Settings />
                 </ProtectedRoute>
               }
