@@ -3,10 +3,10 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import {
   Shield, UserPlus, Copy, Check, RefreshCw, Search,
-  Users, ShieldCheck, UserX, UserCheck, Ticket, AlertTriangle,
+  Users, ShieldCheck, UserX, UserCheck, Ticket, AlertTriangle, Link2, Unlink,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
-import type { Profile, UserRole } from '../types';
+import type { Profile, UserRole, Chatter } from '../types';
 
 const DocPermissions = lazy(() => import('./DocPermissions'));
 
@@ -58,6 +58,8 @@ export default function Settings() {
   const [teamFilter, setTeamFilter] = useState<string>('all');
   const [inviteFilter, setInviteFilter] = useState<InviteFilter>('all');
 
+  const [chatters, setChatters] = useState<Chatter[]>([]);
+
   const [confirmModal, setConfirmModal] = useState<{
     userId: string;
     userName: string;
@@ -71,14 +73,16 @@ export default function Settings() {
     setLoading(true);
     setError(null);
     try {
-      const [usersRes, invitesRes] = await Promise.all([
+      const [usersRes, invitesRes, chattersRes] = await Promise.all([
         supabase.rpc('hub_get_users'),
         supabase.from('invite_codes').select('*').order('created_at', { ascending: false }).limit(100),
+        supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
       ]);
       if (usersRes.error) throw new Error(usersRes.error.message);
       if (invitesRes.error) throw new Error(invitesRes.error.message);
       setUsers(usersRes.data ?? []);
       setInviteCodes(invitesRes.data ?? []);
+      setChatters((chattersRes.data as Chatter[]) ?? []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load settings');
     } finally {
@@ -202,6 +206,39 @@ export default function Settings() {
     setRoleFilter('all');
     setStatusFilter('all');
     setTeamFilter('all');
+  };
+
+  const chatterByProfileId = useMemo(() => {
+    const map = new Map<string, Chatter>();
+    for (const c of chatters) {
+      if (c.profile_id) map.set(c.profile_id, c);
+    }
+    return map;
+  }, [chatters]);
+
+  const linkedProfileIds = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of chatters) {
+      if (c.profile_id) set.add(c.profile_id);
+    }
+    return set;
+  }, [chatters]);
+
+  const handleLinkChatter = async (profileId: string, chatterId: string | null) => {
+    try {
+      const { error } = await supabase.rpc('hub_link_chatter', {
+        target_profile_id: profileId,
+        target_chatter_id: chatterId,
+      });
+      if (error) throw error;
+      setStatusMsg(chatterId ? 'Account linked' : 'Account unlinked');
+      fetchData();
+      setTimeout(() => setStatusMsg(''), 2000);
+    } catch (err: unknown) {
+      console.error('Link chatter failed:', err);
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Unknown error';
+      setStatusMsg(`Error: ${msg}`);
+    }
   };
 
   // ── Render ─────────────────────────────────────────────────
@@ -437,7 +474,7 @@ export default function Settings() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border">
-                  {['Name', 'Email', 'Role', 'Status', 'Actions'].map((h) => (
+                  {['Name', 'Email', 'Role', 'Linked Account', 'Status', 'Actions'].map((h) => (
                     <th key={h} className="text-left px-5 py-3 text-text-secondary font-medium text-xs uppercase tracking-wider">
                       {h}
                     </th>
@@ -447,7 +484,7 @@ export default function Settings() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-12 text-center text-text-secondary">
+                    <td colSpan={6} className="px-5 py-12 text-center text-text-secondary">
                       <div className="flex items-center justify-center gap-2">
                         <div className="w-4 h-4 border-2 border-cw/30 border-t-cw rounded-full animate-spin" />
                         Loading...
@@ -456,13 +493,13 @@ export default function Settings() {
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={5}>
+                    <td colSpan={6}>
                       <ErrorState message={error} onRetry={fetchData} />
                     </td>
                   </tr>
                 ) : filteredUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-5 py-12 text-center text-text-muted">
+                    <td colSpan={6} className="px-5 py-12 text-center text-text-muted">
                       {hasActiveFilters ? (
                         <div className="space-y-2">
                           <p>No users match your filters.</p>
@@ -507,6 +544,34 @@ export default function Settings() {
                           }`}>
                             {ROLE_LABELS[user.role as UserRole] ?? user.role}
                           </span>
+                        </td>
+                        <td className="px-5 py-3">
+                          {canManageUsers(profile?.role) && !isSelf ? (() => {
+                            const linked = chatterByProfileId.get(user.id);
+                            return (
+                              <select
+                                value={linked?.id ?? ''}
+                                onChange={(e) => handleLinkChatter(user.id, e.target.value || null)}
+                                className={`bg-surface-2 border rounded-lg px-2 py-1.5 text-xs focus:border-cw focus:outline-none transition-colors max-w-[160px] ${
+                                  linked ? 'border-success/30 text-success' : 'border-border text-text-muted'
+                                }`}
+                              >
+                                <option value="">— Not linked —</option>
+                                {chatters.map(c => {
+                                  const taken = c.profile_id && c.profile_id !== user.id;
+                                  return (
+                                    <option key={c.id} value={c.id} disabled={!!taken}>
+                                      {c.full_name}{taken ? ' (linked)' : ''}
+                                    </option>
+                                  );
+                                })}
+                              </select>
+                            );
+                          })() : (
+                            <span className="text-xs text-text-muted">
+                              {chatterByProfileId.get(user.id)?.full_name ?? '—'}
+                            </span>
+                          )}
                         </td>
                         <td className="px-5 py-3">
                           <span className={`flex items-center gap-1.5 text-xs ${
