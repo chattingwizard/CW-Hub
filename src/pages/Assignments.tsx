@@ -321,10 +321,12 @@ export default function Assignments() {
         viewMode === 'compact' ? (
           <CompactGroupsView
             groups={groups}
+            unassignedModels={unassignedModels}
             getModelsForGroup={getModelsForGroup}
             getChattersForGroup={getChattersForGroup}
             saving={saving}
             onMoveModel={handleMoveModel}
+            onAssignModel={handleAssignModel}
           />
         ) : (
           <GroupsTab
@@ -399,16 +401,56 @@ function getPillColor(groupIndex: number, pageType: string | null): string {
 
 interface CompactGroupsViewProps {
   groups: AssignmentGroup[];
+  unassignedModels: Model[];
   getModelsForGroup: (groupId: string) => Model[];
   getChattersForGroup: (groupId: string) => Chatter[];
   saving: boolean;
   onMoveModel: (modelId: string, fromGroupId: string, toGroupId: string) => void;
+  onAssignModel: (groupId: string, modelId: string) => void;
 }
 
 function CompactGroupsView({
-  groups, getModelsForGroup, getChattersForGroup, saving, onMoveModel,
+  groups, unassignedModels, getModelsForGroup, getChattersForGroup,
+  saving, onMoveModel, onAssignModel,
 }: CompactGroupsViewProps) {
-  const [openDropdown, setOpenDropdown] = useState<string | null>(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+  const [searchGroupId, setSearchGroupId] = useState<string | null>(null);
+  const [searchText, setSearchText] = useState('');
+
+  const handleDragStart = useCallback((e: React.DragEvent, modelId: string, fromGroupId: string) => {
+    e.dataTransfer.setData('modelId', modelId);
+    e.dataTransfer.setData('fromGroupId', fromGroupId);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent, groupId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverGroupId(groupId);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverGroupId(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetGroupId: string) => {
+    e.preventDefault();
+    setDragOverGroupId(null);
+    const modelId = e.dataTransfer.getData('modelId');
+    const fromGroupId = e.dataTransfer.getData('fromGroupId');
+    if (!modelId) return;
+    if (!fromGroupId) {
+      onAssignModel(targetGroupId, modelId);
+    } else if (fromGroupId !== targetGroupId) {
+      onMoveModel(modelId, fromGroupId, targetGroupId);
+    }
+  }, [onMoveModel, onAssignModel]);
+
+  const searchResults = useMemo(() => {
+    if (!searchText.trim()) return unassignedModels.slice(0, 8);
+    const q = searchText.toLowerCase();
+    return unassignedModels.filter(m => m.name.toLowerCase().includes(q)).slice(0, 8);
+  }, [searchText, unassignedModels]);
 
   if (groups.length === 0) {
     return (
@@ -423,8 +465,8 @@ function CompactGroupsView({
 
   return (
     <div className="flex-1 overflow-auto min-h-0 relative">
-      {openDropdown && (
-        <div className="fixed inset-0 z-20" onClick={() => setOpenDropdown(null)} />
+      {searchGroupId && (
+        <div className="fixed inset-0 z-20" onClick={() => { setSearchGroupId(null); setSearchText(''); }} />
       )}
 
       <div className="bg-lime-400 text-[#1a1a1a] text-center font-extrabold py-2.5 text-sm tracking-wider rounded-t-xl uppercase">
@@ -437,49 +479,82 @@ function CompactGroupsView({
             const palette = GROUP_PALETTES[groupIdx % GROUP_PALETTES.length]!;
             const gModels = getModelsForGroup(group.id);
             const gChatters = getChattersForGroup(group.id);
+            const isDragOver = dragOverGroupId === group.id;
 
             return (
-              <div key={group.id} className="flex-1 min-w-[140px]">
-                <div className={`px-2 py-2.5 text-center font-bold text-xs border-b border-border ${palette.header}`}>
+              <div
+                key={group.id}
+                className={`flex-1 min-w-[140px] transition-colors ${isDragOver ? 'bg-cw/5' : ''}`}
+                onDragOver={(e) => handleDragOver(e, group.id)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, group.id)}
+              >
+                <div className={`px-2 py-2.5 text-center font-bold text-xs border-b transition-colors ${isDragOver ? 'border-cw bg-cw/10 text-cw' : `border-border ${palette.header}`}`}>
                   {group.name}
                 </div>
 
                 <div className="px-1.5 py-2 flex flex-col gap-1">
                   {gModels.map((model) => (
-                    <div key={model.id} className="relative">
-                      <button
-                        onClick={() => setOpenDropdown(openDropdown === model.id ? null : model.id)}
-                        disabled={saving}
-                        className={`w-full flex items-center justify-between gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-white transition-opacity hover:opacity-85 disabled:opacity-50 cursor-pointer ${getPillColor(groupIdx, model.page_type)}`}
-                      >
-                        <span className="truncate">{model.name}</span>
-                        <ChevronDown size={10} className="shrink-0 opacity-60" />
-                      </button>
-
-                      {openDropdown === model.id && (
-                        <div className="absolute left-0 top-full mt-1 bg-surface-2 border border-border rounded-lg shadow-xl z-30 min-w-[130px] py-1">
-                          <div className="px-2 py-1 text-[9px] text-text-muted uppercase tracking-wider font-semibold border-b border-border mb-0.5">
-                            Move to
-                          </div>
-                          {groups.filter((g) => g.id !== group.id).map((g) => (
-                            <button
-                              key={g.id}
-                              onClick={() => {
-                                onMoveModel(model.id, group.id, g.id);
-                                setOpenDropdown(null);
-                              }}
-                              disabled={saving}
-                              className="w-full text-left px-3 py-1.5 text-[11px] text-white hover:bg-surface-3 transition-colors disabled:opacity-50"
-                            >
-                              {g.name}
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                    <div
+                      key={model.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, model.id, group.id)}
+                      className={`w-full flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-white cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity ${getPillColor(groupIdx, model.page_type)}`}
+                    >
+                      <GripVertical size={9} className="shrink-0 opacity-40" />
+                      <span className="truncate">{model.name}</span>
                     </div>
                   ))}
 
-                  {gModels.length > 0 && gChatters.length > 0 && (
+                  <div className="relative">
+                    <button
+                      onClick={() => {
+                        setSearchGroupId(searchGroupId === group.id ? null : group.id);
+                        setSearchText('');
+                      }}
+                      disabled={saving}
+                      className="w-full py-1 rounded-full text-[10px] text-text-muted hover:text-cw hover:bg-cw/10 transition-colors border border-dashed border-border/40 hover:border-cw/30"
+                    >
+                      + Add model
+                    </button>
+
+                    {searchGroupId === group.id && (
+                      <div className="absolute left-0 right-0 top-full mt-1 bg-surface-2 border border-border rounded-lg shadow-xl z-30 p-1.5">
+                        <input
+                          autoFocus
+                          value={searchText}
+                          onChange={(e) => setSearchText(e.target.value)}
+                          placeholder="Search model..."
+                          className="w-full bg-surface-3 border border-border rounded px-2 py-1 text-[11px] text-white placeholder-text-muted focus:outline-none focus:border-cw mb-1"
+                        />
+                        {searchResults.length === 0 ? (
+                          <p className="text-[10px] text-text-muted text-center py-2">
+                            {unassignedModels.length === 0 ? 'All models assigned' : 'No match'}
+                          </p>
+                        ) : (
+                          <div className="max-h-36 overflow-y-auto space-y-0.5">
+                            {searchResults.map((m) => (
+                              <button
+                                key={m.id}
+                                onClick={() => {
+                                  onAssignModel(group.id, m.id);
+                                  setSearchText('');
+                                  setSearchGroupId(null);
+                                }}
+                                disabled={saving}
+                                className="w-full text-left px-2 py-1.5 rounded text-[11px] text-white hover:bg-surface-3 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                              >
+                                <span className="truncate flex-1">{m.name}</span>
+                                <PageTypeBadge pageType={m.page_type as 'Free Page' | 'Paid Page' | 'Mixed' | null} size="sm" />
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {(gModels.length > 0 || searchGroupId === group.id) && gChatters.length > 0 && (
                     <div className="flex items-center gap-2 my-1">
                       <div className="flex-1 border-t border-border/40" />
                       <Users size={9} className="text-text-muted" />
@@ -505,6 +580,31 @@ function CompactGroupsView({
           })}
         </div>
       </div>
+
+      {unassignedModels.length > 0 && (
+        <div className="mt-4 bg-surface-1 border border-warning/30 rounded-xl p-3">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={13} className="text-warning" />
+            <span className="text-[11px] font-semibold text-warning uppercase tracking-wider">
+              Unassigned ({unassignedModels.length})
+            </span>
+            <span className="text-[10px] text-text-muted ml-1">Drag to a group above</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {unassignedModels.map((m) => (
+              <div
+                key={m.id}
+                draggable
+                onDragStart={(e) => handleDragStart(e, m.id, '')}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-medium bg-warning/10 text-warning border border-warning/20 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
+              >
+                <GripVertical size={9} className="shrink-0 opacity-40" />
+                <span className="truncate">{m.name}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
