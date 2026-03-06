@@ -88,6 +88,7 @@ export default function ModelInfo() {
     const viewMap = new Map(profileViews.map(v => [v.model_id, v.last_viewed_at]));
 
     for (const ch of recentChanges) {
+      if (ch.field_name === 'status') continue;
       const lastViewed = viewMap.get(ch.model_id);
       if (!lastViewed || new Date(ch.changed_at) > new Date(lastViewed)) {
         map.set(ch.model_id, (map.get(ch.model_id) ?? 0) + 1);
