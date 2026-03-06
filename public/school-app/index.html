@@ -4543,17 +4543,7 @@ var CW_USER_ID = null;
   var step = 'starting';
   if (_inIframe) {
     var topbar = document.querySelector('.topbar');
-    if (topbar) {
-      var tLeft = topbar.querySelector('.topbar-left');
-      var tLogout = topbar.querySelector('.logout-btn');
-      var tUser = topbar.querySelector('.topbar-user');
-      if (tLeft) tLeft.style.display = 'none';
-      if (tLogout) tLogout.style.display = 'none';
-      if (tUser) tUser.style.display = 'none';
-      topbar.style.minHeight = '0';
-      topbar.style.padding = '4px 16px';
-      topbar.style.justifyContent = 'flex-end';
-    }
+    if (topbar) topbar.style.display = 'none';
     document.body.style.paddingTop = '0';
   }
   try {
@@ -4609,10 +4599,26 @@ var CW_USER_ID = null;
     bar.querySelector('.user-name').textContent = profile.full_name || profile.email;
     var managementRoles = ['admin', 'owner', 'chatter_manager', 'team_leader', 'script_manager'];
     var isManagement = managementRoles.indexOf(profile.role) >= 0;
-    if (isManagement) { bar.querySelector('.admin-link').style.display = ''; bar.querySelector('.hiring-link').style.display = ''; }
-    if (_inIframe && !isManagement) {
-      var topbar2 = document.querySelector('.topbar');
-      if (topbar2) topbar2.style.display = 'none';
+    if (isManagement) {
+      bar.querySelector('.admin-link').style.display = '';
+      bar.querySelector('.hiring-link').style.display = '';
+      if (_inIframe) {
+        var nav = document.querySelector('.nav');
+        if (nav) {
+          var adminNav = document.createElement('a');
+          adminNav.href = 'admin.html';
+          adminNav.textContent = 'Admin';
+          adminNav.target = '_blank';
+          adminNav.style.cssText = 'color:#facc15;font-weight:700;margin-left:auto;font-size:0.82rem;padding:3px 12px;border-radius:6px;background:rgba(250,204,21,0.15);';
+          var hiringNav = document.createElement('a');
+          hiringNav.href = 'hiring-workflow.html';
+          hiringNav.textContent = 'Hiring';
+          hiringNav.target = '_blank';
+          hiringNav.style.cssText = 'color:rgba(255,255,255,0.7);font-weight:600;font-size:0.82rem;padding:3px 12px;';
+          nav.appendChild(adminNav);
+          nav.appendChild(hiringNav);
+        }
+      }
     }
     bar.style.display = '';
 
