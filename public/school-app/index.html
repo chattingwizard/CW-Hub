@@ -4543,7 +4543,17 @@ var CW_USER_ID = null;
   var step = 'starting';
   if (_inIframe) {
     var topbar = document.querySelector('.topbar');
-    if (topbar) topbar.style.display = 'none';
+    if (topbar) {
+      var tLeft = topbar.querySelector('.topbar-left');
+      var tLogout = topbar.querySelector('.logout-btn');
+      var tUser = topbar.querySelector('.topbar-user');
+      if (tLeft) tLeft.style.display = 'none';
+      if (tLogout) tLogout.style.display = 'none';
+      if (tUser) tUser.style.display = 'none';
+      topbar.style.minHeight = '0';
+      topbar.style.padding = '4px 16px';
+      topbar.style.justifyContent = 'flex-end';
+    }
     document.body.style.paddingTop = '0';
   }
   try {
@@ -4600,6 +4610,10 @@ var CW_USER_ID = null;
     var managementRoles = ['admin', 'owner', 'chatter_manager', 'team_leader', 'script_manager'];
     var isManagement = managementRoles.indexOf(profile.role) >= 0;
     if (isManagement) { bar.querySelector('.admin-link').style.display = ''; bar.querySelector('.hiring-link').style.display = ''; }
+    if (_inIframe && !isManagement) {
+      var topbar2 = document.querySelector('.topbar');
+      if (topbar2) topbar2.style.display = 'none';
+    }
     bar.style.display = '';
 
     // 4. Migrate localStorage (one-time)
