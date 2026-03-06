@@ -850,7 +850,7 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
         resolved_by: profile.id,
       }));
 
-      const { error } = await supabase.from('shift_report_alerts').upsert(rows, { onConflict: 'chatter_id,date' });
+      const { error } = await supabase.from('shift_report_alerts').upsert(rows, { onConflict: 'chatter_id,date', ignoreDuplicates: true });
       if (error) throw error;
 
       const count = missing.length;
