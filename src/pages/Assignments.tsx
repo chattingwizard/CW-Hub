@@ -170,14 +170,14 @@ export default function Assignments() {
     if (!g1 || !g2) return;
     setSaving(true);
     await Promise.all([
-      supabase.from('assignment_groups').update({ sort_order: g2.sort_order }).eq('id', groupId1),
-      supabase.from('assignment_groups').update({ sort_order: g1.sort_order }).eq('id', groupId2),
+      supabase.from('assignment_groups').update({ sort_order: g2.sort_order, name: g2.name }).eq('id', groupId1),
+      supabase.from('assignment_groups').update({ sort_order: g1.sort_order, name: g1.name }).eq('id', groupId2),
     ]);
     setGroups((prev) =>
       prev
         .map((g) => {
-          if (g.id === groupId1) return { ...g, sort_order: g2.sort_order };
-          if (g.id === groupId2) return { ...g, sort_order: g1.sort_order };
+          if (g.id === groupId1) return { ...g, sort_order: g2.sort_order, name: g2.name };
+          if (g.id === groupId2) return { ...g, sort_order: g1.sort_order, name: g1.name };
           return g;
         })
         .sort((a, b) => a.sort_order - b.sort_order),
