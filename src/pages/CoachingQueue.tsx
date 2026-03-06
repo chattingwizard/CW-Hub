@@ -5,7 +5,7 @@ import type { CoachingTask, CoachingRedFlag, CoachingTalkingPoint, CoachingGoalP
 import {
   CheckCircle2, Circle, AlertTriangle, TrendingUp, TrendingDown, Minus,
   ChevronDown, ChevronUp, Target, MessageSquare, Clock, BarChart3,
-  Phone, Loader2, RefreshCw, Filter,
+  Phone, Loader2, RefreshCw, Filter, Calendar,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 
@@ -18,7 +18,7 @@ const TL_OPTIONS = [
 const KPI_LABELS: Record<string, string> = {
   sales_hr: 'Sales/hr', cvr: 'CVR', unlock: 'Unlock',
   golden: 'Golden', msg_hr: 'Msg/hr', reply_time: 'Reply',
-  sales: 'Sales', hours: 'Hours',
+  sales: 'Sales', hours: 'Hours', days: 'Days',
 };
 
 const KPI_FORMATS: Record<string, (v: number | string) => string> = {
@@ -30,7 +30,19 @@ const KPI_FORMATS: Record<string, (v: number | string) => string> = {
   reply_time: (v) => `${v}`,
   sales: (v) => `$${Number(v).toFixed(0)}`,
   hours: (v) => `${Number(v).toFixed(1)}h`,
+  days: (v) => `${Number(v).toFixed(0)}d`,
 };
+
+function getWeekRange(): string {
+  const now = new Date();
+  const day = now.getDay();
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((day + 6) % 7));
+  const sunday = new Date(monday);
+  sunday.setDate(monday.getDate() + 6);
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return `${fmt(monday)} – ${fmt(sunday)}`;
+}
 
 const FOCUS_KPI_OPTIONS = ['Sales/hr', 'CVR', 'Unlock Rate', 'Golden Ratio', 'Msg/hr', 'Reply Time'];
 
@@ -208,14 +220,14 @@ export default function CoachingQueue() {
   useEffect(() => { fetchTasks(); }, [fetchTasks]);
 
   const filtered = useMemo(() => {
-    let list = tasks.filter((t) => t.team_tl === selectedTl);
+    let list = tasks.filter((t) => t.team_tl?.toLowerCase() === selectedTl);
     if (showFilter === 'pending') list = list.filter((t) => t.status === 'pending');
     if (showFilter === 'completed') list = list.filter((t) => t.status === 'completed');
     return list;
   }, [tasks, selectedTl, showFilter]);
 
   const stats = useMemo(() => {
-    const tl = tasks.filter((t) => t.team_tl === selectedTl);
+    const tl = tasks.filter((t) => t.team_tl?.toLowerCase() === selectedTl);
     const pending = tl.filter((t) => t.status === 'pending');
     const completed = tl.filter((t) => t.status === 'completed');
     const skipped = tl.filter((t) => t.status === 'skipped');
@@ -279,7 +291,10 @@ export default function CoachingQueue() {
         <div>
           <h1 className="text-2xl font-extrabold text-text-primary">Coaching Queue</h1>
           <p className="text-text-secondary text-sm mt-1">
-            Daily coaching checklist. Complete each session and log the focus area.
+            Weekly performance coaching checklist.
+          </p>
+          <p className="text-text-muted text-xs mt-0.5 flex items-center gap-1">
+            <Calendar size={10} /> {getWeekRange()} (Mon – Sun)
           </p>
         </div>
         <button
@@ -295,7 +310,7 @@ export default function CoachingQueue() {
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex bg-surface-2 rounded-lg p-0.5 border border-border">
           {TL_OPTIONS.map((tl) => {
-            const tlPending = tasks.filter((t) => t.team_tl === tl.key && t.status === 'pending').length;
+            const tlPending = tasks.filter((t) => t.team_tl?.toLowerCase() === tl.key && t.status === 'pending').length;
             return (
               <button
                 key={tl.key}
@@ -453,7 +468,11 @@ export default function CoachingQueue() {
                   <div className="px-4 pb-4 space-y-3 border-t border-border pt-3">
                     {/* KPIs Grid */}
                     {Object.keys(task.kpis).length > 0 && (
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
+                      <div>
+                      <p className="text-[10px] font-medium text-text-muted uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                        <BarChart3 size={10} /> Weekly Performance
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-2">
                         {Object.entries(task.kpis).map(([key, val]) => {
                           const keyBase = key.split('_')[0] ?? key;
                           const isRed = task.red_flags.some((f) => f.kpi.toLowerCase().includes(keyBase));
@@ -466,6 +485,7 @@ export default function CoachingQueue() {
                             </div>
                           );
                         })}
+                      </div>
                       </div>
                     )}
 

@@ -297,8 +297,8 @@ export default function CoachingOverview() {
             <TlCard
               key={tl.key}
               tl={tl}
-              tasks={tasks.filter((t) => t.team_tl === tl.key)}
-              logs={logs.filter((l) => l.team_tl === tl.key)}
+              tasks={tasks.filter((t) => t.team_tl?.toLowerCase() === tl.key)}
+              logs={logs.filter((l) => l.team_tl?.toLowerCase() === tl.key)}
               expanded={expanded.includes(tl.key)}
               onToggle={() => toggleTl(tl.key)}
             />
