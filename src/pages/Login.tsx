@@ -2,11 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { getDefaultPath } from '../lib/modules';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Mail, ArrowLeft } from 'lucide-react';
 import type { Profile } from '../types';
 
 export default function Login() {
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot' | 'confirm'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -14,8 +14,10 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  const { signIn, signUp, resetPassword, loading, user, profile } = useAuthStore();
+  const { signIn, signUp, verifySignUpOtp, resendSignUpOtp, resetPassword, loading, user, profile } = useAuthStore();
   const navigate = useNavigate();
 
   const loginTimer = useRef<ReturnType<typeof setTimeout>>(null);
@@ -29,6 +31,12 @@ export default function Login() {
     }
     return () => { if (loginTimer.current) clearTimeout(loginTimer.current); };
   }, [loading]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
 
   if (user && profile) {
     return <Navigate to={getDefaultPath(profile.role)} replace />;
@@ -57,50 +65,77 @@ export default function Login() {
           setError('Password must be at least 6 characters.');
           return;
         }
-        await signUp(email, password, fullName, inviteCode);
-      }
-
-      // Check immediately — signIn should have set user + profile
-      const store = useAuthStore.getState();
-      if (store.user && store.profile) {
-        navigate(getDefaultPath(store.profile.role));
-        return;
-      }
-
-      // Fallback: subscribe to the store and wait for profile (up to 3s)
-      const profile = await new Promise<Profile | null>(resolve => {
-        const timeout = setTimeout(() => resolve(null), 3000);
-        const unsub = useAuthStore.subscribe(state => {
-          if (state.profile) {
-            clearTimeout(timeout);
-            unsub();
-            resolve(state.profile);
-          }
-        });
-        // Also check current state in case it updated between getState and subscribe
-        const current = useAuthStore.getState();
-        if (current.profile) {
-          clearTimeout(timeout);
-          unsub();
-          resolve(current.profile);
+        const { needsConfirmation } = await signUp(email, password, fullName, inviteCode);
+        if (needsConfirmation) {
+          setMode('confirm');
+          setResendCooldown(60);
+          return;
         }
-      });
-
-      if (profile) {
-        navigate(getDefaultPath(profile.role));
-        return;
       }
 
-      // Last resort: try explicit profile refresh
-      await useAuthStore.getState().refreshProfile();
-      const final = useAuthStore.getState();
-      if (final.profile) {
-        navigate(getDefaultPath(final.profile.role));
-      } else {
-        setError('Signed in successfully but could not load your profile. Please refresh the page.');
-      }
+      await navigateAfterAuth();
     } catch (err: any) {
       setError(err.message || 'Something went wrong');
+    }
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    try {
+      await verifySignUpOtp(email, otp.trim());
+      await navigateAfterAuth();
+    } catch (err: any) {
+      setError(err.message || 'Invalid or expired code. Please try again.');
+    }
+  };
+
+  const handleResendCode = async () => {
+    setError('');
+    try {
+      await resendSignUpOtp(email);
+      setResendCooldown(60);
+    } catch (err: any) {
+      setError(err.message || 'Could not resend code.');
+    }
+  };
+
+  const navigateAfterAuth = async () => {
+    const store = useAuthStore.getState();
+    if (store.user && store.profile) {
+      navigate(getDefaultPath(store.profile.role));
+      return;
+    }
+
+    const profile = await new Promise<Profile | null>(resolve => {
+      const timeout = setTimeout(() => resolve(null), 3000);
+      const unsub = useAuthStore.subscribe(state => {
+        if (state.profile) {
+          clearTimeout(timeout);
+          unsub();
+          resolve(state.profile);
+        }
+      });
+      const current = useAuthStore.getState();
+      if (current.profile) {
+        clearTimeout(timeout);
+        unsub();
+        resolve(current.profile);
+      }
+    });
+
+    if (profile) {
+      navigate(getDefaultPath(profile.role));
+      return;
+    }
+
+    await useAuthStore.getState().refreshProfile();
+    const final = useAuthStore.getState();
+    if (final.profile) {
+      navigate(getDefaultPath(final.profile.role));
+    } else {
+      setError('Signed in successfully but could not load your profile. Please refresh the page.');
     }
   };
 
@@ -118,7 +153,77 @@ export default function Login() {
 
         {/* Card */}
         <div className="bg-surface-1 border border-border rounded-2xl p-8">
-          {mode === 'forgot' ? (
+          {mode === 'confirm' ? (
+            // Email OTP confirmation view
+            <>
+              <button
+                type="button"
+                onClick={() => { setMode('register'); setError(''); setOtp(''); }}
+                className="text-text-muted hover:text-text-secondary text-sm mb-4 inline-flex items-center gap-1 transition-colors"
+              >
+                <ArrowLeft size={14} /> Back to Register
+              </button>
+
+              <div className="flex items-center justify-center mb-4">
+                <div className="w-12 h-12 rounded-full bg-cw/15 flex items-center justify-center">
+                  <Mail size={22} className="text-cw" />
+                </div>
+              </div>
+
+              <h2 className="text-lg font-semibold text-white text-center mb-1">Check your email</h2>
+              <p className="text-text-secondary text-sm text-center mb-6">
+                We sent an 8-digit verification code to<br />
+                <span className="text-white font-medium">{email}</span>
+              </p>
+
+              <form onSubmit={handleVerifyOtp} className="space-y-4">
+                <div>
+                  <label className="block text-sm text-text-secondary mb-1.5">Verification Code</label>
+                  <input
+                    type="text"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    className="w-full bg-surface-2 border border-border rounded-lg px-4 py-3 text-white text-center text-2xl font-mono tracking-[0.3em] placeholder-text-muted focus:outline-none focus:border-cw focus:ring-1 focus:ring-cw"
+                    placeholder="00000000"
+                    maxLength={8}
+                    autoFocus
+                    required
+                  />
+                </div>
+
+                {error && (
+                  <div className="bg-danger/10 border border-danger/30 rounded-lg px-4 py-2.5 text-danger text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading || otp.length < 8}
+                  className="w-full bg-cw hover:bg-cw-dark text-white font-medium rounded-lg px-4 py-3 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Verifying...
+                    </span>
+                  ) : 'Verify & Complete Registration'}
+                </button>
+
+                <div className="text-center">
+                  <p className="text-text-muted text-xs mb-2">Didn&apos;t receive the code?</p>
+                  <button
+                    type="button"
+                    onClick={handleResendCode}
+                    disabled={loading || resendCooldown > 0}
+                    className="text-cw hover:text-cw/80 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend Code'}
+                  </button>
+                </div>
+              </form>
+            </>
+          ) : mode === 'forgot' ? (
             // Forgot password view
             <>
               <button

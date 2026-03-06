@@ -15,7 +15,9 @@ interface AuthState {
 
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, fullName: string, inviteCode: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, inviteCode: string) => Promise<{ needsConfirmation: boolean }>;
+  verifySignUpOtp: (email: string, token: string) => Promise<void>;
+  resendSignUpOtp: (email: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -178,6 +180,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       });
       if (error) throw error;
 
+      const needsConfirmation = !data.session;
+
       if (data.user) {
         const { error: inviteErr } = await supabase.rpc('signup_with_invite', {
           invite_code: inviteCode,
@@ -187,6 +191,51 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           console.warn('Invite code marking failed:', inviteErr.message);
         }
       }
+
+      return { needsConfirmation };
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  verifySignUpOtp: async (email: string, token: string) => {
+    set({ loading: true });
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        email,
+        token,
+        type: 'signup',
+      });
+      if (error) throw error;
+
+      if (data.session?.user) {
+        const userId = data.session.user.id;
+        const userEmail = data.session.user.email ?? '';
+
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+
+        set({
+          user: { id: userId, email: userEmail },
+          profile: profile as Profile | null,
+        });
+      }
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  resendSignUpOtp: async (email: string) => {
+    set({ loading: true });
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+      });
+      if (error) throw error;
     } finally {
       set({ loading: false });
     }
