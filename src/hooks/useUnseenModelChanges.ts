@@ -11,12 +11,12 @@ export function useUnseenModelChanges() {
 
     const [viewsRes, changesRes, notesRes] = await Promise.all([
       supabase.from('model_profile_views').select('model_id,last_viewed_at').eq('user_id', user.id),
-      supabase.from('model_changes').select('model_id,changed_at').order('changed_at', { ascending: false }).limit(1000),
+      supabase.from('model_changes').select('model_id,field_name,changed_at').neq('field_name', 'status').order('changed_at', { ascending: false }).limit(1000),
       supabase.from('model_important_notes').select('model_id,updated_at,created_at').eq('active', true),
     ]);
 
     const views = viewsRes.data as { model_id: string; last_viewed_at: string }[] | null;
-    const changes = changesRes.data as { model_id: string; changed_at: string }[] | null;
+    const changes = changesRes.data as { model_id: string; field_name: string; changed_at: string }[] | null;
     const notes = notesRes.data as { model_id: string; updated_at: string; created_at: string }[] | null;
 
     const viewMap = new Map((views ?? []).map(v => [v.model_id, v.last_viewed_at]));
