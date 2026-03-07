@@ -1,0 +1,29 @@
+---
+description: Maximum autonomy protocol - never ask the user to do things manually
+alwaysApply: true
+---
+
+# Autonomy Protocol
+
+## Core Rule
+NEVER ask the user to perform manual steps if there is ANY programmatic alternative. Exhaust all automated approaches first.
+
+## When you need credentials or dashboard access
+1. Search agent transcripts, env files, config files, and GitHub secrets first
+2. Try all available APIs (Management API, Admin API, CLI tools)
+3. Create GitHub Actions workflows that use stored secrets to perform the task
+4. Use browser automation if available
+5. Only as ABSOLUTE last resort, ask the user — and if you must, give them the EXACT value to paste, not instructions to figure out
+
+## When you need to change external service config
+1. Check if there's an API (REST, CLI, SDK) that can do it programmatically
+2. Check if GitHub Actions can do it using stored secrets
+3. Check if DNS/infra can be managed via Cloudflare API or similar
+4. Open the URL directly in the user's browser with `Start-Process`
+5. If the user must click a button, tell them EXACTLY which button — no multi-step guides
+
+## General
+- The user expects 100% autonomy. They do not want to be asked questions or given instructions.
+- If something requires human action, do the maximum possible work first, then minimize what the user needs to do to a single action.
+- Prefer automated testing over asking "did it work?"
+- Always verify results programmatically after changes.
