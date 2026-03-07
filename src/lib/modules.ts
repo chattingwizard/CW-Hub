@@ -120,6 +120,8 @@ export const modules: HubModule[] = [
     roles: ['owner', 'admin', 'team_leader'],
     section: 'coaching',
     dividerBefore: true,
+    badge: 'Soon',
+    disabled: true,
   },
   {
     id: 'coaching-overview',
@@ -129,6 +131,8 @@ export const modules: HubModule[] = [
     path: '/coaching-overview',
     roles: ['owner', 'admin'],
     section: 'coaching',
+    badge: 'Soon',
+    disabled: true,
   },
   {
     id: 'coaching-analytics',
@@ -138,6 +142,8 @@ export const modules: HubModule[] = [
     path: '/coaching-analytics',
     roles: ['owner', 'admin', 'team_leader'],
     section: 'coaching',
+    badge: 'Soon',
+    disabled: true,
   },
   {
     id: 'coaching-workflow',
@@ -147,6 +153,8 @@ export const modules: HubModule[] = [
     path: '/coaching-workflow',
     roles: ['owner', 'admin', 'team_leader'],
     section: 'coaching',
+    badge: 'Soon',
+    disabled: true,
   },
 
   // ── Tools ──────────────────────────────────────────────────
