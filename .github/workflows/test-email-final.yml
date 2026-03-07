@@ -1,0 +1,27 @@
+name: Test Email Final
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Quick test recovery for non-owner emails
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          REF=$(echo "$SUPABASE_URL" | sed 's|https://||;s|\.supabase\.co||')
+
+          for EMAIL in "mellyawood@gmail.com" "lopezpau032@gmail.com"; do
+            echo "--- Testing: $EMAIL ---"
+            RESULT=$(curl -s -o /tmp/body.txt -w "%{http_code}" -X POST \
+              "https://${REF}.supabase.co/auth/v1/recover" \
+              -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{\"email\":\"${EMAIL}\"}")
+            echo "  HTTP: $RESULT"
+            echo "  Body: $(cat /tmp/body.txt)"
+            sleep 65
+          done
