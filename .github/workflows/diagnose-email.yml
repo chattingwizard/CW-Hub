@@ -7,47 +7,95 @@ jobs:
   check-email:
     runs-on: ubuntu-latest
     steps:
-      - name: Check Supabase Auth SMTP Config
+      - name: Test SMTP via Admin Invite
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          echo "=== 1. Checking Supabase Auth Settings ==="
-          curl -s "${SUPABASE_URL}/auth/v1/settings" \
+          echo "=== 1. GoTrue Health ==="
+          curl -s "${SUPABASE_URL}/auth/v1/health" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" | python3 -m json.tool
 
           echo ""
-          echo "=== 2. Testing password reset email to midaleh12@gmail.com ==="
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            "${SUPABASE_URL}/auth/v1/recover" \
+          echo "=== 2. Admin: create temp user + send confirmation email (SMTP test) ==="
+          TEMP_EMAIL="cw.smtp.test.$(date +%s)@gmail.com"
+          echo "Testing with: $TEMP_EMAIL"
+          CREATE_RESP=$(curl -s -w "\n%{http_code}" \
+            "${SUPABASE_URL}/auth/v1/admin/users" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
             -H "Content-Type: application/json" \
-            -d '{"email":"midaleh12@gmail.com"}')
-          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          echo "HTTP Status: $HTTP_CODE"
-          echo "Response: $BODY"
+            -d "{\"email\":\"$TEMP_EMAIL\",\"password\":\"TempPass123!\",\"email_confirm\":false,\"user_metadata\":{\"full_name\":\"SMTP Test\"}}")
+          CREATE_CODE=$(echo "$CREATE_RESP" | tail -1)
+          CREATE_BODY=$(echo "$CREATE_RESP" | sed '$d')
+          echo "Create user HTTP: $CREATE_CODE"
+          echo "$CREATE_BODY" | python3 -c "import sys,json; d=json.load(sys.stdin); print('User ID:', d.get('id','?')); print('Email confirmed:', d.get('email_confirmed_at','null'))" 2>/dev/null || echo "$CREATE_BODY"
 
           echo ""
-          echo "=== 3. Checking GoTrue health ==="
-          curl -s "${SUPABASE_URL}/auth/v1/health" \
-            -H "apikey: ${SUPABASE_SERVICE_KEY}" | python3 -m json.tool || echo "(no health endpoint)"
-
-          echo ""
-          echo "=== 4. Listing recent auth users (last 5) to verify admin API works ==="
-          curl -s "${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=5" \
-            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" | python3 -m json.tool 2>/dev/null | head -30
-
-          echo ""
-          echo "=== 5. Generate invite link (tests email infra without sending) ==="
-          INVITE_RESP=$(curl -s -w "\n%{http_code}" \
+          echo "=== 3. Admin: send recovery email for existing user midaleh12@gmail.com ==="
+          echo "(Using admin endpoint which may bypass rate limits)"
+          RECOVERY_RESP=$(curl -s -w "\n%{http_code}" \
             "${SUPABASE_URL}/auth/v1/admin/generate_link" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" \
             -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
             -H "Content-Type: application/json" \
             -d '{"type":"recovery","email":"midaleh12@gmail.com","options":{"redirect_to":"https://hub.chattingwizard.com/#/update-password"}}')
-          INVITE_CODE=$(echo "$INVITE_RESP" | tail -1)
-          INVITE_BODY=$(echo "$INVITE_RESP" | sed '$d')
-          echo "HTTP Status: $INVITE_CODE"
-          echo "Response: $INVITE_BODY" | python3 -m json.tool 2>/dev/null || echo "$INVITE_BODY"
+          R_CODE=$(echo "$RECOVERY_RESP" | tail -1)
+          R_BODY=$(echo "$RECOVERY_RESP" | sed '$d')
+          echo "Generate link HTTP: $R_CODE"
+          echo "$R_BODY" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          print('Action link:', d.get('action_link','?')[:80]+'...')
+          print('OTP:', d.get('email_otp','?'))
+          print('Redirect to:', d.get('redirect_to','?'))
+          print('Recovery sent at:', d.get('recovery_sent_at','?'))
+          " 2>/dev/null || echo "$R_BODY"
+
+          echo ""
+          echo "=== 4. Direct SMTP test: try /recover bypassing client rate limit ==="
+          RECOVER_RESP=$(curl -s -w "\n%{http_code}" \
+            "${SUPABASE_URL}/auth/v1/recover" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"midaleh12@gmail.com"}')
+          REC_CODE=$(echo "$RECOVER_RESP" | tail -1)
+          REC_BODY=$(echo "$RECOVER_RESP" | sed '$d')
+          echo "Recover HTTP: $REC_CODE"
+          echo "Response: $REC_BODY"
+
+          echo ""
+          echo "=== 5. Try resend OTP for the temp user (triggers email sending) ==="
+          if [ "$CREATE_CODE" = "200" ]; then
+            TEMP_ID=$(echo "$CREATE_BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['id'])" 2>/dev/null)
+            echo "Temp user ID: $TEMP_ID"
+            RESEND_RESP=$(curl -s -w "\n%{http_code}" \
+              "${SUPABASE_URL}/auth/v1/resend" \
+              -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "{\"type\":\"signup\",\"email\":\"$TEMP_EMAIL\"}")
+            RESEND_CODE=$(echo "$RESEND_RESP" | tail -1)
+            RESEND_BODY=$(echo "$RESEND_RESP" | sed '$d')
+            echo "Resend HTTP: $RESEND_CODE"
+            echo "Response: $RESEND_BODY"
+          fi
+
+          echo ""
+          echo "=== 6. Cleanup: delete temp user ==="
+          if [ -n "$TEMP_ID" ]; then
+            DEL_RESP=$(curl -s -o /dev/null -w "%{http_code}" \
+              -X DELETE "${SUPABASE_URL}/auth/v1/admin/users/$TEMP_ID" \
+              -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+              -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}")
+            echo "Delete temp user HTTP: $DEL_RESP"
+          fi
+
+          echo ""
+          echo "=== 7. Check Supabase project SMTP config (Management API) ==="
+          echo "Cannot check without personal access token."
+          echo "Key findings summary:"
+          echo "- GoTrue version: v2.187.0"
+          echo "- If /recover returns 429: rate limit still active, wait ~1h"
+          echo "- If /recover returns 422 with 'error sending': SMTP/Resend is broken"
+          echo "- If /recover returns 200: email sent successfully"
