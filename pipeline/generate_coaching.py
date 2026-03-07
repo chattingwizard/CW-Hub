@@ -151,14 +151,14 @@ def get_last_coaching(chatter_name):
 def identify_red_flags(stat):
     """Identify performance red flags from weekly aggregated stats."""
     flags = []
-    if stat.get("golden", 0) < 30:
-        flags.append({"kpi": "Golden Ratio", "value": stat["golden"], "threshold": 30})
+    if stat.get("golden", 0) < 4:
+        flags.append({"kpi": "Golden Ratio", "value": stat["golden"], "threshold": 4})
     if stat.get("cvr", 0) < 8:
         flags.append({"kpi": "Fan CVR", "value": stat["cvr"], "threshold": 8})
     if stat.get("sales_hr", 0) < 40:
         flags.append({"kpi": "$/hr", "value": stat["sales_hr"], "threshold": 40})
-    if stat.get("unlock", 0) < 20:
-        flags.append({"kpi": "Unlock Rate", "value": stat["unlock"], "threshold": 20})
+    if stat.get("unlock", 0) < 35:
+        flags.append({"kpi": "Unlock Rate", "value": stat["unlock"], "threshold": 35})
     return flags
 
 
