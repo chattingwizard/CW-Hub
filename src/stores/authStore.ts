@@ -178,7 +178,15 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         password,
         options: { data: { full_name: fullName } },
       });
-      if (error) throw error;
+      if (error) {
+        if (error.status === 429 || error.message?.toLowerCase().includes('rate limit')) {
+          throw new Error('Too many attempts. Please wait a minute before trying again.');
+        }
+        if (error.status === 500 && error.message?.toLowerCase().includes('error sending')) {
+          throw new Error('Could not send the confirmation email. Please try again in a few minutes.');
+        }
+        throw error;
+      }
 
       const needsConfirmation = !data.session;
 
@@ -235,7 +243,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         type: 'signup',
         email,
       });
-      if (error) throw error;
+      if (error) {
+        if (error.status === 429 || error.message?.toLowerCase().includes('rate limit')) {
+          throw new Error('Please wait at least 60 seconds before requesting another code.');
+        }
+        throw error;
+      }
     } finally {
       set({ loading: false });
     }
@@ -244,9 +257,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   resetPassword: async (email: string) => {
     set({ loading: true });
     try {
-      const redirectTo = window.location.origin + window.location.pathname;
+      const redirectTo = window.location.origin + window.location.pathname + '#/update-password';
       const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
-      if (error) throw error;
+      if (error) {
+        if (error.status === 429 || error.message?.toLowerCase().includes('rate limit')) {
+          throw new Error('Please wait at least 60 seconds before requesting another reset email.');
+        }
+        if (error.message?.toLowerCase().includes('error sending')) {
+          throw new Error('Could not send the reset email. Please try again in a few minutes or contact an admin.');
+        }
+        throw error;
+      }
     } finally {
       set({ loading: false });
     }
