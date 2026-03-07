@@ -1,0 +1,73 @@
+name: Fix User Identity
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Inspect and fix mellyawood user
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          echo "=== 1. Full user record for mellyawood@gmail.com ==="
+          curl -s "${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=100" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" | \
+            python3 -c "
+          import sys,json
+          data=json.load(sys.stdin)
+          for u in data.get('users',[]):
+            if u['email']=='mellyawood@gmail.com':
+              print(json.dumps(u, indent=2))
+              break
+          "
+
+          echo ""
+          echo "=== 2. Full user record for midaleh12@gmail.com (working user for comparison) ==="
+          curl -s "${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=100" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" | \
+            python3 -c "
+          import sys,json
+          data=json.load(sys.stdin)
+          for u in data.get('users',[]):
+            if u['email']=='midaleh12@gmail.com':
+              print(json.dumps(u, indent=2))
+              break
+          "
+
+          echo ""
+          echo "=== 3. Test generate_link for mellyawood (admin, no email sent) ==="
+          RESP=$(curl -s -w "\n%{http_code}" \
+            "${SUPABASE_URL}/auth/v1/admin/generate_link" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"type":"recovery","email":"mellyawood@gmail.com"}')
+          CODE=$(echo "$RESP" | tail -1)
+          BODY=$(echo "$RESP" | sed '$d')
+          echo "HTTP: $CODE"
+          echo "$BODY" | python3 -c "
+          import sys,json
+          d=json.load(sys.stdin)
+          print('OTP:', d.get('email_otp','?'))
+          print('Identities:', json.dumps(d.get('identities'), indent=2))
+          " 2>/dev/null || echo "$BODY"
+
+          echo ""
+          echo "=== 4. List ALL users with null identities ==="
+          curl -s "${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=100" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" | \
+            python3 -c "
+          import sys,json
+          data=json.load(sys.stdin)
+          for u in data.get('users',[]):
+            ids = u.get('identities')
+            if not ids:
+              print(f'BROKEN: {u[\"email\"]} (id={u[\"id\"]}, identities={ids})')
+          print('Done checking all users.')
+          "
