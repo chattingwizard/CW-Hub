@@ -33,10 +33,9 @@ function lazyRetry(factory: () => Promise<{ default: React.ComponentType }>) {
 }
 
 const Overview = lazyRetry(() => import('./pages/Overview'));
-const Dashboard = lazyRetry(() => import('./pages/Dashboard'));
+const Models = lazyRetry(() => import('./pages/Revenue'));
 const Schedules = lazyRetry(() => import('./pages/Schedules'));
 const Assignments = lazyRetry(() => import('./pages/Assignments'));
-const ChatterPerformance = lazyRetry(() => import('./pages/ChatterPerformance'));
 const CoachingQueue = lazyRetry(() => import('./pages/CoachingQueue'));
 const CoachingOverview = lazyRetry(() => import('./pages/CoachingOverview'));
 const CoachingAnalytics = lazyRetry(() => import('./pages/CoachingAnalytics'));
@@ -52,12 +51,11 @@ const Tasks = lazyRetry(() => import('./pages/Tasks'));
 const ChatterScore = lazyRetry(() => import('./pages/ChatterScore'));
 const KnowledgeBase = lazyRetry(() => import('./pages/KnowledgeBase'));
 const ShiftReports = lazyRetry(() => import('./pages/ShiftReports'));
-const InflowwKPIs = lazyRetry(() => import('./pages/InflowwKPIs'));
+const Chatters = lazyRetry(() => import('./pages/ChatterPerformance'));
 const HubstaffIssues = lazyRetry(() => import('./pages/HubstaffIssues'));
 const ScriptDashboard = lazyRetry(() => import('./pages/ScriptDashboard'));
 const ModelGuide = lazyRetry(() => import('./pages/ModelGuide'));
 const School = lazyRetry(() => import('./pages/School'));
-const Revenue = lazyRetry(() => import('./pages/Revenue'));
 
 class ErrorBoundary extends Component<{ children: ReactNode; resetKey?: string }, { hasError: boolean }> {
   state = { hasError: false };
@@ -164,13 +162,14 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             />
 
             <Route
-              path="/dashboard"
+              path="/models"
               element={
                 <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
-                  <Dashboard />
+                  <Models />
                 </ProtectedRoute>
               }
             />
+            <Route path="/dashboard" element={<Navigate to="/models" replace />} />
 
             <Route
               path="/schedules"
@@ -208,32 +207,18 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
               }
             />
 
-            <Route
-              path="/revenue"
-              element={
-                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
-                  <Revenue />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/revenue" element={<Navigate to="/models" replace />} />
 
             <Route
-              path="/chatter-performance"
+              path="/chatters"
               element={
                 <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
-                  <ChatterPerformance />
+                  <Chatters />
                 </ProtectedRoute>
               }
             />
-
-            <Route
-              path="/infloww-kpis"
-              element={
-                <ProtectedRoute roles={['owner', 'admin', 'team_leader']}>
-                  <InflowwKPIs />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/chatter-performance" element={<Navigate to="/chatters" replace />} />
+            <Route path="/infloww-kpis" element={<Navigate to="/chatters" replace />} />
 
             <Route
               path="/coaching-queue"

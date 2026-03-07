@@ -197,8 +197,7 @@ export function useRevenueData(days: number = 7): RevenueData {
           .order('date', { ascending: true }),
         supabase
           .from('models')
-          .select('id, name, status, page_type, profile_picture_url, team_names')
-          .eq('status', 'Live'),
+          .select('id, name, status, page_type, profile_picture_url, team_names'),
       ]);
 
       if (statsRes.error) throw statsRes.error;
@@ -348,8 +347,9 @@ export function useRevenueData(days: number = 7): RevenueData {
     }
     modelRevenues.sort((a, b) => b.total_revenue - a.total_revenue);
 
-    const topModelName = modelRevenues[0]?.model_name ?? '—';
-    const topModels = modelRevenues.slice(0, 5);
+    const liveModelRevenues = modelRevenues.filter(m => m.status === 'Live');
+    const topModelName = liveModelRevenues[0]?.model_name ?? '—';
+    const topModels = liveModelRevenues.slice(0, 5);
 
     // --- Per-chatter revenue ---
     const currentChatterStats = chatterStats.filter(s => s.date >= currentCutoff);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/utils';
 import type { ChatterDailyStat } from '../types';
@@ -8,6 +8,10 @@ import {
   TrendingUp, AlertTriangle, UserPlus, Calendar,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
+
+const InflowwKPIs = lazy(() => import('./InflowwKPIs'));
+
+type PageTab = 'performance' | 'detailed';
 
 // ── Constants ────────────────────────────────────────────────
 const MIN_HOURS_FULL_SHIFT = 4;
@@ -146,6 +150,7 @@ function aggregateByEmployee(rows: ChatterDailyStat[]): ChatterDailyStat[] {
 }
 
 export default function ChatterPerformance() {
+  const [pageTab, setPageTab] = useState<PageTab>('performance');
   const [allStats, setAllStats] = useState<ChatterDailyStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -427,12 +432,47 @@ export default function ChatterPerformance() {
     }
   };
 
+  const pageTabs: { id: PageTab; label: string }[] = [
+    { id: 'performance', label: 'Performance' },
+    { id: 'detailed', label: 'Detailed KPIs' },
+  ];
+
+  if (pageTab === 'detailed') {
+    return (
+      <div className="p-4 lg:p-6 max-w-7xl mx-auto">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+          <div>
+            <h1 className="text-2xl font-extrabold text-text-primary">Chatters</h1>
+            <p className="text-sm text-text-secondary mt-0.5">Full Infloww KPI table with period selection, export, and ranking</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 mb-6 border-b border-border">
+          {pageTabs.map(t => (
+            <button
+              key={t.id}
+              onClick={() => setPageTab(t.id)}
+              className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
+                pageTab === t.id ? 'text-white' : 'text-text-muted hover:text-text-secondary'
+              }`}
+            >
+              {t.label}
+              {pageTab === t.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cw rounded-t" />}
+            </button>
+          ))}
+        </div>
+        <Suspense fallback={<div className="flex items-center justify-center h-40"><div className="text-text-secondary text-sm">Loading...</div></div>}>
+          <InflowwKPIs embedded />
+        </Suspense>
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 lg:p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
         <div>
-          <h1 className="text-2xl font-extrabold text-text-primary">Chatter Performance</h1>
+          <h1 className="text-2xl font-extrabold text-text-primary">Chatters</h1>
           <p className="text-sm text-text-secondary mt-0.5">
             {viewMode === 'week' ? 'Weekly aggregated KPIs' : 'Daily KPIs'} from Inflow Employee Reports
           </p>
@@ -490,6 +530,22 @@ export default function ChatterPerformance() {
             </select>
           )}
         </div>
+      </div>
+
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 mb-6 border-b border-border">
+        {pageTabs.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setPageTab(t.id)}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors relative ${
+              pageTab === t.id ? 'text-white' : 'text-text-muted hover:text-text-secondary'
+            }`}
+          >
+            {t.label}
+            {pageTab === t.id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-cw rounded-t" />}
+          </button>
+        ))}
       </div>
 
       {/* Data status */}

@@ -100,7 +100,7 @@ function ApproxMark({ reason, className }: { reason: string; className?: string 
   );
 }
 
-export default function InflowwKPIs() {
+export default function InflowwKPIs({ embedded = false }: { embedded?: boolean } = {}) {
   const [dataSource, setDataSource] = useState<DataSource>('hub');
   const [hubData, setHubData] = useState<EmployeeMetrics[]>([]);
   const [hubLoading, setHubLoading] = useState(false);
@@ -409,16 +409,17 @@ export default function InflowwKPIs() {
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-text-primary flex items-center gap-2">
-          <BarChart3 size={22} className="text-cw" />
-          Infloww KPIs
-        </h1>
-        <p className="text-sm text-text-muted mt-1">
-          {dataSource === 'hub' ? 'Using daily data uploaded to the Hub' : 'Upload Infloww + Hubstaff files manually'}
-        </p>
-      </div>
+      {!embedded && (
+        <div>
+          <h1 className="text-xl font-bold text-text-primary flex items-center gap-2">
+            <BarChart3 size={22} className="text-cw" />
+            Infloww KPIs
+          </h1>
+          <p className="text-sm text-text-muted mt-1">
+            {dataSource === 'hub' ? 'Using daily data uploaded to the Hub' : 'Upload Infloww + Hubstaff files manually'}
+          </p>
+        </div>
+      )}
 
       {/* Data Source Toggle */}
       <div className="flex items-center gap-1 bg-surface-1 border border-border rounded-xl p-1 w-fit">

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   DollarSign, TrendingUp, TrendingDown, Crown, BarChart3,
   RefreshCw, ChevronDown, ChevronUp,
+  ArrowUpRight, ArrowDownRight, Minus,
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, BarChart, Bar,
@@ -11,6 +12,11 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { useRevenueData, type ModelRevenue } from '../hooks/useRevenueData';
+import { useTrafficData } from '../hooks/useTrafficData';
+import type { ModelTraffic } from '../types';
+import { WORKLOAD_WEIGHTS } from '../types';
+import TrafficBadge from '../components/TrafficBadge';
+import LtvGauge from '../components/LtvGauge';
 import { formatCurrency } from '../lib/utils';
 
 type Tab = 'overview' | 'models' | 'teams' | 'compare';
@@ -277,16 +283,28 @@ function OverviewTab({ data }: { data: ReturnType<typeof useRevenueData> }) {
 
 // ── Models Tab ────────────────────────────────────────────────
 
-function ModelsTab({ data }: { data: ReturnType<typeof useRevenueData> }) {
-  const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'fans'>('revenue');
+function ModelsTab({ data, trafficMap }: { data: ReturnType<typeof useRevenueData>; trafficMap: Map<string, ModelTraffic> }) {
+  const [sortBy, setSortBy] = useState<'revenue' | 'name' | 'fans' | 'workload'>('revenue');
   const [filterType, setFilterType] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('Live');
   const [expandedModel, setExpandedModel] = useState<string | null>(null);
 
+  const statuses = useMemo(() => {
+    const s = new Set(data.modelRevenues.map(m => m.status));
+    return [...s].sort();
+  }, [data.modelRevenues]);
+
   const filtered = data.modelRevenues
+    .filter(m => statusFilter === 'all' || m.status === statusFilter)
     .filter(m => filterType === 'all' || m.page_type === filterType)
     .sort((a, b) => {
       if (sortBy === 'name') return a.model_name.localeCompare(b.model_name);
-      if (sortBy === 'fans') return b.new_fans_per_day - a.new_fans_per_day;
+      if (sortBy === 'fans') return (trafficMap.get(b.model_id)?.new_fans_avg ?? b.new_fans_per_day) - (trafficMap.get(a.model_id)?.new_fans_avg ?? a.new_fans_per_day);
+      if (sortBy === 'workload') {
+        const aW = trafficMap.get(a.model_id)?.workload_pct ?? 0;
+        const bW = trafficMap.get(b.model_id)?.workload_pct ?? 0;
+        return bW - aW;
+      }
       return b.total_revenue - a.total_revenue;
     });
 
@@ -352,6 +370,9 @@ function ModelsTab({ data }: { data: ReturnType<typeof useRevenueData> }) {
         </div>
       </div>
 
+      {/* LTV Gauges */}
+      <LtvGaugesSection trafficMap={trafficMap} />
+
       {/* LTV Performance */}
       <LtvPerformanceSection models={filtered} />
 
@@ -363,6 +384,14 @@ function ModelsTab({ data }: { data: ReturnType<typeof useRevenueData> }) {
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-white">All Models</h3>
           <div className="flex items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={e => setStatusFilter(e.target.value)}
+              className="bg-[#1a1a1a] border border-[#2a2a2a] text-xs text-white rounded-lg px-2 py-1.5 outline-none"
+            >
+              <option value="all">All Status</option>
+              {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
             <select
               value={filterType}
               onChange={e => setFilterType(e.target.value)}
@@ -379,6 +408,7 @@ function ModelsTab({ data }: { data: ReturnType<typeof useRevenueData> }) {
               className="bg-[#1a1a1a] border border-[#2a2a2a] text-xs text-white rounded-lg px-2 py-1.5 outline-none"
             >
               <option value="revenue">Sort: Revenue</option>
+              <option value="workload">Sort: Workload</option>
               <option value="fans">Sort: New Fans</option>
               <option value="name">Sort: Name</option>
             </select>
@@ -392,18 +422,20 @@ function ModelsTab({ data }: { data: ReturnType<typeof useRevenueData> }) {
                 <th className="text-left py-2 pr-3 font-medium">Model</th>
                 <th className="text-right py-2 px-2 font-medium">Revenue</th>
                 <th className="text-right py-2 px-2 font-medium hidden sm:table-cell">Rev/Day</th>
+                <th className="text-center py-2 px-2 font-medium hidden sm:table-cell">Trend</th>
                 <th className="text-right py-2 px-2 font-medium hidden md:table-cell">% Total</th>
                 <th className="text-center py-2 px-2 font-medium hidden md:table-cell">Team</th>
                 <th className="text-right py-2 px-2 font-medium hidden lg:table-cell">Adj LTV</th>
                 <th className="text-right py-2 px-2 font-medium hidden lg:table-cell">Perf</th>
                 <th className="text-right py-2 px-2 font-medium hidden lg:table-cell">Fans/Day</th>
+                <th className="text-center py-2 px-2 font-medium hidden lg:table-cell">Workload</th>
                 <th className="text-right py-2 pl-2 font-medium hidden xl:table-cell">OF Rank</th>
                 <th className="w-6"></th>
               </tr>
             </thead>
             <tbody>
               {filtered.map(m => (
-                <ModelRow key={m.model_id} model={m} expanded={expandedModel === m.model_id} onToggle={() => setExpandedModel(expandedModel === m.model_id ? null : m.model_id)} />
+                <ModelRow key={m.model_id} model={m} traffic={trafficMap.get(m.model_id)} expanded={expandedModel === m.model_id} onToggle={() => setExpandedModel(expandedModel === m.model_id ? null : m.model_id)} />
               ))}
             </tbody>
           </table>
@@ -414,8 +446,24 @@ function ModelsTab({ data }: { data: ReturnType<typeof useRevenueData> }) {
   );
 }
 
-function ModelRow({ model: m, expanded, onToggle }: { model: ModelRevenue; expanded: boolean; onToggle: () => void }) {
+function TrendBadge({ pct }: { pct: number }) {
+  if (Math.abs(pct) < 1) return <span className="text-[#666] text-[10px] flex items-center gap-0.5"><Minus size={10} /> —</span>;
+  const isUp = pct > 0;
+  return (
+    <span className={`text-[10px] flex items-center gap-0.5 ${isUp ? 'text-green-400' : 'text-red-400'}`}>
+      {isUp ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+      {Math.abs(pct).toFixed(0)}%
+    </span>
+  );
+}
+
+function ModelRow({ model: m, traffic, expanded, onToggle }: { model: ModelRevenue; traffic?: ModelTraffic; expanded: boolean; onToggle: () => void }) {
   const miniData = m.daily.map(d => ({ label: formatDateLabel(d.date), revenue: Math.round(d.total) }));
+  const statusBadgeClass: Record<string, string> = {
+    Live: 'bg-green-500/15 text-green-400',
+    'On Hold': 'bg-yellow-500/15 text-yellow-400',
+    Dead: 'bg-red-500/15 text-red-400',
+  };
 
   return (
     <>
@@ -427,14 +475,20 @@ function ModelRow({ model: m, expanded, onToggle }: { model: ModelRevenue; expan
             ) : (
               <div className="w-6 h-6 rounded-full bg-[#1a1a1a] flex items-center justify-center text-[10px] text-[#555] font-bold flex-shrink-0">{m.model_name[0]}</div>
             )}
-            <div>
+            <div className="flex items-center gap-1.5">
               <span className="text-white font-medium text-xs">{m.model_name}</span>
-              {m.page_type && <span className="text-[10px] text-[#555] ml-1.5">{m.page_type.replace(' Page', '')}</span>}
+              {m.page_type && <span className="text-[10px] text-[#555]">{m.page_type.replace(' Page', '')}</span>}
+              {m.status !== 'Live' && (
+                <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${statusBadgeClass[m.status] ?? 'bg-[#222] text-[#666]'}`}>{m.status}</span>
+              )}
             </div>
           </div>
         </td>
         <td className="text-right py-2.5 px-2 text-white font-semibold">{formatCurrency(m.total_revenue)}</td>
         <td className="text-right py-2.5 px-2 text-[#aaa] hidden sm:table-cell">{formatCurrency(m.revenue_per_day)}</td>
+        <td className="text-center py-2.5 px-2 hidden sm:table-cell">
+          <TrendBadge pct={traffic?.earnings_trend_pct ?? 0} />
+        </td>
         <td className="text-right py-2.5 px-2 text-[#aaa] hidden md:table-cell">{m.pct_of_total}%</td>
         <td className="text-center py-2.5 px-2 hidden md:table-cell">
           {m.team_number !== null ? (
@@ -451,7 +505,10 @@ function ModelRow({ model: m, expanded, onToggle }: { model: ModelRevenue; expan
             </span>
           ) : <span className="text-[#444]">—</span>}
         </td>
-        <td className="text-right py-2.5 px-2 text-[#aaa] hidden lg:table-cell">{m.new_fans_per_day}</td>
+        <td className="text-right py-2.5 px-2 text-[#aaa] hidden lg:table-cell">{traffic?.new_fans_avg ?? m.new_fans_per_day}</td>
+        <td className="text-center py-2.5 px-2 hidden lg:table-cell">
+          {traffic ? <TrafficBadge traffic={traffic} showTrend={false} showType={false} /> : <span className="text-[#444] text-[10px]">—</span>}
+        </td>
         <td className="text-right py-2.5 pl-2 text-[#aaa] hidden xl:table-cell">{m.of_ranking ?? '—'}</td>
         <td className="py-2.5 pl-1">
           {expanded ? <ChevronUp size={12} className="text-[#555]" /> : <ChevronDown size={12} className="text-[#555]" />}
@@ -459,7 +516,7 @@ function ModelRow({ model: m, expanded, onToggle }: { model: ModelRevenue; expan
       </tr>
       {expanded && (
         <tr>
-          <td colSpan={10} className="pb-4 pt-1 px-2">
+          <td colSpan={12} className="pb-4 pt-1 px-2">
             <div className="bg-[#0d0d0d] rounded-lg border border-[#1e1e1e] p-3">
               <p className="text-[10px] text-[#666] mb-2 font-medium uppercase tracking-wide">Daily Breakdown — {m.model_name}</p>
               <div className="h-32">
@@ -497,6 +554,47 @@ function getPerfLabel(ratio: number): { text: string; color: string } {
   return PERF_LABEL.poor!;
 }
 
+function LtvGaugesSection({ trafficMap }: { trafficMap: Map<string, ModelTraffic> }) {
+  const liveModels = [...trafficMap.values()].filter(t => t.model_status === 'Live' && t.ltv > 0);
+  if (liveModels.length === 0) return null;
+
+  const avgLtv = liveModels.reduce((sum, t) => sum + t.ltv, 0) / liveModels.length;
+  const topLtv = [...liveModels].sort((a, b) => b.ltv - a.ltv).slice(0, 6);
+
+  return (
+    <div className="bg-[#111111] rounded-xl border border-[#1e1e1e] p-5">
+      <div className="flex items-center justify-between mb-5">
+        <div>
+          <h2 className="text-sm font-semibold text-white">Fan Lifetime Value (LTV)</h2>
+          <p className="text-[11px] text-[#666] mt-0.5">
+            Revenue per fan &times; avg subscription length &middot; {liveModels.length} models with data
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-lg font-bold text-white">{formatCurrency(Math.round(avgLtv))}</p>
+          <p className="text-[10px] text-[#666]">Portfolio avg</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 lg:grid-cols-7 gap-4 items-end">
+        <div className="col-span-3 lg:col-span-1 flex justify-center">
+          <LtvGauge value={Math.round(avgLtv)} label="All Models" sublabel="Portfolio Average" size="lg" />
+        </div>
+        {topLtv.map(t => (
+          <div key={t.model_id} className="flex justify-center">
+            <LtvGauge
+              value={Math.round(t.ltv)}
+              label={t.model_name}
+              sublabel={`${Math.round(t.avg_sub_length_days)}d avg sub`}
+              size="sm"
+              pageType={t.page_type}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function LtvPerformanceSection({ models }: { models: ModelRevenue[] }) {
   const withLtv = models.filter(m => m.expected_daily_value > 0 && m.performance_ratio > 0);
 
@@ -515,7 +613,7 @@ function LtvPerformanceSection({ models }: { models: ModelRevenue[] }) {
     .sort((a, b) => b.performance_ratio - a.performance_ratio)
     .slice(0, 15)
     .map(m => ({
-      name: m.model_name.length > 10 ? m.model_name.slice(0, 10) + '…' : m.model_name,
+      name: m.model_name.length > 18 ? m.model_name.slice(0, 18) + '…' : m.model_name,
       ratio: m.performance_ratio,
       fill: m.performance_ratio >= 1.2 ? '#22c55e' : m.performance_ratio >= 0.8 ? '#1d9bf0' : m.performance_ratio >= 0.5 ? '#f59e0b' : '#ef4444',
     }));
@@ -529,11 +627,11 @@ function LtvPerformanceSection({ models }: { models: ModelRevenue[] }) {
           Performance ratio = Actual Rev/Day / Expected Rev/Day. Above 1.0 = overperforming.
         </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-4">
           {/* Scatter: expected vs actual */}
           <div>
             <p className="text-xs text-[#888] font-medium mb-2">Expected vs Actual Revenue/Day</p>
-            <div className="h-80">
+            <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <ScatterChart>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" />
@@ -574,12 +672,12 @@ function LtvPerformanceSection({ models }: { models: ModelRevenue[] }) {
           {/* Performance ratio bars */}
           <div>
             <p className="text-xs text-[#888] font-medium mb-2">Performance Ratio (Actual / Expected)</p>
-            <div className="h-56">
+            <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={barData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="#1e1e1e" />
                   <XAxis type="number" tick={AXIS_TICK} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v}x`} />
-                  <YAxis type="category" dataKey="name" tick={AXIS_TICK} axisLine={false} tickLine={false} width={80} />
+                  <YAxis type="category" dataKey="name" tick={AXIS_TICK} axisLine={false} tickLine={false} width={120} />
                   <Tooltip {...TOOLTIP_STYLE} formatter={(v: number) => [`${v}x`, 'Ratio']} />
                   <Bar dataKey="ratio" radius={[0, 3, 3, 0]}>
                     {barData.map((entry, i) => (
@@ -778,7 +876,7 @@ function CompareTab({ data }: { data: ReturnType<typeof useRevenueData> }) {
                   </div>
                   <div>
                     <span className="text-[#666]">Fans/Day</span>
-                    <p className="text-white font-semibold">{m.new_fans_per_day}</p>
+                    <p className="text-white font-semibold">{traffic?.new_fans_avg ?? m.new_fans_per_day}</p>
                   </div>
                   <div>
                     <span className="text-[#666]">Active Fans</span>
@@ -1037,6 +1135,8 @@ export default function Revenue() {
   const [tab, setTab] = useState<Tab>('overview');
   const [days, setDays] = useState<TimeRange>(7);
   const data = useRevenueData(days);
+  const { modelTraffic } = useTrafficData();
+  const trafficMap = useMemo(() => new Map(modelTraffic.map(t => [t.model_id, t])), [modelTraffic]);
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
@@ -1078,8 +1178,8 @@ export default function Revenue() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-white">Revenue</h1>
-          <p className="text-xs text-[#666] mt-0.5">Financial performance across models and teams</p>
+          <h1 className="text-xl font-bold text-white">Models</h1>
+          <p className="text-xs text-[#666] mt-0.5">Revenue, performance and workload across models and teams</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center bg-[#111111] border border-[#1e1e1e] rounded-lg overflow-hidden">
@@ -1119,7 +1219,7 @@ export default function Revenue() {
 
       {/* Content */}
       {tab === 'overview' && <OverviewTab data={data} />}
-      {tab === 'models' && <ModelsTab data={data} />}
+      {tab === 'models' && <ModelsTab data={data} trafficMap={trafficMap} />}
       {tab === 'teams' && <TeamsTab data={data} />}
       {tab === 'compare' && <CompareTab data={data} />}
     </div>
