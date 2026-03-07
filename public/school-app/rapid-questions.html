@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rapid-Fire Questions &mdash; Chatting Wizard</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .q-section { margin-bottom: 36px; }
+    .q-section-title {
+      font-size: 1rem; font-weight: 800; color: var(--cw-dark);
+      margin-bottom: 14px; padding: 8px 14px;
+      border-left: 4px solid var(--cw-primary); background: #f0f4f8;
+      border-radius: 0 8px 8px 0;
+    }
+    .q-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    @media (max-width: 768px) {
+      .q-grid { grid-template-columns: 1fr; }
+    }
+    .q-card {
+      background: var(--card); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+      font-size: 0.85rem; line-height: 1.55;
+    }
+    .q-card .q-text {
+      font-weight: 700; color: var(--cw-dark); margin-bottom: 6px;
+    }
+    .q-card .q-answer {
+      color: var(--cw-primary); font-weight: 600;
+      cursor: pointer; user-select: none;
+      transition: opacity 0.2s;
+    }
+    .q-card .q-answer.hidden-answer span {
+      filter: blur(5px); transition: filter 0.2s;
+    }
+    .q-card .q-answer.hidden-answer:hover span,
+    .q-card .q-answer.hidden-answer:active span {
+      filter: blur(0);
+    }
+    .q-card .q-answer .reveal-hint {
+      font-size: 0.75rem; color: var(--text-light); font-weight: 400; margin-left: 4px;
+    }
+    .q-badge {
+      display: inline-block; font-size: 0.7rem; font-weight: 700;
+      padding: 2px 8px; border-radius: 6px; margin-left: 8px;
+      vertical-align: middle;
+    }
+    .q-badge.basic { background: #dcfce7; color: #166534; }
+    .q-badge.medium { background: #fef3c7; color: #92400e; }
+    .q-badge.hard { background: #fce7f3; color: #9d174d; }
+    .back-link {
+      display: inline-block; margin: 20px 0 10px;
+      color: var(--cw-primary); text-decoration: none; font-weight: 700; font-size: 0.9rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .top-bar {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 20px; padding: 12px 16px;
+      background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px;
+      font-size: 0.85rem; color: #166534;
+    }
+    .top-bar strong { color: #14532d; }
+    .btn-toggle {
+      background: var(--cw-primary); color: white; border: none;
+      padding: 6px 14px; border-radius: 8px; font-weight: 700;
+      font-size: 0.8rem; cursor: pointer;
+    }
+    .btn-toggle:hover { opacity: 0.9; }
+    .btn-shuffle {
+      background: #6e5dc9; color: white; border: none;
+      padding: 6px 14px; border-radius: 8px; font-weight: 700;
+      font-size: 0.8rem; cursor: pointer;
+    }
+    .btn-shuffle:hover { opacity: 0.9; }
+  </style>
+</head>
+<body>
+
+<div class="header" style="padding: 30px 0 20px;">
+  <div class="header-content">
+    <img src="logo.png" alt="Chatting Wizard" class="header-logo" style="height:44px;">
+    <h1 style="font-size:1.4rem;">Rapid-Fire <span>Questions</span></h1>
+    <p>Question bank for live practice sessions. All modules covered.</p>
+  </div>
+</div>
+
+<div class="main">
+  <a href="hiring-workflow.html" class="back-link">&larr; Back to Hiring Workflow</a>
+
+  <div class="top-bar">
+    <strong>How to use:</strong> Ask questions randomly. Answers are blurred &mdash; hover to reveal.
+    <button class="btn-toggle" onclick="toggleAll()">Show / Hide All Answers</button>
+    <button class="btn-shuffle" onclick="shuffleAll()">Shuffle Order</button>
+    <span><span class="q-badge basic">BASIC</span> <span class="q-badge medium">MEDIUM</span> <span class="q-badge hard">HARD</span></span>
+  </div>
+
+  <!-- ========== FOUNDATIONS ========== -->
+  <div class="q-section" data-section="foundations">
+    <div class="q-section-title">Foundations</div>
+    <div class="q-grid">
+
+      <div class="q-card"><div class="q-text">What is the ONE goal of every conversation? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>A sale.</span> <small class="reveal-hint">(hover to reveal)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is a chatter? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>The person who chats with fans AS the model, on behalf of the creator.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What percentage does OnlyFans take from every sale? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>20%.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What percentage does a chatter earn from every net sale? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>2% of every net sale.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Name the 4 ways fans spend money on OnlyFans. <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Subscription, PPV, Tip, Custom.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What does PPV stand for? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Pay Per View.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What percentage of messages are handled by scripts? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>80%.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the maximum reply time allowed? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Under 2 minutes.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">How should you communicate with your Team Leader? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Voice on Discord. Not text, not email.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the golden rule for handling banned topics? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>IGNORE the banned topic completely. Don&rsquo;t say no, don&rsquo;t explain, don&rsquo;t lecture. Redirect immediately.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">A fan asks to meet up. What do you do? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Play it in between (don&rsquo;t say yes, don&rsquo;t say no), show vulnerability (&ldquo;I had bad experiences&rdquo;), then redirect to another topic.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Name 3 redirect techniques after a banned topic. <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Ask a personal question, send a selfie/photo, reference a past chat topic.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the last thing you do at the end of every shift? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Write handoff notes for every active conversation.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Name the 5 Chatting Wizard values. <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>Respect, Commitment, Open Mindset, Constant Progress, Enjoy the Journey.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+    </div>
+  </div>
+
+  <!-- ========== TOOLS & SCRIPTS ========== -->
+  <div class="q-section" data-section="tools">
+    <div class="q-section-title">Tools &amp; Scripts</div>
+    <div class="q-grid">
+
+      <div class="q-card"><div class="q-text">In Infloww, where do you spend 95% of your time? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Messages Pro.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What does GREEN content status mean in Infloww? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>PPV sent AND paid &mdash; the fan bought it.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What does GREY content status mean? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Content sent and seen by the fan (not a PPV, just viewed).</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What does RED content status mean? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>PPV sent but NOT paid &mdash; the fan hasn&rsquo;t bought it yet.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Can you re-send content that is green or grey? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>NO. Never re-send green or grey content. The fan already saw it.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What can you do with RED content? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>It&rsquo;s an opportunity &mdash; you can revisit it later with a different angle or during another session.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What do RED Vault Pro folders contain? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Bundle content from the same session &mdash; best for freestyle sexting with whales.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What do GREEN Vault Pro folders contain? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Standalone/loose content for individual PPV drops.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What do YELLOW Vault Pro folders contain? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Content already sent as Mass Message PPVs &mdash; use with caution.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Which Vault folder should you NEVER use? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>&ldquo;All Media&rdquo; folder. Always use the correct themed folder.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">How do you activate a script in Infloww? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Type /commandname (e.g., /price, /nr, /s).</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the 80/20 rule for scripts? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>80% scripts, 20% freestyle personalization.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Name the 5 journey script phases in order. <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>Welcome (W) &rarr; Rapport (R) &rarr; Teasing Bridge (TB) &rarr; Sexting (S) &rarr; Aftercare (AC).</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What are the 3 categories on the Objections page of the Script Dashboard? <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>OBJ (Objection Handling), RES (Resistance Handling), SIT (Situational).</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the purpose of a mass message? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Traffic generation &mdash; get fans to respond and start a conversation. Not a selling tool.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Name the 5 base exclusion tags for mass messages. <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>Whales, Muted, Forbidden, Will Never Pay, Custom/VC Pending.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Why are Whales excluded from mass messages? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Whales ($1,000+ spent) are high-value fans that require personalized handling. Mass messages feel impersonal to them.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What 3 extra tags are excluded when the model has AI? <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>Rats, Low Spenders, Shrimps.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What type of message should a mass message be? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Something that provokes curiosity or a question that makes the fan imagine/fantasize. Never submissive (e.g., &ldquo;want to see me?&rdquo;).</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the PPV Ladder pricing for PPV 1? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>$5&ndash;$15. It&rsquo;s the most important sale &mdash; breaks the payment barrier.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is PPV 0? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>A free hook &mdash; a teasing photo/video sent before the first paid PPV to build desire.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the 48-Hour Rule? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>The first 48&ndash;72 hours after a fan subscribes is the highest-value window. After that without spending, conversion drops significantly.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">A fan subscribed 3 days ago and spent $0. What priority are they? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Low priority (time waster). Try light rapport + casual content mention. Not aggressive deals yet.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">A fan subscribed 14 days ago and spent $0. What do you do? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Go straight to bundle deals/promotions. No more rapport building. Minimal time investment.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+    </div>
+  </div>
+
+  <!-- ========== THE JOURNEY ========== -->
+  <div class="q-section" data-section="journey">
+    <div class="q-section-title">The Journey</div>
+    <div class="q-grid">
+
+      <div class="q-card"><div class="q-text">What percentage of your messages should be &ldquo;short&rdquo; (1 sentence)? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>50%.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What percentage should be &ldquo;micro&rdquo; (2-5 words)? <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>20%.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">How many messages in a row can you send without a fan reply? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Maximum 2. Then wait.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">When a script says WAIT, what should you do? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Use that time to respond to other fans.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Why is PPV 1 the most important sale? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>It breaks the payment barrier. Once a fan pays once, they&rsquo;re much more likely to pay again.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Name the Aftercare scripts. <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>AC-1, AC-2, AC-3 (warmth, appreciation, &ldquo;that was special&rdquo;).</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">When is aftercare MOST critical? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>After the FIRST sexting session. It builds the long-term connection.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What happens if you go cold after a sexting session? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>The fan feels used and doesn&rsquo;t return.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">After a PPV drop, what are the 3 possible outcomes? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Bought, Silent, or Objected.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan is silent for 3+ minutes after a PPV. What do you start? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Start the NR (No Response) wave system.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Name the 5 NR waves in order. <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>NR-W1: Playful Nudge, NR-W2: Curiosity Hook, NR-W3: Emotional Pull, NR-W4: Scarcity, NR-W5: Final Attempt.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the maximum number of NR waves you can send? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>5. Never send more.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the correct fan priority order? (highest to lowest) <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>1. Active sexting (mid-sale), 2. New subs (first 48h), 3. Whales, 4. Past spenders, 5. Time wasters.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the FIRST thing you check for every fan in Fan Insights? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Subscription date + total amount spent.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan is a high spender. What pricing do you use? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Higher PPV prices (they&rsquo;ve demonstrated willingness to pay).</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan objects to the price. What is your FIRST response? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Reframe the value (exclusive, personal, not posted for everyone). NEVER lower the price as your first response.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+    </div>
+  </div>
+
+  <!-- ========== ADVANCED ========== -->
+  <div class="q-section" data-section="advanced">
+    <div class="q-section-title">Advanced</div>
+    <div class="q-grid">
+
+      <div class="q-card"><div class="q-text">What does /price activate? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>The objection script for &ldquo;That&rsquo;s too expensive.&rdquo; It reframes the value.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What does /freecontent activate? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Script for &ldquo;Send me something free.&rdquo; Redirects to a PPV.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan says &ldquo;I don&rsquo;t have money.&rdquo; Which script? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>/nomoney &mdash; Offer a smaller option or plant a seed for later.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan says &ldquo;Can I get a discount?&rdquo; Which script? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>/discount &mdash; Counter-offer, reframe value first.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan is about to finish. Which script? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>/cum &mdash; Delay and maximize spend before they finish.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What does TPDs stand for? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>T = Teasing, P = Price, Ds = Distraction Shift.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">In TPDs, what do you do IMMEDIATELY after giving the price? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Distraction Shift &mdash; ask a question immediately so the fan doesn&rsquo;t fixate on the price.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is the Fake Discount technique? <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>Start with a higher price (e.g., $250), then &ldquo;discount&rdquo; to the real target ($180). Fan feels they got a special deal.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">When should you NEVER promise custom content delivery? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Never promise content the model hasn&rsquo;t agreed to produce. Never give exact delivery time. Always collect payment BEFORE the custom is made.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What pricing range for custom photos? Videos? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Photos: $50+. Videos: $150&ndash;$200+.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Who creates Game Sequences? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>The Script Manager. The chatter does NOT invent games.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Game Sequences work best on which type of fan? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Spenders and loyal fans. NOT new subs in first 48&ndash;72h.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">How many fans do you chat with simultaneously? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>5&ndash;15 fans at once.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What is more important: speed or accuracy? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>Accuracy first. Mistakes are worse than being slightly slower.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Name 3 items from the shift START checklist. <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Log into Infloww, read handoff notes from previous chatter, open Unread tab, check notifications, prioritize fans.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">What must the shift HANDOFF notes allow? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>The next chatter should be able to pick up the conversation without asking questions.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Mistake: Sending 3+ messages without fan reply. Why is it bad? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Max is 2 messages in a row. More looks desperate and pushes fans away.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Mistake: Freestyling when a script exists. Why? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Scripts are proven and optimized. Freestyling is less effective and inconsistent.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Mistake: Sending explicit content for free. Why is it bad? <span class="q-badge basic">BASIC</span></div><div class="q-answer hidden-answer">R: <span>It devalues the content and removes the fan&rsquo;s incentive to pay. Every piece of explicit content should be behind a PPV.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">When is the best time to pitch a custom during a conversation? <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>During aftercare, when the fan mentions a fantasy, or when the fan asks directly.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+    </div>
+  </div>
+
+  <!-- ========== SCENARIO-BASED ========== -->
+  <div class="q-section" data-section="scenarios">
+    <div class="q-section-title">Scenario-Based (Hardest)</div>
+    <div class="q-grid">
+
+      <div class="q-card"><div class="q-text">Fan subscribed 1 hour ago and says &ldquo;Hey.&rdquo; What journey phase? What priority? <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>Welcome phase (W scripts). HIGHEST priority &mdash; new sub in the 48h window.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">You dropped PPV 2 and the fan went silent for 4 minutes. What do you do? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Start NR-W1 (Playful Nudge). If still silent, progress through NR waves.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan says &ldquo;That&rsquo;s too expensive, can you do $5?&rdquo; What do you do? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Use /price script. Reframe value first (exclusive, personal, just for you). NEVER lower price as first response.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">You have 3 fans messaging: one in active sexting, one new sub (10 min ago), one time waster (15 days). Order? <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>1. Active sexting (mid-sale), 2. New sub (48h window), 3. Time waster (lowest).</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan mentions wanting to meet you in person. What do you say? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>&ldquo;I&rsquo;d love to know someone special someday, but I&rsquo;ve had bad experiences recently&hellip;&rdquo; Then redirect to another topic. Never say &ldquo;meet.&rdquo;</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan wants a custom video. Walk through TPDs. <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>T: Build excitement (&ldquo;Mmm I love that idea&hellip;&rdquo;), P: Drop price while excited (&ldquo;I&rsquo;d do that for $180&rdquo;), Ds: Distraction Shift immediately (&ldquo;What would you want me to wear?&rdquo;).</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">After a first sexting session, what is the MOST important thing to do? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Invest heavily in aftercare. AC-1 to AC-3 scripts. This builds the long-term connection and drives retention.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">You need to send a mass message. Walk through the steps in Infloww. <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>Dashboard &rarr; Growth &rarr; Smart Messages &rarr; Select model &rarr; Revoke most recent MM (unless it has content attached) &rarr; New Message &rarr; OF mass message &rarr; Include fans + following &rarr; Exclude tags (Whales, Muted, Forbidden, Will Never Pay, Custom/VC Pending) &rarr; Write curiosity-provoking message &rarr; Publish.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">Fan has been silent 5 NR waves deep. What now? <span class="q-badge medium">MEDIUM</span></div><div class="q-answer hidden-answer">R: <span>Stop. You&rsquo;ve hit the hard cap. Move to other fans. The fan may come back later on their own.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+      <div class="q-card"><div class="q-text">You&rsquo;re ending your shift. Fan is mid-sexting and waiting for your next message. What do you write in handoff? <span class="q-badge hard">HARD</span></div><div class="q-answer hidden-answer">R: <span>Flag the fan as mid-sexting. Note where they are in the journey, what PPV was last sent, what the fan&rsquo;s mood is, and what the next chatter should do next. The next chatter picks up without asking questions.</span> <small class="reveal-hint">(hover)</small></div></div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <img src="logo.png" alt="Chatting Wizard" class="footer-logo">
+  <p>Chatting Wizard &mdash; Rapid-Fire Questions Bank</p>
+  <p style="margin-top:4px;">&copy; 2026 Chatting Wizard. Internal document.</p>
+</div>
+
+<script>
+var allAnswersVisible = false;
+
+function toggleAll() {
+  allAnswersVisible = !allAnswersVisible;
+  var answers = document.querySelectorAll('.q-answer');
+  answers.forEach(function(a) {
+    if (allAnswersVisible) {
+      a.classList.remove('hidden-answer');
+    } else {
+      a.classList.add('hidden-answer');
+    }
+  });
+}
+
+function shuffleAll() {
+  var sections = document.querySelectorAll('.q-grid');
+  sections.forEach(function(grid) {
+    var cards = Array.from(grid.children);
+    for (var i = cards.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      grid.appendChild(cards[j]);
+      cards.splice(j, 1, cards[i]);
+    }
+    cards.forEach(function(c) { grid.appendChild(c); });
+  });
+}
+</script>
+
+</body>
+</html>
