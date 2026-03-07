@@ -1,0 +1,53 @@
+name: Diagnose Email/SMTP
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-email:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Supabase Auth SMTP Config
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          echo "=== 1. Checking Supabase Auth Settings ==="
+          curl -s "${SUPABASE_URL}/auth/v1/settings" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" | python3 -m json.tool
+
+          echo ""
+          echo "=== 2. Testing password reset email to midaleh12@gmail.com ==="
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            "${SUPABASE_URL}/auth/v1/recover" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"email":"midaleh12@gmail.com"}')
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          echo ""
+          echo "=== 3. Checking GoTrue health ==="
+          curl -s "${SUPABASE_URL}/auth/v1/health" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" | python3 -m json.tool || echo "(no health endpoint)"
+
+          echo ""
+          echo "=== 4. Listing recent auth users (last 5) to verify admin API works ==="
+          curl -s "${SUPABASE_URL}/auth/v1/admin/users?page=1&per_page=5" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" | python3 -m json.tool 2>/dev/null | head -30
+
+          echo ""
+          echo "=== 5. Generate invite link (tests email infra without sending) ==="
+          INVITE_RESP=$(curl -s -w "\n%{http_code}" \
+            "${SUPABASE_URL}/auth/v1/admin/generate_link" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"type":"recovery","email":"midaleh12@gmail.com","options":{"redirect_to":"https://hub.chattingwizard.com/#/update-password"}}')
+          INVITE_CODE=$(echo "$INVITE_RESP" | tail -1)
+          INVITE_BODY=$(echo "$INVITE_RESP" | sed '$d')
+          echo "HTTP Status: $INVITE_CODE"
+          echo "Response: $INVITE_BODY" | python3 -m json.tool 2>/dev/null || echo "$INVITE_BODY"
