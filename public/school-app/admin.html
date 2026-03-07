@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel &mdash; Chatting Wizard School</title>
+  <link rel="icon" type="image/png" href="logo.png">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>if(typeof supabase==='undefined'){document.write('<scr'+'ipt src="https://unpkg.com/@supabase/supabase-js@2"><\/scr'+'ipt>')}</script>
+  <script src="auth.js"></script>
+</head>
+<body>
+<div class="admin-page">
+
+  <!-- Header -->
+  <div class="admin-header">
+    <div class="admin-header-left">
+      <img src="logo.png" alt="CW" class="admin-logo">
+      <h1>Admin Panel</h1>
+    </div>
+    <div class="admin-header-right">
+      <a href="index.html" class="admin-back-link">&larr; School</a>
+      <button onclick="cwSignOut()" class="logout-btn">Log Out</button>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="admin-tabs">
+    <button class="admin-tab active" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="admin-tab" onclick="switchTab('students')">Students</button>
+    <button class="admin-tab" onclick="switchTab('invites')">Invites</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="admin-loading" class="admin-loading">Loading...</div>
+
+  <!-- ==================== TAB: DASHBOARD ==================== -->
+  <div id="tab-dashboard" class="admin-tab-content" style="display:none;">
+
+    <!-- Stats row -->
+    <div class="admin-stats">
+      <div class="admin-stat-card">
+        <div class="admin-stat-value" id="statStudents">0</div>
+        <div class="admin-stat-label">Total Students</div>
+      </div>
+      <div class="admin-stat-card stat-accent">
+        <div class="admin-stat-value" id="statActive">0</div>
+        <div class="admin-stat-label">Started (1+ quiz)</div>
+      </div>
+      <div class="admin-stat-card stat-success">
+        <div class="admin-stat-value" id="statCompleted">0</div>
+        <div class="admin-stat-label">Graduated</div>
+      </div>
+      <div class="admin-stat-card">
+        <div class="admin-stat-value" id="statAvgScore">-</div>
+        <div class="admin-stat-label">Avg Final Score</div>
+      </div>
+    </div>
+
+    <!-- Section funnel -->
+    <div class="admin-panel-card">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+          <h3 style="margin:0;">Section Progress Funnel</h3>
+          <p class="admin-panel-subtitle" style="margin:2px 0 0;">How many students have unlocked each section</p>
+        </div>
+        <select id="funnelGroupFilter" class="admin-filter" onchange="renderDashboard()" style="min-width:160px;">
+          <option value="all">All groups</option>
+        </select>
+      </div>
+      <div id="funnelChart" class="admin-funnel" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Recent activity -->
+    <div class="admin-panel-card">
+      <h3>Recent Quiz Activity</h3>
+      <div id="recentActivity" class="admin-activity-list"></div>
+    </div>
+  </div>
+
+  <!-- ==================== TAB: STUDENTS ==================== -->
+  <div id="tab-students" class="admin-tab-content" style="display:none;">
+
+    <div class="admin-toolbar">
+      <input type="text" id="studentSearch" class="admin-search" placeholder="Search by name or email..." oninput="filterStudents()">
+      <select id="studentFilter" class="admin-filter" onchange="filterStudents()">
+        <option value="all">All students</option>
+        <option value="active">Active (1+ quiz)</option>
+        <option value="inactive">Not started</option>
+        <option value="graduated">Graduated</option>
+        <option value="deactivated">Deactivated</option>
+      </select>
+      <select id="studentGroupFilter" class="admin-filter" onchange="filterStudents()">
+        <option value="all">All groups</option>
+      </select>
+      <span id="studentCount" class="admin-result-count"></span>
+    </div>
+
+    <div id="studentList" class="admin-student-list"></div>
+  </div>
+
+  <!-- ==================== TAB: INVITES ==================== -->
+  <div id="tab-invites" class="admin-tab-content" style="display:none;">
+
+    <div class="admin-panel-card" style="margin-bottom:16px;">
+      <h3>Generate New Code</h3>
+      <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap; margin-top:10px;">
+        <div style="flex:1; min-width:160px;">
+          <label style="font-size:0.78rem; color:#64748b; display:block; margin-bottom:4px;">Group Name</label>
+          <input type="text" id="codeGroupName" class="admin-input" placeholder="e.g. Batch February" style="width:100%;">
+        </div>
+        <div style="min-width:100px;">
+          <label style="font-size:0.78rem; color:#64748b; display:block; margin-bottom:4px;">Max Uses</label>
+          <input type="number" id="codeMaxUses" class="admin-input" value="10" min="1" style="width:100%;">
+        </div>
+        <button onclick="generateCode()" class="admin-btn" id="genBtn">+ Generate Code</button>
+      </div>
+      <div id="newCodeMsg" class="admin-code-msg" style="display:none; margin-top:10px;"></div>
+    </div>
+
+    <div class="admin-toolbar">
+      <select id="inviteFilter" class="admin-filter" onchange="renderInvites()">
+        <option value="all">All codes</option>
+        <option value="available">Available only</option>
+        <option value="full">Full (max reached)</option>
+      </select>
+      <select id="inviteGroupFilter" class="admin-filter" onchange="renderInvites()">
+        <option value="all">All groups</option>
+      </select>
+    </div>
+
+    <div id="inviteList" class="admin-invite-list"></div>
+  </div>
+
+  <!-- ==================== STUDENT DETAIL SLIDE-OUT ==================== -->
+  <div id="studentDetail" class="admin-slideout" style="display:none;">
+    <div class="admin-slideout-backdrop" onclick="closeDetail()"></div>
+    <div class="admin-slideout-panel">
+      <div class="admin-slideout-header">
+        <h3 id="detailTitle">Student</h3>
+        <button onclick="closeDetail()" class="admin-close">&times;</button>
+      </div>
+      <div class="admin-slideout-body">
+
+        <!-- Edit -->
+        <div class="admin-edit-section">
+          <h4>&#9998; Edit</h4>
+          <div class="admin-edit-row">
+            <label>Name</label>
+            <input type="text" id="editName" class="admin-input">
+          </div>
+          <div class="admin-edit-row">
+            <label>Role</label>
+            <select id="editRole" class="admin-input">
+              <option value="student">Student</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <div class="admin-edit-actions">
+            <button onclick="saveStudentEdit()" class="admin-btn" id="saveEditBtn">Save</button>
+            <span id="editFeedback" class="admin-feedback"></span>
+          </div>
+        </div>
+
+        <!-- Section access -->
+        <div class="admin-access-section">
+          <h4>&#128275; Section Access</h4>
+          <div class="admin-access-grid" id="accessGrid"></div>
+        </div>
+
+        <!-- Progress visual -->
+        <h4>&#128202; Progress</h4>
+        <div id="detailProgress" class="admin-progress-visual"></div>
+
+        <!-- Quiz results -->
+        <h4>&#128221; Quiz Results</h4>
+        <div id="detailQuizzes" class="admin-quiz-list"></div>
+
+      <!-- Account status -->
+      <div id="accountStatusSection" class="admin-status-section">
+        <h4>&#128100; Account Status</h4>
+        <div class="admin-status-row">
+          <span id="accountStatusLabel" class="admin-status-label"></span>
+          <button onclick="toggleAccountActive()" class="admin-btn-danger" id="toggleActiveBtn">Deactivate</button>
+        </div>
+        <p class="admin-status-note" id="accountStatusNote"></p>
+      </div>
+
+      <!-- Danger zone -->
+      <div class="admin-danger-section">
+        <h4>&#9888; Danger Zone</h4>
+        <div class="admin-danger-actions">
+          <button onclick="resetStudentQuizzes()" class="admin-btn-danger" id="resetQuizBtn">Reset Quizzes</button>
+          <button onclick="resetStudentProgress()" class="admin-btn-danger" id="resetProgressBtn">Reset All Progress</button>
+          <button onclick="deleteStudentAccount()" class="admin-btn-danger" id="deleteAccountBtn" style="background:#7f1d1d;">Delete Account</button>
+        </div>
+        <p style="font-size:0.75rem;color:#9ca3af;margin-top:6px;">Delete Account: deactivates the account and removes all progress, quizzes, and section data permanently.</p>
+      </div>
+
+        <p id="detailMeta" class="admin-detail-meta"></p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+var allStudents = [];
+var allInvites = [];
+var filteredStudents = [];
+var currentDetailIdx = -1;
+var currentTab = 'dashboard';
+
+var SECTIONS = [
+  { id: 'foundations', label: 'Foundations', prefix: 'f', gated: false, color: '#2563eb' },
+  { id: 'tools', label: 'Tools & Scripts', prefix: 't', gated: true, gate: 't-1', color: '#7c3aed' },
+  { id: 'journey', label: 'The Journey', prefix: 'j', gated: true, gate: 'j-1', color: '#059669' },
+  { id: 'advanced', label: 'Advanced', prefix: 'a', gated: true, gate: 'a-1', color: '#d97706' },
+  { id: 'golive', label: 'Go Live', prefix: 'g', gated: true, gate: 'g-1', color: '#dc2626' }
+];
+
+var MODULE_NAMES = {
+  'f-1':'Welcome + 3 Key Words','f-2':'Who is CW + Team','f-3':'OnlyFans + Money','f-4':'Your Role + Shift','f-5':'Banned Topics','f-6':'Foundations Review',
+  't-1':'Foundations Review Quiz','t-2':'Infloww Walkthrough','t-3':'Vault Pro Guide','t-4':'Scripts 101','t-5':'Dashboard & Personal Scripts','t-6':'Mass Messages','t-7':'Model Personas','t-8':'Journey + PPV Ladder','t-9':'48-Hour Rule',
+  'j-1':'Tools Review Quiz','j-2':'Rapport + Teasing','j-3':'Sexting + PPV','j-4':'Aftercare','j-5':'Branch Rules + NR','j-6':'Fan Assessment','j-7':'Annotated Chats',
+  'a-1':'Journey Review Quiz','a-2':'Objection Scripts','a-3':'Customs (TPDs)','a-4':'Game Sequences','a-5':'Multitasking','a-6':'Shift Routine','a-7':'Common Mistakes','a-8':'Full Simulation',
+  'g-1':'Advanced Review Quiz','g-2':'Final Quiz','g-3':'Supervised Shift'
+};
+
+// ============ Init ============
+(async function initAdmin() {
+  var loadEl = document.getElementById('admin-loading');
+  try {
+    var user = await getUser();
+    if (!user) { window.location.href = 'login.html'; return; }
+    var profile = await getUserProfile(user.id);
+    if (!profile) { await cwSignOut(); return; }
+    var adminRoles = ['admin', 'owner', 'chatter_manager'];
+    if (adminRoles.indexOf(profile.role) < 0) {
+      alert('Access denied.'); window.location.href = 'index.html'; return;
+    }
+    await loadAllData();
+    loadEl.style.display = 'none';
+    switchTab('dashboard');
+  } catch(err) {
+    console.error('Admin init error:', err);
+    loadEl.innerHTML = 'Error: ' + (err.message || err) + '<br><br><a href="login.html" onclick="try{sb().auth.signOut()}catch(e){}" style="color:#2563eb;font-weight:600;">Sign out and try again</a>';
+  }
+})();
+
+async function loadAllData() {
+  try {
+    var res = await Promise.all([adminGetStudents(), adminGetInviteCodes()]);
+    allStudents = res[0] || [];
+    allInvites = res[1] || [];
+    filteredStudents = allStudents.slice();
+    console.log('[Admin] Loaded', allStudents.length, 'students,', allInvites.length, 'invites');
+  } catch(err) {
+    console.error('[Admin] loadAllData error:', err);
+    allStudents = [];
+    allInvites = [];
+    filteredStudents = [];
+    var loadEl = document.getElementById('admin-loading');
+    if (loadEl) loadEl.innerHTML = 'Error loading data: ' + (err.message || err) + '<br><a href="javascript:location.reload()">Retry</a>';
+  }
+}
+
+// ============ Tabs ============
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.admin-tab-content').forEach(function(c) { c.style.display = 'none'; });
+  document.querySelector('.admin-tab[onclick*="' + tab + '"]').classList.add('active');
+  var el = document.getElementById('tab-' + tab);
+  el.style.display = '';
+  if (tab === 'dashboard') renderDashboard();
+  else if (tab === 'students') { filterStudents(); }
+  else if (tab === 'invites') renderInvites();
+}
+
+// ============ DASHBOARD ============
+function getGroups() {
+  var groups = {};
+  allStudents.forEach(function(s) {
+    var g = s.group_name || '(No group)';
+    if (!groups[g]) groups[g] = [];
+    groups[g].push(s);
+  });
+  return groups;
+}
+
+function populateGroupFilters() {
+  var groups = Object.keys(getGroups()).sort();
+  var selectors = ['funnelGroupFilter', 'inviteGroupFilter', 'studentGroupFilter'];
+  selectors.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    var current = el.value;
+    var opts = '<option value="all">All groups</option>';
+    groups.forEach(function(g) {
+      opts += '<option value="' + g + '"' + (current === g ? ' selected' : '') + '>' + g + '</option>';
+    });
+    el.innerHTML = opts;
+  });
+}
+
+function renderDashboard() {
+  populateGroupFilters();
+
+  var groupFilter = document.getElementById('funnelGroupFilter') ? document.getElementById('funnelGroupFilter').value : 'all';
+  var students = groupFilter === 'all' ? allStudents : allStudents.filter(function(s) {
+    var g = s.group_name || '(No group)';
+    return g === groupFilter;
+  });
+
+  // Stats
+  document.getElementById('statStudents').textContent = students.length;
+  var active = students.filter(function(s) { return s.quizzes_passed > 0; });
+  document.getElementById('statActive').textContent = active.length;
+  var graduated = students.filter(function(s) {
+    return s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === 'g-2' && q.passed; });
+  });
+  document.getElementById('statCompleted').textContent = graduated.length;
+  var finals = students.map(function(s) {
+    if (!s.quiz_results) return null;
+    var f = s.quiz_results.find(function(q) { return q.module_id === 'g-2'; });
+    return f ? f.percentage : null;
+  }).filter(function(x) { return x !== null; });
+  document.getElementById('statAvgScore').textContent = finals.length > 0
+    ? Math.round(finals.reduce(function(a,b){return a+b;},0)/finals.length) + '%' : '-';
+
+  // Funnel with hover tooltips
+  var funnel = document.getElementById('funnelChart');
+  funnel.innerHTML = '';
+  var total = students.length || 1;
+  SECTIONS.forEach(function(sec) {
+    var matched = [];
+    if (!sec.gated) { matched = students.slice(); }
+    else {
+      matched = students.filter(function(s) {
+        var passedGate = s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === sec.gate && q.passed; });
+        var manual = s.unlocked_sections && s.unlocked_sections.indexOf(sec.id) >= 0;
+        return passedGate || manual;
+      });
+    }
+    var count = matched.length;
+    var pct = Math.round(count / total * 100);
+    var names = matched.map(function(s) { return s.full_name || s.email; }).join('\n');
+    funnel.innerHTML += '<div class="funnel-row">' +
+      '<span class="funnel-label">' + sec.label + '</span>' +
+      '<div class="funnel-bar-bg" title="' + names + '" style="cursor:pointer;"><div class="funnel-bar-fill" style="width:' + pct + '%;background:' + sec.color + '"></div></div>' +
+      '<span class="funnel-value">' + count + '/' + students.length + '</span></div>';
+  });
+
+  // Recent activity
+  var activity = document.getElementById('recentActivity');
+  var allQuizzes = [];
+  students.forEach(function(s) {
+    if (!s.quiz_results) return;
+    s.quiz_results.forEach(function(q) {
+      allQuizzes.push({ name: s.full_name || s.email, module: q.module_id, score: q.score, pct: q.percentage, passed: q.passed, date: q.submitted_at });
+    });
+  });
+  allQuizzes.sort(function(a,b) { return new Date(b.date) - new Date(a.date); });
+  var recent = allQuizzes.slice(0, 10);
+  if (recent.length === 0) {
+    activity.innerHTML = '<p class="admin-empty">No quiz activity yet.</p>';
+  } else {
+    activity.innerHTML = recent.map(function(q) {
+      var icon = q.passed ? '<span class="activity-pass">&#10003;</span>' : '<span class="activity-fail">&#10007;</span>';
+      var timeAgo = getTimeAgo(q.date);
+      return '<div class="activity-row">' + icon +
+        '<span class="activity-name">' + q.name + '</span>' +
+        '<span class="activity-module">' + (MODULE_NAMES[q.module] || q.module) + '</span>' +
+        '<span class="activity-score">' + q.score + '</span>' +
+        '<span class="activity-time">' + timeAgo + '</span></div>';
+    }).join('');
+  }
+}
+
+function getTimeAgo(dateStr) {
+  var diff = Date.now() - new Date(dateStr).getTime();
+  var mins = Math.floor(diff / 60000);
+  if (mins < 60) return mins + 'm ago';
+  var hrs = Math.floor(mins / 60);
+  if (hrs < 24) return hrs + 'h ago';
+  var days = Math.floor(hrs / 24);
+  return days + 'd ago';
+}
+
+// ============ STUDENTS ============
+function filterStudents() {
+  populateGroupFilters();
+  var search = (document.getElementById('studentSearch').value || '').toLowerCase();
+  var filter = document.getElementById('studentFilter').value;
+  var groupFilter = document.getElementById('studentGroupFilter') ? document.getElementById('studentGroupFilter').value : 'all';
+
+  filteredStudents = allStudents.filter(function(s) {
+    var matchSearch = !search || (s.full_name || '').toLowerCase().indexOf(search) >= 0 || (s.email || '').toLowerCase().indexOf(search) >= 0;
+    if (!matchSearch) return false;
+    if (filter === 'active') return s.quizzes_passed > 0;
+    if (filter === 'inactive') return !s.quizzes_passed;
+    if (filter === 'graduated') return s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === 'g-2' && q.passed; });
+    if (filter === 'deactivated') return s.active === false;
+    if (groupFilter !== 'all') {
+      var g = s.group_name || '(No group)';
+      if (g !== groupFilter) return false;
+    }
+    return true;
+  });
+
+  document.getElementById('studentCount').textContent = filteredStudents.length + ' of ' + allStudents.length;
+  renderStudentList();
+}
+
+function renderStudentList() {
+  var container = document.getElementById('studentList');
+  if (filteredStudents.length === 0) {
+    container.innerHTML = '<p class="admin-empty">No students found.</p>';
+    return;
+  }
+
+  container.innerHTML = filteredStudents.map(function(s, idx) {
+    // Build progress dots
+    var dots = SECTIONS.map(function(sec) {
+      var unlocked = false;
+      if (!sec.gated) { unlocked = true; }
+      else {
+        var passedGate = s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === sec.gate && q.passed; });
+        var manual = s.unlocked_sections && s.unlocked_sections.indexOf(sec.id) >= 0;
+        unlocked = passedGate || manual;
+      }
+      var cls = unlocked ? 'dot-done' : 'dot-locked';
+      return '<span class="progress-dot ' + cls + '" title="' + sec.label + '" style="' + (unlocked ? 'background:' + sec.color : '') + '"></span>';
+    }).join('');
+
+    var realIdx = allStudents.indexOf(s);
+    var quizCount = s.quizzes_passed || 0;
+    var moduleCount = s.modules_completed || 0;
+
+    var inactive = s.active === false;
+    var inactiveClass = inactive ? ' student-inactive' : '';
+
+    var groupTag = s.group_name ? '<span class="admin-tag" style="background:#ede9fe;color:#7c3aed;font-size:0.7rem;">' + s.group_name + '</span>' : '';
+
+    return '<div class="student-card' + inactiveClass + '" onclick="showDetail(' + realIdx + ')">' +
+      '<div class="student-card-main">' +
+        '<div class="student-card-name">' + (s.full_name || '(no name)') + ' ' + groupTag + '</div>' +
+        '<div class="student-card-email">' + s.email + '</div>' +
+      '</div>' +
+      '<div class="student-card-progress">' + dots + '</div>' +
+      '<div class="student-card-stats">' +
+        '<span title="Modules completed">' + moduleCount + ' mod</span>' +
+        '<span title="Quizzes passed">' + quizCount + ' quiz</span>' +
+      '</div>' +
+      (inactive ? '<span class="admin-tag admin-tag-inactive">Deactivated</span>' : '') +
+      '<div class="student-card-date">' + new Date(s.created_at).toLocaleDateString() + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ============ INVITES ============
+function renderInvites() {
+  populateGroupFilters();
+  var filter = document.getElementById('inviteFilter') ? document.getElementById('inviteFilter').value : 'all';
+  var groupFilter = document.getElementById('inviteGroupFilter') ? document.getElementById('inviteGroupFilter').value : 'all';
+
+  var list = allInvites.filter(function(inv) {
+    var useCount = inv.use_count || (inv.users ? inv.users.length : 0) || (inv.used_by ? 1 : 0);
+    var maxUses = inv.max_uses || 1;
+    var isFull = useCount >= maxUses;
+
+    if (filter === 'available') return !isFull;
+    if (filter === 'full') return isFull;
+
+    if (groupFilter !== 'all') {
+      var g = inv.group_name || '(No group)';
+      if (g !== groupFilter) return false;
+    }
+    return true;
+  });
+
+  var container = document.getElementById('inviteList');
+  if (list.length === 0) {
+    container.innerHTML = '<p class="admin-empty">No codes match this filter.</p>';
+    return;
+  }
+
+  container.innerHTML = list.map(function(inv) {
+    var useCount = inv.use_count || (inv.users ? inv.users.length : 0) || (inv.used_by ? 1 : 0);
+    var maxUses = inv.max_uses || 1;
+    var isFull = useCount >= maxUses;
+    var statusClass = isFull ? 'invite-used' : 'invite-available';
+    var groupTag = inv.group_name ? '<span class="admin-tag" style="background:#ede9fe;color:#7c3aed;margin-left:8px;">' + inv.group_name + '</span>' : '';
+    var usageText = useCount + ' / ' + maxUses + ' used';
+
+    // Build users list for tooltip
+    var userNames = '';
+    if (inv.users && inv.users.length > 0) {
+      userNames = inv.users.map(function(u) { return (u.full_name || u.email); }).join(', ');
+    }
+
+    return '<div class="invite-card ' + statusClass + '">' +
+      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
+        '<code class="invite-code">' + inv.code + '</code>' +
+        groupTag +
+      '</div>' +
+      '<span class="invite-status" title="' + userNames + '" style="cursor:' + (userNames ? 'help' : 'default') + ';">' + usageText + '</span>' +
+      '<span class="invite-date">' + new Date(inv.created_at).toLocaleDateString() + '</span>' +
+    '</div>';
+  }).join('');
+
+  // Group management section
+  var groupsObj = {};
+  allInvites.forEach(function(inv) {
+    var g = inv.group_name || '(No group)';
+    if (!groupsObj[g]) groupsObj[g] = { count: 0, totalUses: 0 };
+    groupsObj[g].count++;
+    groupsObj[g].totalUses += (inv.use_count || (inv.users ? inv.users.length : 0) || (inv.used_by ? 1 : 0));
+  });
+  var groupNames = Object.keys(groupsObj).filter(function(g) { return g !== '(No group)'; }).sort();
+
+  if (groupNames.length > 0) {
+    var groupMgmt = document.getElementById('groupManagement');
+    if (!groupMgmt) {
+      groupMgmt = document.createElement('div');
+      groupMgmt.id = 'groupManagement';
+      groupMgmt.className = 'admin-panel-card';
+      groupMgmt.style.marginTop = '16px';
+      container.parentNode.insertBefore(groupMgmt, container.nextSibling);
+    }
+    groupMgmt.innerHTML = '<h3 style="margin:0 0 10px;">Group Management</h3>' +
+      groupNames.map(function(g) {
+        var info = groupsObj[g];
+        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #e5e7eb;">' +
+          '<strong style="flex:1;">' + g + '</strong>' +
+          '<span style="color:#6b7280;font-size:0.82rem;">' + info.count + ' codes, ' + info.totalUses + ' users</span>' +
+          '<button onclick="renameGroup(\'' + g.replace(/'/g, "\\'") + '\')" class="admin-btn" style="font-size:0.75rem;padding:4px 10px;">Rename</button>' +
+          '<button onclick="deleteGroup(\'' + g.replace(/'/g, "\\'") + '\')" class="admin-btn-danger" style="font-size:0.75rem;padding:4px 10px;">Delete</button>' +
+        '</div>';
+      }).join('');
+  }
+}
+
+async function generateCode() {
+  var btn = document.getElementById('genBtn');
+  var msgEl = document.getElementById('newCodeMsg');
+  var groupName = (document.getElementById('codeGroupName').value || '').trim();
+  var maxUses = parseInt(document.getElementById('codeMaxUses').value) || 10;
+
+  if (!groupName) {
+    msgEl.textContent = 'Please enter a group name for this code.';
+    msgEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Generating...';
+  try {
+    var code = await adminGenerateInvite(groupName, maxUses);
+    msgEl.innerHTML = 'New code: <code class="admin-code-highlight">' + code + '</code> &mdash; Group: <strong>' + groupName + '</strong> &mdash; Max: ' + maxUses + ' uses';
+    msgEl.style.display = 'block';
+    allInvites = await adminGetInviteCodes();
+    populateGroupFilters();
+    renderInvites();
+  } catch(err) {
+    msgEl.textContent = 'Error: ' + err.message;
+    msgEl.style.display = 'block';
+  }
+  btn.disabled = false; btn.textContent = '+ Generate Code';
+}
+
+// ============ STUDENT DETAIL SLIDE-OUT ============
+function showDetail(idx) {
+  currentDetailIdx = idx;
+  var s = allStudents[idx];
+
+  document.getElementById('detailTitle').textContent = s.full_name || s.email;
+  document.getElementById('editName').value = s.full_name || '';
+  document.getElementById('editRole').value = s.role || 'student';
+  document.getElementById('editFeedback').textContent = '';
+  document.getElementById('detailMeta').textContent = s.email + ' \u2022 ID: ' + s.id.substring(0, 8) + '... \u2022 Joined ' + new Date(s.created_at).toLocaleDateString();
+
+  // Progress visual
+  var progDiv = document.getElementById('detailProgress');
+  progDiv.innerHTML = SECTIONS.map(function(sec) {
+    var unlocked = !sec.gated;
+    if (sec.gated) {
+      var passedGate = s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === sec.gate && q.passed; });
+      var manual = s.unlocked_sections && s.unlocked_sections.indexOf(sec.id) >= 0;
+      unlocked = passedGate || manual;
+    }
+    var cls = unlocked ? 'prog-open' : 'prog-locked';
+    return '<div class="prog-section ' + cls + '">' +
+      '<div class="prog-section-color" style="background:' + sec.color + '"></div>' +
+      '<span>' + sec.label + '</span>' +
+      '<span class="prog-section-status">' + (unlocked ? '&#10003;' : '&#128274;') + '</span>' +
+    '</div>';
+  }).join('');
+
+  // Quiz results
+  var qDiv = document.getElementById('detailQuizzes');
+  if (s.quiz_results && s.quiz_results.length > 0) {
+    var sorted = s.quiz_results.slice().sort(function(a,b) { return (a.module_id||'').localeCompare(b.module_id||''); });
+    qDiv.innerHTML = sorted.map(function(q) {
+      var cls = q.passed ? 'quiz-row-pass' : 'quiz-row-fail';
+      return '<div class="quiz-detail-row ' + cls + '">' +
+        '<span class="quiz-detail-name">' + (MODULE_NAMES[q.module_id] || q.module_id) + '</span>' +
+        '<span class="quiz-detail-score">' + q.score + ' (' + q.percentage + '%)</span>' +
+        '<span class="quiz-detail-date">' + new Date(q.submitted_at).toLocaleDateString() + '</span></div>';
+    }).join('');
+  } else {
+    qDiv.innerHTML = '<p class="admin-empty">No quizzes taken yet.</p>';
+  }
+
+  // Account status
+  renderAccountStatus(s);
+
+  // Access grid
+  renderAccessGrid(s);
+
+  document.getElementById('studentDetail').style.display = '';
+  setTimeout(function() { document.querySelector('.admin-slideout-panel').classList.add('open'); }, 10);
+}
+
+function renderAccessGrid(student) {
+  var grid = document.getElementById('accessGrid');
+  var unlocks = student.unlocked_sections || [];
+  grid.innerHTML = '';
+  SECTIONS.forEach(function(sec) {
+    if (!sec.gated) return;
+    var passedQuiz = student.quiz_results && student.quiz_results.some(function(q) { return q.module_id === sec.gate && q.passed; });
+    var manuallyUnlocked = unlocks.indexOf(sec.id) >= 0;
+    var isOpen = passedQuiz || manuallyUnlocked;
+
+    var card = document.createElement('div');
+    card.className = 'admin-access-card ' + (isOpen ? 'access-open' : 'access-locked');
+    card.innerHTML =
+      '<div class="access-card-top">' +
+        '<strong>' + sec.label + '</strong>' +
+        (passedQuiz ? '<span class="admin-tag admin-tag-available">Earned</span>' :
+         manuallyUnlocked ? '<span class="admin-tag admin-tag-manual">Manual</span>' :
+         '<span class="admin-tag admin-tag-used">Locked</span>') +
+      '</div>' +
+      '<label class="access-toggle">' +
+        '<input type="checkbox" ' + (manuallyUnlocked ? 'checked' : '') + ' ' +
+          (passedQuiz ? 'disabled' : '') +
+          ' onchange="toggleSection(\'' + student.id + '\', \'' + sec.id + '\', this.checked)">' +
+        '<span class="access-toggle-label">' + (passedQuiz ? 'Via quiz' : 'Grant access') + '</span>' +
+      '</label>';
+    grid.appendChild(card);
+  });
+}
+
+function renderAccountStatus(student) {
+  var isActive = student.active !== false;
+  var label = document.getElementById('accountStatusLabel');
+  var btn = document.getElementById('toggleActiveBtn');
+  var note = document.getElementById('accountStatusNote');
+  var section = document.getElementById('accountStatusSection');
+
+  if (isActive) {
+    label.innerHTML = '<span class="admin-tag admin-tag-available">Active</span>';
+    btn.textContent = 'Deactivate Account';
+    btn.className = 'admin-btn-danger';
+    note.textContent = 'Deactivating blocks the student from accessing the school. Their data is preserved.';
+    section.className = 'admin-status-section';
+  } else {
+    label.innerHTML = '<span class="admin-tag admin-tag-inactive">Deactivated</span>';
+    btn.textContent = 'Reactivate Account';
+    btn.className = 'admin-btn';
+    note.textContent = 'This account is deactivated. The student cannot log in or access any content.';
+    section.className = 'admin-status-section status-inactive';
+  }
+}
+
+async function toggleAccountActive() {
+  if (currentDetailIdx < 0) return;
+  var s = allStudents[currentDetailIdx];
+  var isActive = s.active !== false;
+  var action = isActive ? 'deactivate' : 'reactivate';
+
+  if (!confirm((isActive
+    ? 'Deactivate ' + (s.full_name || s.email) + '? They will be immediately blocked from the school.'
+    : 'Reactivate ' + (s.full_name || s.email) + '? They will regain access to the school.'))) return;
+
+  var btn = document.getElementById('toggleActiveBtn');
+  btn.disabled = true;
+  try {
+    await adminSetActive(s.id, !isActive);
+    await loadAllData();
+    showDetail(currentDetailIdx);
+  } catch(err) {
+    alert('Error: ' + err.message);
+  }
+  btn.disabled = false;
+}
+
+function closeDetail() {
+  document.querySelector('.admin-slideout-panel').classList.remove('open');
+  setTimeout(function() { document.getElementById('studentDetail').style.display = 'none'; }, 250);
+  currentDetailIdx = -1;
+}
+
+// ============ Admin Actions ============
+async function saveStudentEdit() {
+  if (currentDetailIdx < 0) return;
+  var s = allStudents[currentDetailIdx];
+  var btn = document.getElementById('saveEditBtn');
+  var fb = document.getElementById('editFeedback');
+  btn.disabled = true; btn.textContent = 'Saving...'; fb.textContent = '';
+  try {
+    await adminUpdateStudent(s.id, document.getElementById('editName').value.trim(), document.getElementById('editRole').value);
+    fb.textContent = '\u2713 Saved'; fb.className = 'admin-feedback admin-feedback-ok';
+    await loadAllData();
+    document.getElementById('detailTitle').textContent = document.getElementById('editName').value.trim() || s.email;
+  } catch(err) {
+    fb.textContent = err.message; fb.className = 'admin-feedback admin-feedback-err';
+  }
+  btn.disabled = false; btn.textContent = 'Save';
+}
+
+async function toggleSection(studentId, sectionId, grant) {
+  try {
+    if (grant) await adminGrantSection(studentId, sectionId);
+    else await adminRevokeSection(studentId, sectionId);
+    await loadAllData();
+    if (currentDetailIdx >= 0) renderAccessGrid(allStudents[currentDetailIdx]);
+  } catch(err) { alert(err.message); await loadAllData(); if (currentDetailIdx >= 0) renderAccessGrid(allStudents[currentDetailIdx]); }
+}
+
+async function resetStudentQuizzes() {
+  if (currentDetailIdx < 0) return;
+  var s = allStudents[currentDetailIdx];
+  if (!confirm('Reset quizzes for ' + (s.full_name || s.email) + '?')) return;
+  document.getElementById('resetQuizBtn').disabled = true;
+  try { await adminResetQuizzes(s.id); await loadAllData(); showDetail(currentDetailIdx); }
+  catch(err) { alert(err.message); }
+  document.getElementById('resetQuizBtn').disabled = false;
+}
+
+async function resetStudentProgress() {
+  if (currentDetailIdx < 0) return;
+  var s = allStudents[currentDetailIdx];
+  if (!confirm('Reset ALL progress for ' + (s.full_name || s.email) + '? They start from zero.')) return;
+  document.getElementById('resetProgressBtn').disabled = true;
+  try { await adminResetProgress(s.id); await loadAllData(); showDetail(currentDetailIdx); }
+  catch(err) { alert(err.message); }
+  document.getElementById('resetProgressBtn').disabled = false;
+}
+
+async function deleteStudentAccount() {
+  if (currentDetailIdx < 0) return;
+  var s = allStudents[currentDetailIdx];
+  var name = s.full_name || s.email;
+  if (!confirm('DELETE ' + name + '?\n\nThis will:\n- Deactivate the account\n- Delete all progress\n- Delete all quiz results\n- Delete all section unlocks\n\nThis cannot be undone.')) return;
+  if (!confirm('Are you REALLY sure? Type OK to confirm.')) return;
+  var btn = document.getElementById('deleteAccountBtn');
+  btn.disabled = true; btn.textContent = 'Deleting...';
+  try {
+    await adminDeleteAccount(s.id);
+    closeDetail();
+    await loadAllData();
+    filterStudents();
+    alert(name + ' has been deleted.');
+  } catch(err) { alert('Error: ' + err.message); }
+  btn.disabled = false; btn.textContent = 'Delete Account';
+}
+
+async function deleteGroup(groupName) {
+  if (!confirm('Delete group "' + groupName + '"?\n\nThis deletes the invite codes for this group. Students already registered are NOT affected.')) return;
+  try {
+    await adminDeleteGroup(groupName);
+    allInvites = await adminGetInviteCodes();
+    populateGroupFilters();
+    renderInvites();
+  } catch(err) { alert('Error: ' + err.message); }
+}
+
+async function renameGroup(oldName) {
+  var newName = prompt('New name for group "' + oldName + '":', oldName);
+  if (!newName || newName === oldName) return;
+  try {
+    await adminRenameGroup(oldName, newName);
+    allInvites = await adminGetInviteCodes();
+    populateGroupFilters();
+    renderInvites();
+  } catch(err) { alert('Error: ' + err.message); }
+}
+</script>
+</body>
+</html>
