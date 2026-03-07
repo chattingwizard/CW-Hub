@@ -117,13 +117,9 @@ export default function Assignments() {
       const ids = groupModels.filter((gm) => gm.group_id === groupId).map((gm) => gm.model_id);
       return models
         .filter((m) => ids.includes(m.id) && m.status === 'Live')
-        .sort((a, b) => {
-          const ta = getModelTraffic(a.id);
-          const tb = getModelTraffic(b.id);
-          return (tb?.workload_pct ?? 0) - (ta?.workload_pct ?? 0);
-        });
+        .sort((a, b) => a.name.localeCompare(b.name));
     },
-    [groupModels, models, getModelTraffic],
+    [groupModels, models],
   );
 
   const getChattersForGroup = useCallback(
@@ -491,6 +487,10 @@ function CompactGroupsView({
     return unassignedModels.filter(m => m.name.toLowerCase().includes(q)).slice(0, 8);
   }, [searchText, unassignedModels]);
 
+  const maxModelsInGroup = useMemo(() => {
+    return Math.max(...groups.map(g => getModelsForGroup(g.id).length), 0);
+  }, [groups, getModelsForGroup]);
+
   if (groups.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center">
@@ -559,67 +559,69 @@ function CompactGroupsView({
                 </div>
 
                 <div className="px-1.5 py-2 flex flex-col gap-1">
-                  {gModels.map((model) => (
-                    <div
-                      key={model.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, model.id, group.id, 'model')}
-                      className={`w-full flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-white cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity ${getPillColor(groupIdx, model.page_type)}`}
-                    >
-                      <GripVertical size={9} className="shrink-0 opacity-40" />
-                      <span className="truncate">{model.name}</span>
-                    </div>
-                  ))}
-
-                  <div className="relative">
-                    <button
-                      onClick={() => {
-                        setSearchGroupId(searchGroupId === group.id ? null : group.id);
-                        setSearchText('');
-                      }}
-                      disabled={saving}
-                      className="w-full py-1 rounded-full text-[10px] text-text-muted hover:text-cw hover:bg-cw/10 transition-colors border border-dashed border-border/40 hover:border-cw/30"
-                    >
-                      + Add model
-                    </button>
-
-                    {searchGroupId === group.id && (
-                      <div className="absolute left-0 right-0 top-full mt-1 bg-surface-2 border border-border rounded-lg shadow-xl z-30 p-1.5">
-                        <input
-                          autoFocus
-                          value={searchText}
-                          onChange={(e) => setSearchText(e.target.value)}
-                          placeholder="Search model..."
-                          className="w-full bg-surface-3 border border-border rounded px-2 py-1 text-[11px] text-white placeholder-text-muted focus:outline-none focus:border-cw mb-1"
-                        />
-                        {searchResults.length === 0 ? (
-                          <p className="text-[10px] text-text-muted text-center py-2">
-                            {unassignedModels.length === 0 ? 'All models assigned' : 'No match'}
-                          </p>
-                        ) : (
-                          <div className="max-h-36 overflow-y-auto space-y-0.5">
-                            {searchResults.map((m) => (
-                              <button
-                                key={m.id}
-                                onClick={() => {
-                                  onAssignModel(group.id, m.id);
-                                  setSearchText('');
-                                  setSearchGroupId(null);
-                                }}
-                                disabled={saving}
-                                className="w-full text-left px-2 py-1.5 rounded text-[11px] text-white hover:bg-surface-3 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                              >
-                                <span className="truncate flex-1">{m.name}</span>
-                                <PageTypeBadge pageType={m.page_type as 'Free Page' | 'Paid Page' | 'Mixed' | null} size="sm" />
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                  <div style={{ minHeight: maxModelsInGroup * 30 + 28 }} className="flex flex-col gap-1">
+                    {gModels.map((model) => (
+                      <div
+                        key={model.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, model.id, group.id, 'model')}
+                        className={`w-full flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-white cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity ${getPillColor(groupIdx, model.page_type)}`}
+                      >
+                        <GripVertical size={9} className="shrink-0 opacity-40" />
+                        <span className="truncate">{model.name}</span>
                       </div>
-                    )}
+                    ))}
+
+                    <div className="relative mt-auto">
+                      <button
+                        onClick={() => {
+                          setSearchGroupId(searchGroupId === group.id ? null : group.id);
+                          setSearchText('');
+                        }}
+                        disabled={saving}
+                        className="w-full py-1 rounded-full text-[10px] text-text-muted hover:text-cw hover:bg-cw/10 transition-colors border border-dashed border-border/40 hover:border-cw/30"
+                      >
+                        + Add model
+                      </button>
+
+                      {searchGroupId === group.id && (
+                        <div className="absolute left-0 right-0 top-full mt-1 bg-surface-2 border border-border rounded-lg shadow-xl z-30 p-1.5">
+                          <input
+                            autoFocus
+                            value={searchText}
+                            onChange={(e) => setSearchText(e.target.value)}
+                            placeholder="Search model..."
+                            className="w-full bg-surface-3 border border-border rounded px-2 py-1 text-[11px] text-white placeholder-text-muted focus:outline-none focus:border-cw mb-1"
+                          />
+                          {searchResults.length === 0 ? (
+                            <p className="text-[10px] text-text-muted text-center py-2">
+                              {unassignedModels.length === 0 ? 'All models assigned' : 'No match'}
+                            </p>
+                          ) : (
+                            <div className="max-h-36 overflow-y-auto space-y-0.5">
+                              {searchResults.map((m) => (
+                                <button
+                                  key={m.id}
+                                  onClick={() => {
+                                    onAssignModel(group.id, m.id);
+                                    setSearchText('');
+                                    setSearchGroupId(null);
+                                  }}
+                                  disabled={saving}
+                                  className="w-full text-left px-2 py-1.5 rounded text-[11px] text-white hover:bg-surface-3 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                                >
+                                  <span className="truncate flex-1">{m.name}</span>
+                                  <PageTypeBadge pageType={m.page_type as 'Free Page' | 'Paid Page' | 'Mixed' | null} size="sm" />
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  {(gModels.length > 0 || searchGroupId === group.id) && gChatters.length > 0 && (
+                  {gChatters.length > 0 && (
                     <div className="flex items-center gap-2 my-1">
                       <div className="flex-1 border-t border-border/40" />
                       <Users size={9} className="text-text-muted" />
