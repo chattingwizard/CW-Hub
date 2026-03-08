@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import {
   Shield, UserPlus, Copy, Check, RefreshCw, Search,
-  Users, ShieldCheck, UserX, UserCheck, Ticket, AlertTriangle, Link2, Unlink,
+  Users, ShieldCheck, UserX, UserCheck, Ticket, AlertTriangle, Link2, Unlink, X,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 import type { Profile, UserRole, Chatter } from '../types';
@@ -59,6 +59,10 @@ export default function Settings() {
   const [inviteFilter, setInviteFilter] = useState<InviteFilter>('all');
 
   const [chatters, setChatters] = useState<Chatter[]>([]);
+
+  const [batchCount, setBatchCount] = useState(1);
+  const [batchModal, setBatchModal] = useState<{ codes: string[]; role: string } | null>(null);
+  const [generatingProgress, setGeneratingProgress] = useState(0);
 
   const [confirmModal, setConfirmModal] = useState<{
     userId: string;
@@ -177,15 +181,25 @@ export default function Settings() {
 
   const handleGenerateInvite = async () => {
     setGenerating(true);
+    setGeneratingProgress(0);
     try {
-      const { data, error } = await supabase.rpc('generate_invite_code', { p_role: inviteRole });
-      if (error) throw error;
+      const codes: string[] = [];
+      for (let i = 0; i < batchCount; i++) {
+        const { data, error } = await supabase.rpc('generate_invite_code', { p_role: inviteRole });
+        if (error) throw error;
+        if (data) codes.push(data as string);
+        setGeneratingProgress(i + 1);
+      }
       fetchData();
-      if (data) {
-        navigator.clipboard.writeText(data as string);
-        setCopiedCode(data as string);
+      if (codes.length === 1) {
+        navigator.clipboard.writeText(codes[0]!);
+        setCopiedCode(codes[0]!);
         setStatusMsg(`${ROLE_LABELS[inviteRole as UserRole] ?? inviteRole} invite code generated and copied!`);
         setTimeout(() => { setCopiedCode(null); setStatusMsg(''); }, 3000);
+      } else if (codes.length > 1) {
+        setBatchModal({ codes, role: inviteRole });
+        setStatusMsg(`${codes.length} ${ROLE_LABELS[inviteRole as UserRole] ?? inviteRole} codes generated!`);
+        setTimeout(() => setStatusMsg(''), 3000);
       }
     } catch (err: unknown) {
       console.error('Invite code generation failed:', err);
@@ -357,13 +371,31 @@ export default function Settings() {
                   <option key={val} value={val}>{label}</option>
                 ))}
               </select>
+              <input
+                type="number"
+                min={1}
+                max={20}
+                value={batchCount}
+                onChange={(e) => setBatchCount(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+                className="w-14 bg-surface-2 border border-border text-white text-xs rounded-lg px-2 py-2 text-center focus:border-cw focus:outline-none tabular-nums"
+                title="Number of codes to generate"
+              />
               <button
                 onClick={handleGenerateInvite}
                 disabled={generating}
                 className="flex items-center gap-2 px-4 py-2 bg-cw hover:bg-cw-dark text-white rounded-lg text-sm font-medium disabled:opacity-50 transition-colors shrink-0"
               >
-                {generating ? <RefreshCw size={15} className="animate-spin" /> : <UserPlus size={15} />}
-                Generate
+                {generating ? (
+                  <>
+                    <RefreshCw size={15} className="animate-spin" />
+                    {batchCount > 1 ? `${generatingProgress}/${batchCount}` : null}
+                  </>
+                ) : (
+                  <>
+                    <UserPlus size={15} />
+                    Generate{batchCount > 1 ? ` (${batchCount})` : ''}
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -623,6 +655,69 @@ export default function Settings() {
           </div>
         </div>
       </>
+      )}
+
+      {/* ── Batch Codes Modal ─────────────────────────────── */}
+      {batchModal && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => setBatchModal(null)}
+        >
+          <div
+            className="bg-surface-1 border border-border rounded-2xl p-6 w-full max-w-md"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-lg font-semibold text-white">
+                  {batchModal.codes.length} Codes Generated
+                </h3>
+                <p className="text-xs text-text-muted mt-0.5">
+                  {ROLE_LABELS[batchModal.role as UserRole] ?? batchModal.role} invite codes
+                </p>
+              </div>
+              <button
+                onClick={() => setBatchModal(null)}
+                className="p-2 rounded-lg hover:bg-surface-3 text-text-muted hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-1.5 mb-4 max-h-64 overflow-y-auto">
+              {batchModal.codes.map((code) => (
+                <div
+                  key={code}
+                  className="flex items-center justify-between bg-surface-2 rounded-lg px-4 py-2.5"
+                >
+                  <code className="text-sm text-cw font-mono">{code}</code>
+                  <button
+                    onClick={() => copyCode(code)}
+                    className="p-1.5 rounded-lg hover:bg-surface-3 text-text-secondary hover:text-white transition-colors"
+                    title="Copy code"
+                  >
+                    {copiedCode === code ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(batchModal.codes.join('\n'));
+                setCopiedCode('__all__');
+                setTimeout(() => setCopiedCode(null), 2000);
+              }}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-cw hover:bg-cw-dark text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {copiedCode === '__all__' ? (
+                <><Check size={15} className="text-white" /> Copied!</>
+              ) : (
+                <><Copy size={15} /> Copy All ({batchModal.codes.length} codes)</>
+              )}
+            </button>
+          </div>
+        </div>
       )}
 
       {/* ── Confirmation Modal ────────────────────────────── */}
