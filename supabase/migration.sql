@@ -51,7 +51,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
--- Get current user's chatter record ID
+-- Get current user's chatter record ID (uses profile_id direct link)
 CREATE OR REPLACE FUNCTION public.get_my_chatter_id()
 RETURNS UUID AS $$
 DECLARE
@@ -59,8 +59,7 @@ DECLARE
 BEGIN
   SELECT c.id INTO chatter_uuid
   FROM public.chatters c
-  JOIN public.profiles p ON p.airtable_chatter_id = c.airtable_id
-  WHERE p.id = auth.uid();
+  WHERE c.profile_id = auth.uid();
   RETURN chatter_uuid;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;

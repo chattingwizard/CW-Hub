@@ -771,6 +771,14 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
     detectMissing();
   }, [detectMissing]);
 
+  async function dismissViaRpc(alerts: { chatter_id: string; chatter_name: string; date: string; shift: string; action: string }[]) {
+    const { data, error } = await supabase.rpc('dismiss_shift_report_alerts', {
+      p_alerts: alerts,
+    });
+    if (error) throw error;
+    return data as { inserted: number; skipped: number };
+  }
+
   async function handleAction(item: MissingReport, action: 'accepted' | 'dismissed') {
     if (!profile) return;
     const key = `${item.chatter_id}|${item.date}`;
@@ -778,16 +786,13 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
     setActionResult(null);
 
     try {
-      const { error: alertError } = await supabase.from('shift_report_alerts').insert({
+      await dismissViaRpc([{
         chatter_id: item.chatter_id,
         chatter_name: item.chatter_name,
         date: item.date,
         shift: item.shift,
         action,
-        resolved_by: profile.id,
-      });
-
-      if (alertError) throw alertError;
+      }]);
 
       if (action === 'accepted') {
         const { data: eventTypes } = await supabase
@@ -841,24 +846,22 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
     setActionResult(null);
 
     try {
-      const rows = missing.map(item => ({
+      const alerts = missing.map(item => ({
         chatter_id: item.chatter_id,
         chatter_name: item.chatter_name,
         date: item.date,
         shift: item.shift,
-        action: 'dismissed' as const,
-        resolved_by: profile.id,
+        action: 'dismissed',
       }));
 
-      const { error } = await supabase.from('shift_report_alerts').upsert(rows, { onConflict: 'chatter_id,date', ignoreDuplicates: true });
-      if (error) throw error;
+      const result = await dismissViaRpc(alerts);
 
-      const count = missing.length;
+      const count = result.inserted;
       setMissing([]);
       setActionResult({ key: 'all', ok: true, msg: `${count} alerts dismissed` });
     } catch (err: unknown) {
       console.error('Dismiss all failed:', err);
-      setActionResult({ key: 'all', ok: false, msg: 'Could not dismiss all. Some may have duplicates — try refreshing.' });
+      setActionResult({ key: 'all', ok: false, msg: 'Could not dismiss all. Please try again.' });
     } finally {
       setDismissingAll(false);
     }

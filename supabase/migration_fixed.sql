@@ -46,8 +46,7 @@ DECLARE
 BEGIN
   SELECT c.id INTO chatter_uuid
   FROM public.chatters c
-  JOIN public.profiles p ON p.airtable_chatter_id = c.airtable_id
-  WHERE p.id = auth.uid();
+  WHERE c.profile_id = auth.uid();
   RETURN chatter_uuid;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
