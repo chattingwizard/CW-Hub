@@ -55,6 +55,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .eq('id', session.user.id)
           .single();
 
+        if ((profile as Profile | null)?.is_active === false) {
+          await supabase.auth.signOut();
+          set({ user: null, profile: null, initialized: true });
+          return;
+        }
+
         set({
           user: { id: session.user.id, email: session.user.email ?? '' },
           profile: profile as Profile | null,
@@ -104,6 +110,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             .eq('id', session.user.id)
             .single();
 
+          if ((profile as Profile | null)?.is_active === false) {
+            await supabase.auth.signOut();
+            set({ user: null, profile: null, passwordRecovery: false });
+            return;
+          }
+
           set({
             user: { id: session.user.id, email: session.user.email ?? '' },
             profile: (profile as Profile | null) ??
@@ -152,6 +164,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .eq('id', userId)
           .single();
         profile = p2 as Profile | null;
+      }
+
+      if (profile?.is_active === false) {
+        await supabase.auth.signOut();
+        set({ user: null, profile: null, loading: false });
+        throw new Error('This account is deactivated. Contact an admin.');
       }
 
       set({
@@ -225,6 +243,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           .select('*')
           .eq('id', userId)
           .single();
+
+        if ((profile as Profile | null)?.is_active === false) {
+          await supabase.auth.signOut();
+          set({ user: null, profile: null });
+          throw new Error('This account is deactivated. Contact an admin.');
+        }
 
         set({
           user: { id: userId, email: userEmail },

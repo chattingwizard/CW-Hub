@@ -30,6 +30,10 @@ export default function ProtectedRoute({ children, roles }: Props) {
     return <Navigate to="/login" replace />;
   }
 
+  if (profile.is_active === false) {
+    return <Navigate to="/login" replace />;
+  }
+
   const viewRole = getEffectiveRole(profile.role);
 
   if (roles && !roles.includes(viewRole)) {
