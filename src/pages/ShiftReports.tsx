@@ -706,24 +706,24 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(today.getDate() - 7);
 
-    const startDate = sevenDaysAgo.toISOString().slice(0, 10);
+    const weekStart = getWeekStartForDate(sevenDaysAgo);
     const endDate = today.toISOString().slice(0, 10);
 
     const [schedulesRes, reportsRes, alertsRes] = await Promise.all([
       supabase
         .from('schedules')
         .select('chatter_id, day_of_week, shift, week_start')
-        .gte('week_start', getWeekStartForDate(sevenDaysAgo))
+        .gte('week_start', weekStart)
         .lte('week_start', getWeekStartForDate(today)),
       supabase
         .from('shift_reports')
         .select('chatter_id, date')
-        .gte('date', startDate)
+        .gte('date', weekStart)
         .lte('date', endDate),
       supabase
         .from('shift_report_alerts')
         .select('chatter_id, date')
-        .gte('date', startDate)
+        .gte('date', weekStart)
         .lte('date', endDate),
     ]);
 
