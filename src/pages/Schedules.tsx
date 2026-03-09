@@ -297,8 +297,8 @@ export default function Schedules() {
       return { chatter: null, state: 'dayoff' };
     }
 
-    // 4. No schedule data for this week → show empty (fill manually)
-    return { chatter: null, state: 'dayoff' };
+    // 4. No schedule data for this week → show default chatters on all days
+    return { chatter: c, state: 'default' };
   }, [coverageMap, groupDefaultForTL, isChatterScheduled, chatterMap, chatterDefaultGroup, weekHasScheduleData]);
 
   /* ── drag & drop ────────────────────────────────────────────── */
