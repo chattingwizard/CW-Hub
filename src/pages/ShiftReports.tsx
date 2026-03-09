@@ -689,6 +689,7 @@ interface MissingReport {
   date: string;
   shift: string;
   team: string;
+  weekStart: string;
 }
 
 function AlertsTab({ chatters }: { chatters: Chatter[] }) {
@@ -741,10 +742,16 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
 
     for (const sched of schedules) {
       const schedDate = computeScheduleDate(sched.week_start, sched.day_of_week);
-      if (!schedDate || schedDate > endDate || schedDate >= endDate) continue;
+      if (!schedDate || schedDate >= endDate) continue;
 
       const key = `${sched.chatter_id}|${schedDate}`;
       if (reportSet.has(key) || alertSet.has(key)) continue;
+
+      // Evening shift (16:00-00:00) crosses midnight — also check the next day
+      if (sched.shift === '16:00-00:00') {
+        const nextDay = computeScheduleDate(schedDate, 1);
+        if (nextDay && (reportSet.has(`${sched.chatter_id}|${nextDay}`) || alertSet.has(`${sched.chatter_id}|${nextDay}`))) continue;
+      }
 
       const chatter = chatterMap[sched.chatter_id];
       if (!chatter) continue;
@@ -758,11 +765,12 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
           date: schedDate,
           shift: sched.shift,
           team: teamForShift?.teamName || chatter.team_name || 'Unknown',
+          weekStart: sched.week_start as string,
         });
       }
     }
 
-    missingList.sort((a, b) => b.date.localeCompare(a.date) || a.chatter_name.localeCompare(b.chatter_name));
+    missingList.sort((a, b) => b.weekStart.localeCompare(a.weekStart) || b.date.localeCompare(a.date) || a.chatter_name.localeCompare(b.chatter_name));
     setMissing(missingList);
     setLoading(false);
   }, [chatters]);
@@ -917,52 +925,81 @@ function AlertsTab({ chatters }: { chatters: Chatter[] }) {
           <p className="text-sm text-text-muted">No missing shift reports</p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {missing.map(item => {
-            const key = `${item.chatter_id}|${item.date}`;
-            const isProcessing = processing === key;
-            const dateStr = new Date(item.date + 'T00:00:00').toLocaleDateString('en-US', {
-              weekday: 'short', month: 'short', day: 'numeric',
+        <div className="space-y-5">
+          {(() => {
+            const weeks = new Map<string, MissingReport[]>();
+            for (const item of missing) {
+              const arr = weeks.get(item.weekStart) ?? [];
+              arr.push(item);
+              weeks.set(item.weekStart, arr);
+            }
+
+            return [...weeks.entries()].map(([ws, items]) => {
+              const monday = new Date(ws + 'T00:00:00Z');
+              const sunday = new Date(monday);
+              sunday.setUTCDate(monday.getUTCDate() + 6);
+              const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+              const weekLabel = `${fmt(monday)} – ${fmt(sunday)}`;
+
+              return (
+                <div key={ws} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                      {weekLabel}
+                    </h3>
+                    <span className="text-[10px] font-medium text-red-400 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded-full">
+                      {items.length} missing
+                    </span>
+                  </div>
+                  {items.map(item => {
+                    const key = `${item.chatter_id}|${item.date}`;
+                    const isProcessing = processing === key;
+                    const dateStr = new Date(item.date + 'T00:00:00Z').toLocaleDateString('en-US', {
+                      weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
+                    });
+
+                    return (
+                      <div
+                        key={key}
+                        className="bg-surface-1 rounded-xl border border-red-500/20 p-4 flex items-center gap-4"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0">
+                          <AlertTriangle size={18} className="text-red-400" />
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-text-primary">
+                            Missing Shift Report
+                          </p>
+                          <p className="text-xs text-text-muted truncate">
+                            {item.chatter_name} &middot; {item.shift} &middot; {dateStr} &middot; {item.team}
+                          </p>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          <button
+                            onClick={() => handleAction(item, 'dismissed')}
+                            disabled={isProcessing}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-2 border border-border text-text-secondary hover:text-text-primary hover:border-zinc-600 disabled:opacity-40 transition-all"
+                          >
+                            Dismiss
+                          </button>
+                          <button
+                            onClick={() => handleAction(item, 'accepted')}
+                            disabled={isProcessing}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 disabled:opacity-40 transition-all flex items-center gap-1"
+                          >
+                            {isProcessing ? <Loader2 size={12} className="animate-spin" /> : null}
+                            Accept (-5 pts)
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              );
             });
-
-            return (
-              <div
-                key={key}
-                className="bg-surface-1 rounded-xl border border-red-500/20 p-4 flex items-center gap-4"
-              >
-                <div className="w-9 h-9 rounded-lg bg-red-500/15 flex items-center justify-center shrink-0">
-                  <AlertTriangle size={18} className="text-red-400" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary">
-                    Missing Shift Report
-                  </p>
-                  <p className="text-xs text-text-muted truncate">
-                    {item.chatter_name} &middot; {item.shift} &middot; {dateStr} &middot; {item.team}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => handleAction(item, 'dismissed')}
-                    disabled={isProcessing}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface-2 border border-border text-text-secondary hover:text-text-primary hover:border-zinc-600 disabled:opacity-40 transition-all"
-                  >
-                    Dismiss
-                  </button>
-                  <button
-                    onClick={() => handleAction(item, 'accepted')}
-                    disabled={isProcessing}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium bg-red-500/15 border border-red-500/30 text-red-400 hover:bg-red-500/25 disabled:opacity-40 transition-all flex items-center gap-1"
-                  >
-                    {isProcessing ? <Loader2 size={12} className="animate-spin" /> : null}
-                    Accept (-5 pts)
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          })()}
         </div>
       )}
     </div>
