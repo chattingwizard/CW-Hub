@@ -163,6 +163,6 @@ export function getTLForShift(shift: string): TLShift | undefined {
 }
 
 export function getTeamColor(teamName: string): string {
-  const tl = TL_SHIFTS.find(t => t.teamName === teamName);
+  const tl = TL_SHIFTS.find(t => t.teamName === teamName || t.tl === teamName);
   return tl?.colorClass ?? 'text-zinc-400 bg-zinc-500/15 border-zinc-500/30';
 }

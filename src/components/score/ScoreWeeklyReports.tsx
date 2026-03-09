@@ -13,6 +13,7 @@ interface Props {
 }
 
 const TEAMS = ['Team Huckle', 'Team Danilyn', 'Team Ezekiel'];
+const TEAM_ALIASES: Record<string, string> = { 'Huckle': 'Team Huckle', 'Danilyn': 'Team Danilyn', 'Ezekiel': 'Team Ezekiel' };
 const TEAM_COLORS: Record<string, string> = {
   'Team Huckle': 'border-orange-500/30',
   'Team Danilyn': 'border-blue-500/30',
@@ -124,7 +125,7 @@ export default function ScoreWeeklyReports({ weekKey, chatters, config, onDataCh
     <>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {TEAMS.map(teamName => {
-          const teamChatters = chatters.filter(c => c.team_name === teamName);
+          const teamChatters = chatters.filter(c => c.team_name === teamName || (c.team_name && TEAM_ALIASES[c.team_name] === teamName));
           const borderColor = TEAM_COLORS[teamName] || 'border-border';
 
           return (

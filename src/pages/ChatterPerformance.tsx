@@ -23,6 +23,9 @@ const TEAM_COLORS: Record<string, { bg: string; text: string; border: string }> 
   'Team Danilyn': { bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30' },
   'Team Huckle': { bg: 'bg-orange-500/15', text: 'text-orange-400', border: 'border-orange-500/30' },
   'Team Ezekiel': { bg: 'bg-purple-500/15', text: 'text-purple-400', border: 'border-purple-500/30' },
+  'Danilyn': { bg: 'bg-blue-500/15', text: 'text-blue-400', border: 'border-blue-500/30' },
+  'Huckle': { bg: 'bg-orange-500/15', text: 'text-orange-400', border: 'border-orange-500/30' },
+  'Ezekiel': { bg: 'bg-purple-500/15', text: 'text-purple-400', border: 'border-purple-500/30' },
 };
 
 function normalizeKey(name: string): string {

@@ -122,4 +122,7 @@ export const TEAM_COLORS: Record<string, string> = {
   'Team Danilyn': 'bg-blue-500/15 text-blue-400 border-blue-500/30',
   'Team Huckle': 'bg-orange-500/15 text-orange-400 border-orange-500/30',
   'Team Ezekiel': 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+  'Danilyn': 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+  'Huckle': 'bg-orange-500/15 text-orange-400 border-orange-500/30',
+  'Ezekiel': 'bg-purple-500/15 text-purple-400 border-purple-500/30',
 };
