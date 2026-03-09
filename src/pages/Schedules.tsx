@@ -216,16 +216,23 @@ export default function Schedules() {
     return map;
   }, [groupDefaultForTL]);
 
-  // Which groups each chatter is allowed in (from assignment_group_chatters)
+  // Which groups each chatter is allowed in (home group ±1 by sort_order)
   const chatterAllowedGroups = useMemo(() => {
+    const groupOrder = new Map<string, number>();
+    for (const g of groups) groupOrder.set(g.id, g.sort_order);
+
     const map = new Map<string, Set<string>>();
     for (const gc of groupChatters) {
+      const homeOrder = groupOrder.get(gc.group_id);
+      if (homeOrder == null) continue;
       let set = map.get(gc.chatter_id);
       if (!set) { set = new Set(); map.set(gc.chatter_id, set); }
-      set.add(gc.group_id);
+      for (const g of groups) {
+        if (Math.abs(g.sort_order - homeOrder) <= 1) set.add(g.id);
+      }
     }
     return map;
-  }, [groupChatters]);
+  }, [groupChatters, groups]);
 
   // Does this week have any schedule entries for the current TL?
   const weekHasScheduleData = useMemo(
