@@ -234,10 +234,13 @@ export default function ScoreEndOfWeek({ weekKey, chatters, events, eventTypes, 
         };
       });
 
+      const tierRank: Record<string, number> = { diamond: 0, platinum: 1, gold: 2, silver: 3, neutral: 4, bronze: 5 };
       result.sort((a, b) => {
         if (a.alreadyApplied !== b.alreadyApplied) return a.alreadyApplied ? 1 : -1;
         if (a.notScheduled !== b.notScheduled) return a.notScheduled ? 1 : -1;
-        if (b.totalPts !== a.totalPts) return b.totalPts - a.totalPts;
+        const tierA = tierRank[calculateStatus(a.projectedTotal, config)] ?? 9;
+        const tierB = tierRank[calculateStatus(b.projectedTotal, config)] ?? 9;
+        if (tierA !== tierB) return tierA - tierB;
         return a.chatter_name.localeCompare(b.chatter_name);
       });
 
