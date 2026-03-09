@@ -168,12 +168,14 @@ export default function ScoreEndOfWeek({ weekKey, chatters, events, eventTypes, 
         chatterKeyMap.set(c.id, normalizeKey(c.full_name));
       }
 
+      const weekHasSchedules = schedules.length > 0;
+
       // Build statuses
       const result: ChatterEOWStatus[] = chatters.map(c => {
         const scheduled = scheduledDaysMap[c.id] ?? 0;
         const reported = reportedDaysMap[c.id]?.size ?? 0;
-        const notScheduled = scheduled === 0;
-        const allReportsSent = notScheduled ? false : reported >= scheduled;
+        const notScheduled = weekHasSchedules ? scheduled === 0 : false;
+        const allReportsSent = notScheduled ? false : (weekHasSchedules ? reported >= scheduled : true);
         const negativeEventCount = negativeCountMap[c.id] ?? 0;
         const noIncidents = negativeEventCount === 0;
         const reportsPts = allReportsSent ? REPORTS_PTS : 0;
