@@ -248,12 +248,20 @@ def build_chatter_team_map():
     return mapping
 
 def sync_chatters():
-    """Sync Chatter table from Airtable, respecting ⚡Status field."""
+    """Sync Chatter table from Airtable, respecting ⚡Status field.
+    team_name is only set for NEW chatters (not yet in Supabase).
+    Existing chatters keep their Hub-assigned team_name."""
     print("📋 Syncing chatters...")
     chatter_team_map = build_chatter_team_map()
+
+    existing = fetch_supabase("chatters", select="airtable_id")
+    existing_ids = {c["airtable_id"] for c in existing}
+    print(f"  {len(existing_ids)} chatters already in Supabase")
+
     records = fetch_airtable("tblBrbCZyL5ub48zc")
     
     rows = []
+    new_count = 0
     active_count = 0
     for rec in records:
         f = rec.get("fields", {})
@@ -267,20 +275,25 @@ def sync_chatters():
         if status == "Active":
             active_count += 1
         
-        team_name = chatter_team_map.get(rec["id"])
-        
-        rows.append({
+        is_new = rec["id"] not in existing_ids
+
+        row = {
             "airtable_id": rec["id"],
             "full_name": name.strip(),
             "status": status,
             "airtable_role": role or None,
-            "team_name": team_name,
             "favorite_shift": f.get("Favorite Shift", None),
             "synced_at": datetime.now(timezone.utc).isoformat(),
-        })
+        }
+
+        if is_new:
+            row["team_name"] = chatter_team_map.get(rec["id"])
+            new_count += 1
+
+        rows.append(row)
     
     count = upsert_supabase("chatters", rows)
-    print(f"  ✅ {count} chatters synced ({active_count} active, {count - active_count} inactive)")
+    print(f"  ✅ {count} chatters synced ({active_count} active, {new_count} new, team_name preserved for existing)")
 
 def _build_client_name_map():
     """Fetch Clients table and build record_id → client name mapping."""

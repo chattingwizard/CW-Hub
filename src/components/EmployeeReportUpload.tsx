@@ -109,24 +109,29 @@ function normalizeTeamName(raw: string): string {
 async function loadTeamReferences(): Promise<Map<string, string>> {
   const map = new Map<string, string>();
 
-  // 1. localStorage overrides (always available)
-  try {
-    const stored = localStorage.getItem('cw_team_overrides');
-    if (stored) {
-      const parsed = JSON.parse(stored) as Record<string, string>;
-      for (const [k, v] of Object.entries(parsed)) {
-        if (v && v !== '_dismissed') map.set(k, v);
+  // 1. Chatters table — source of truth for team assignments
+  const { data: chatters } = await supabase
+    .from('chatters')
+    .select('full_name, team_name')
+    .eq('status', 'Active')
+    .eq('airtable_role', 'Chatter');
+  if (chatters) {
+    for (const c of chatters as { full_name: string; team_name: string | null }[]) {
+      if (c.team_name) {
+        map.set(c.full_name.toLowerCase().trim().replace(/\s+/g, ' '), c.team_name);
       }
     }
-  } catch { /* ignore */ }
+  }
 
-  // 2. Supabase overrides (merge, Supabase wins)
+  // 2. Supabase overrides (for unmatched names only)
   const { data: overrides } = await supabase
     .from('chatter_team_overrides')
     .select('employee_name, team');
   if (overrides) {
     for (const row of overrides as { employee_name: string; team: string }[]) {
-      if (row.team && row.team !== '_dismissed') map.set(row.employee_name, row.team);
+      if (row.team && row.team !== '_dismissed' && !map.has(row.employee_name)) {
+        map.set(row.employee_name, row.team);
+      }
     }
   }
 
@@ -273,14 +278,8 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
       });
       if (error) throw error;
 
-      // Save team resolutions to localStorage (+ Supabase best-effort)
+      // Save team resolutions for unmatched names to Supabase
       const refs = teamRefsRef.current;
-      const lsOverrides: Record<string, string> = {};
-      try {
-        const stored = localStorage.getItem('cw_team_overrides');
-        if (stored) Object.assign(lsOverrides, JSON.parse(stored));
-      } catch { /* ignore */ }
-
       const newOverrides: Array<{
         employee_name: string; display_name: string;
         team: string; source: string; updated_at: string;
@@ -289,7 +288,6 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
         const team = String(row.team);
         const key = String(row.employee_name).toLowerCase().trim().replace(/\s+/g, ' ');
         if (VALID_TEAMS.includes(team as typeof VALID_TEAMS[number]) && !refs?.has(key)) {
-          lsOverrides[key] = team;
           newOverrides.push({
             employee_name: key,
             display_name: String(row.employee_name),
@@ -300,9 +298,6 @@ export default function EmployeeReportUpload({ onUploadComplete }: Props) {
           refs?.set(key, team);
         }
       }
-      try {
-        localStorage.setItem('cw_team_overrides', JSON.stringify(lsOverrides));
-      } catch { /* storage full */ }
 
       if (newOverrides.length > 0) {
         supabase.from('chatter_team_overrides')

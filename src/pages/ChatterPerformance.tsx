@@ -38,30 +38,26 @@ function normalizeTeam(raw: string): string {
   return raw;
 }
 
-function resolveChatterTeam(key: string, map: Map<string, string>): string | null {
+type ChatterRecord = { id: string; team: string };
+
+function resolveChatterRecord(key: string, map: Map<string, ChatterRecord>): ChatterRecord | null {
   const exact = map.get(key);
-  if (exact !== undefined) return exact || null;
+  if (exact !== undefined) return exact;
 
   const keyParts = key.split(' ');
   const keyFirst = keyParts[0]!;
   const keyLast = keyParts[keyParts.length - 1]!;
 
-  for (const [mapName, team] of map) {
-    if (mapName.includes(key) || key.includes(mapName)) return team || null;
+  for (const [mapName, record] of map) {
+    if (mapName.includes(key) || key.includes(mapName)) return record;
     const mapParts = mapName.split(' ');
-    if (mapParts[0] === keyFirst && mapParts[mapParts.length - 1] === keyLast) return team || null;
+    if (mapParts[0] === keyFirst && mapParts[mapParts.length - 1] === keyLast) return record;
   }
   return null;
 }
 
 function isValidTeam(t: string): t is ValidTeam {
   return VALID_TEAMS.includes(t as ValidTeam);
-}
-
-function persistOverrides(map: Map<string, string>) {
-  try {
-    localStorage.setItem('cw_team_overrides', JSON.stringify(Object.fromEntries(map)));
-  } catch { /* storage full, ignore */ }
 }
 
 // ── KPI thresholds ──────────────────────────────────────────
@@ -162,7 +158,7 @@ export default function ChatterPerformance() {
   const [sortField, setSortField] = useState<SortField>('sales');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [expandedChatter, setExpandedChatter] = useState<string | null>(null);
-  const [chatterTeamMap, setChatterTeamMap] = useState<Map<string, string>>(new Map());
+  const [chatterTeamMap, setChatterTeamMap] = useState<Map<string, ChatterRecord>>(new Map());
   const [overrides, setOverrides] = useState<Map<string, string>>(new Map());
   const [lostBoxOpen, setLostBoxOpen] = useState(false);
   const [editingTeam, setEditingTeam] = useState<string | null>(null);
@@ -170,55 +166,42 @@ export default function ChatterPerformance() {
   const [weekOffset, setWeekOffset] = useState(0);
 
   // ── Load canonical chatter→team mapping from Supabase ─────
-  useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
-        .from('chatters')
-        .select('full_name, team_name')
-        .eq('status', 'Active')
-        .eq('airtable_role', 'Chatter');
-      if (error) {
-        console.warn('[ChatterPerf] chatters table query failed:', error.message);
-        return;
+  const loadChatterMap = useCallback(async () => {
+    const { data, error } = await supabase
+      .from('chatters')
+      .select('id, full_name, team_name')
+      .eq('status', 'Active')
+      .eq('airtable_role', 'Chatter');
+    if (error) {
+      console.warn('[ChatterPerf] chatters table query failed:', error.message);
+      return;
+    }
+    if (data) {
+      const map = new Map<string, ChatterRecord>();
+      let withTeam = 0;
+      for (const c of data as { id: string; full_name: string; team_name: string | null }[]) {
+        map.set(normalizeKey(c.full_name), { id: c.id, team: c.team_name ?? '' });
+        if (c.team_name) withTeam++;
       }
-      if (data) {
-        const map = new Map<string, string>();
-        let withTeam = 0;
-        for (const c of data as { full_name: string; team_name: string | null }[]) {
-          map.set(normalizeKey(c.full_name), c.team_name ?? '');
-          if (c.team_name) withTeam++;
-        }
-        console.log(`[ChatterPerf] Loaded ${map.size} chatters from DB (${withTeam} with team_name)`);
-        setChatterTeamMap(map);
-      }
-    })();
+      console.log(`[ChatterPerf] Loaded ${map.size} chatters from DB (${withTeam} with team_name)`);
+      setChatterTeamMap(map);
+    }
   }, []);
 
-  // ── Load team overrides (localStorage + Supabase fallback) ─
-  useEffect(() => {
-    // 1. Load from localStorage immediately
-    try {
-      const stored = localStorage.getItem('cw_team_overrides');
-      if (stored) {
-        const parsed = JSON.parse(stored) as Record<string, string>;
-        setOverrides(new Map(Object.entries(parsed)));
-      }
-    } catch { /* ignore */ }
+  useEffect(() => { loadChatterMap(); }, [loadChatterMap]);
 
-    // 2. Try Supabase as well (merge, Supabase wins on conflict)
+  // ── Load overrides for unmatched names (Supabase only) ─────
+  useEffect(() => {
     (async () => {
       const { data } = await supabase
         .from('chatter_team_overrides')
         .select('employee_name, team');
       if (data && data.length > 0) {
-        setOverrides(prev => {
-          const merged = new Map(prev);
-          for (const row of data as { employee_name: string; team: string }[]) {
-            merged.set(row.employee_name, row.team);
-          }
-          persistOverrides(merged);
-          return merged;
-        });
+        const map = new Map<string, string>();
+        for (const row of data as { employee_name: string; team: string }[]) {
+          map.set(row.employee_name, row.team);
+        }
+        setOverrides(map);
       }
     })();
   }, []);
@@ -243,19 +226,19 @@ export default function ChatterPerformance() {
   const resolveTeam = useCallback((s: ChatterDailyStat): string => {
     const key = normalizeKey(s.employee_name);
 
-    // 1. Manual/upload override (highest priority)
-    const override = overrides.get(key);
-    if (override === '_dismissed') return '_dismissed';
-    if (override && isValidTeam(override)) return override;
-
-    // 2. Chatters table (Airtable sync)
+    // 1. Chatters table — source of truth for team assignments
     if (chatterTeamMap.size > 0) {
-      const fromChatters = resolveChatterTeam(key, chatterTeamMap);
-      if (fromChatters) {
-        const normalized = normalizeTeam(fromChatters);
+      const record = resolveChatterRecord(key, chatterTeamMap);
+      if (record?.team) {
+        const normalized = normalizeTeam(record.team);
         if (isValidTeam(normalized)) return normalized;
       }
     }
+
+    // 2. Overrides for unmatched names (from chatter_team_overrides table)
+    const override = overrides.get(key);
+    if (override === '_dismissed') return '_dismissed';
+    if (override && isValidTeam(override)) return override;
 
     // 3. CSV group field, normalized
     const fromCsv = normalizeTeam(s.team);
@@ -315,32 +298,47 @@ export default function ChatterPerformance() {
     return { assigned: a, lost: l };
   }, [allStats, resolveTeam]);
 
-  // ── Save team override ────────────────────────────────────
+  // ── Save team assignment ─────────────────────────────────
   const saveTeamOverride = async (employeeName: string, team: ValidTeam | '_dismissed') => {
     const key = normalizeKey(employeeName);
     setSavingOverride(key);
-
-    // Update state + localStorage immediately
-    setOverrides(prev => {
-      const next = new Map(prev).set(key, team);
-      persistOverrides(next);
-      return next;
-    });
     setEditingTeam(null);
 
-    // Also persist to Supabase (best-effort, table may not exist)
-    supabase
-      .from('chatter_team_overrides')
-      .upsert({
-        employee_name: key,
-        display_name: employeeName,
-        team,
-        source: 'manual',
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'employee_name' })
-      .then(({ error }) => {
-        if (error) console.warn('[ChatterPerf] Supabase override save skipped:', error.message);
+    const record = resolveChatterRecord(key, chatterTeamMap) ?? chatterTeamMap.get(key);
+
+    if (record && team !== '_dismissed') {
+      // Matched chatter → update chatters.team_name directly
+      const { error } = await supabase.rpc('update_chatter_team', {
+        p_chatter_id: record.id,
+        p_team_name: team,
       });
+      if (error) {
+        console.warn('[ChatterPerf] Failed to update chatter team:', error.message);
+      } else {
+        setChatterTeamMap(prev => {
+          const next = new Map(prev);
+          for (const [k, v] of next) {
+            if (v.id === record.id) { next.set(k, { ...v, team }); break; }
+          }
+          return next;
+        });
+      }
+    } else {
+      // Unmatched name or dismiss → save to chatter_team_overrides
+      setOverrides(prev => new Map(prev).set(key, team));
+      supabase
+        .from('chatter_team_overrides')
+        .upsert({
+          employee_name: key,
+          display_name: employeeName,
+          team,
+          source: 'manual',
+          updated_at: new Date().toISOString(),
+        }, { onConflict: 'employee_name' })
+        .then(({ error }) => {
+          if (error) console.warn('[ChatterPerf] Override save failed:', error.message);
+        });
+    }
 
     setSavingOverride(null);
   };
