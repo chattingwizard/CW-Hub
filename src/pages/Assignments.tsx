@@ -62,7 +62,7 @@ export default function Assignments() {
     setLoading(true);
     setError(null);
     try {
-      const [modelsRes, chattersRes, groupsRes, gmRes, gcRes, overRes, schedRes] = await Promise.all([
+      const [modelsRes, chattersRes, groupsRes, gmRes, gcRes, overRes, schedRes, teamOverRes] = await Promise.all([
         supabase.from('models').select('*').order('name'),
         supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
         supabase.from('assignment_groups').select('*').eq('active', true).order('sort_order'),
@@ -70,11 +70,32 @@ export default function Assignments() {
         supabase.from('assignment_group_chatters').select('*'),
         supabase.from('assignment_group_overrides').select('*').gte('date', weekStart).lte('date', weekDates[6]!),
         supabase.from('schedules').select('*').eq('week_start', weekStart),
+        supabase.from('chatter_team_overrides').select('employee_name, team').neq('team', '_dismissed'),
       ]);
       const err = modelsRes.error || chattersRes.error || groupsRes.error || gmRes.error || gcRes.error || overRes.error || schedRes.error;
       if (err) throw new Error(err.message);
+
+      // Build team override map (normalized name → team)
+      const teamOverMap = new Map<string, string>();
+      for (const o of (teamOverRes.data ?? []) as { employee_name: string; team: string }[]) {
+        teamOverMap.set(o.employee_name, o.team);
+      }
+
+      // Enrich chatters: fill missing team_name from overrides
+      const enriched = ((chattersRes.data ?? []) as Chatter[]).map(c => {
+        if (c.team_name) return c;
+        const key = c.full_name.toLowerCase().trim().replace(/\s+/g, ' ');
+        const overrideTeam = teamOverMap.get(key);
+        if (overrideTeam) return { ...c, team_name: overrideTeam };
+        // Fuzzy: check if any override key is a substring
+        for (const [oKey, oTeam] of teamOverMap) {
+          if (key.includes(oKey) || oKey.includes(key)) return { ...c, team_name: oTeam };
+        }
+        return c;
+      });
+
       setModels((modelsRes.data ?? []) as Model[]);
-      setChatters((chattersRes.data ?? []) as Chatter[]);
+      setChatters(enriched);
       setGroups((groupsRes.data ?? []) as AssignmentGroup[]);
       setGroupModels((gmRes.data ?? []) as AssignmentGroupModel[]);
       setGroupChatters((gcRes.data ?? []) as AssignmentGroupChatter[]);
