@@ -216,6 +216,17 @@ export default function Schedules() {
     return map;
   }, [groupDefaultForTL]);
 
+  // Which groups each chatter is allowed in (from assignment_group_chatters)
+  const chatterAllowedGroups = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const gc of groupChatters) {
+      let set = map.get(gc.chatter_id);
+      if (!set) { set = new Set(); map.set(gc.chatter_id, set); }
+      set.add(gc.group_id);
+    }
+    return map;
+  }, [groupChatters]);
+
   // Does this week have any schedule entries for the current TL?
   const weekHasScheduleData = useMemo(
     () => schedules.some(s => s.shift === currentTL.shift),
@@ -253,41 +264,49 @@ export default function Schedules() {
       return { chatter: null, state: 'dayoff' };
     }
 
-    // 4. No schedule data for this week → auto-populate all 7 days
-    return { chatter: c, state: 'default' };
+    // 4. No schedule data for this week → show empty (fill manually)
+    return { chatter: null, state: 'dayoff' };
   }, [coverageMap, groupDefaultForTL, isChatterScheduled, chatterMap, chatterDefaultGroup, weekHasScheduleData]);
 
   /* ── drag & drop ────────────────────────────────────────────── */
 
   const [dragging, setDragging] = useState<string | null>(null);
+  const [draggingChatterId, setDraggingChatterId] = useState<string | null>(null);
 
   const handleDragStart = useCallback((e: React.DragEvent, chatterId: string, sourceKey: string) => {
     e.dataTransfer.setData('chatterId', chatterId);
     e.dataTransfer.setData('sourceKey', sourceKey);
     e.dataTransfer.effectAllowed = 'move';
     setDragging(sourceKey);
+    setDraggingChatterId(chatterId);
   }, []);
 
   const handleDragEnd = useCallback((e: React.DragEvent) => {
-    // If dropped outside any valid target (dropEffect is 'none'), remove from source
     if (e.dataTransfer.dropEffect === 'none' && dragging && dragging !== 'panel') {
       setCoverageMap(prev => {
         const next = new Map(prev);
-        // Set a special "cleared" marker to force the cell back to default/dayoff
         next.set(dragging, '__clear__');
         return next;
       });
       setDirty(true);
     }
     setDragging(null);
+    setDraggingChatterId(null);
     setDragOver(null);
   }, [dragging]);
 
-  const handleDragOver = useCallback((e: React.DragEvent, targetKey: string) => {
+  const handleDragOver = useCallback((e: React.DragEvent, targetKey: string, targetGroupId: string) => {
+    if (draggingChatterId) {
+      const allowed = chatterAllowedGroups.get(draggingChatterId);
+      if (allowed && !allowed.has(targetGroupId)) {
+        e.dataTransfer.dropEffect = 'none';
+        return;
+      }
+    }
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setDragOver(targetKey);
-  }, []);
+  }, [draggingChatterId, chatterAllowedGroups]);
 
   const handleDragLeave = useCallback(() => {
     setDragOver(null);
@@ -299,6 +318,10 @@ export default function Schedules() {
     const chatterId = e.dataTransfer.getData('chatterId');
     const sourceKey = e.dataTransfer.getData('sourceKey');
     if (!chatterId) return;
+
+    // Validate chatter is allowed in this group
+    const allowed = chatterAllowedGroups.get(chatterId);
+    if (allowed && !allowed.has(targetGroupId)) return;
 
     const targetKey = `${targetGroupId}-${targetDay}`;
     if (sourceKey === targetKey) return;
@@ -313,15 +336,21 @@ export default function Schedules() {
       next.set(targetKey, chatterId);
       // If source had this chatter, swap: put target's chatter in source (or clear)
       if (sourceKey && targetChatterId) {
-        next.set(sourceKey, targetChatterId);
+        // Only swap if target chatter is allowed in source group
+        const sourceGroupId = sourceKey.split('-')[0]!;
+        const targetAllowed = chatterAllowedGroups.get(targetChatterId);
+        if (!targetAllowed || targetAllowed.has(sourceGroupId)) {
+          next.set(sourceKey, targetChatterId);
+        } else {
+          next.delete(sourceKey);
+        }
       } else if (sourceKey) {
-        // Source becomes empty/default
         next.delete(sourceKey);
       }
       return next;
     });
     setDirty(true);
-  }, [getCoverChatter]);
+  }, [getCoverChatter, chatterAllowedGroups]);
 
   // Drop from bottom panel (no source cell)
   const handleDropFromPanel = useCallback((e: React.DragEvent, targetGroupId: string, targetDay: number) => {
@@ -330,6 +359,10 @@ export default function Schedules() {
     const chatterId = e.dataTransfer.getData('chatterId');
     if (!chatterId) return;
 
+    // Validate chatter is allowed in this group
+    const allowed = chatterAllowedGroups.get(chatterId);
+    if (allowed && !allowed.has(targetGroupId)) return;
+
     const targetKey = `${targetGroupId}-${targetDay}`;
     setCoverageMap(prev => {
       const next = new Map(prev);
@@ -337,7 +370,7 @@ export default function Schedules() {
       return next;
     });
     setDirty(true);
-  }, []);
+  }, [chatterAllowedGroups]);
 
   /* ── save ────────────────────────────────────────────────────── */
 
@@ -699,7 +732,7 @@ export default function Schedules() {
                             isToday && 'bg-cw/5',
                             isDragTarget && 'bg-cw/10 ring-1 ring-inset ring-cw/30',
                           )}
-                          onDragOver={(e) => handleDragOver(e, cellKey)}
+                          onDragOver={(e) => handleDragOver(e, cellKey, group.id)}
                           onDragLeave={handleDragLeave}
                           onDrop={(e) => handleDrop(e, group.id, dayIdx)}
                         >
