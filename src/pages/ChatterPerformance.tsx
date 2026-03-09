@@ -93,7 +93,7 @@ function getMondayUTC(offset = 0): string {
 function formatWeekRange(monday: string): string {
   const mon = new Date(monday + 'T00:00:00Z');
   const sun = new Date(mon.getTime() + 6 * 86400000);
-  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
   return `${fmt(mon)} – ${fmt(sun)}`;
 }
 
