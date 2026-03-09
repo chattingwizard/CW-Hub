@@ -34,34 +34,33 @@ export function parseWeekKey(weekKey: string): { year: number; week: number } {
 
 export function weekKeyToMonday(weekKey: string): Date {
   const { year, week } = parseWeekKey(weekKey);
-  const jan4 = new Date(year, 0, 4);
-  const dayOfWeek = jan4.getDay() || 7;
-  const monday = new Date(jan4);
-  monday.setDate(jan4.getDate() - dayOfWeek + 1 + (week - 1) * 7);
-  return monday;
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const dayOfWeek = jan4.getUTCDay() || 7;
+  jan4.setUTCDate(4 - dayOfWeek + 1 + (week - 1) * 7);
+  return jan4;
 }
 
 export function getWeekLabel(weekKey: string): string {
   const { week } = parseWeekKey(weekKey);
   const monday = weekKeyToMonday(weekKey);
   const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
+  sunday.setUTCDate(monday.getUTCDate() + 6);
 
   const fmt = (d: Date) =>
-    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
 
-  return `Week ${week} · ${fmt(monday)} – ${fmt(sunday)}, ${sunday.getFullYear()}`;
+  return `Week ${week} · ${fmt(monday)} – ${fmt(sunday)}, ${sunday.getUTCFullYear()}`;
 }
 
 export function getPreviousWeekKey(weekKey: string): string {
   const monday = weekKeyToMonday(weekKey);
-  monday.setDate(monday.getDate() - 7);
+  monday.setUTCDate(monday.getUTCDate() - 7);
   return getWeekKey(monday);
 }
 
 export function getNextWeekKey(weekKey: string): string {
   const monday = weekKeyToMonday(weekKey);
-  monday.setDate(monday.getDate() + 7);
+  monday.setUTCDate(monday.getUTCDate() + 7);
   return getWeekKey(monday);
 }
 

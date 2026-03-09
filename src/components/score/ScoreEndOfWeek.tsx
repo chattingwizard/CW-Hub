@@ -71,10 +71,10 @@ export default function ScoreEndOfWeek({ weekKey, chatters, events, eventTypes, 
       const monday = weekKeyToMonday(weekKey);
       const weekStart = monday.toISOString().slice(0, 10);
       const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
+      sunday.setUTCDate(monday.getUTCDate() + 6);
       const weekEnd = sunday.toISOString().slice(0, 10);
 
-      const [schedulesRes, reportsRes, kpiRes] = await Promise.all([
+      const [schedulesRes, reportsRes, kpiRes, alertsRes] = await Promise.all([
         supabase
           .from('schedules')
           .select('chatter_id, day_of_week')
@@ -89,11 +89,17 @@ export default function ScoreEndOfWeek({ weekKey, chatters, events, eventTypes, 
           .select('employee_name, golden_ratio, unlock_rate, fan_cvr, response_time_clocked, messages_sent, ppvs_sent, ppvs_unlocked, fans_chatted, fans_who_spent')
           .gte('date', weekStart)
           .lte('date', weekEnd),
+        supabase
+          .from('shift_report_alerts')
+          .select('chatter_id, date')
+          .gte('date', weekStart)
+          .lte('date', weekEnd),
       ]);
 
       const schedules = schedulesRes.data ?? [];
       const shiftReports = reportsRes.data ?? [];
       const kpiRows = (kpiRes.data ?? []) as ChatterDailyStat[];
+      const dismissedAlerts = alertsRes.data ?? [];
 
       // Schedules per chatter
       const scheduledDaysMap: Record<string, number> = {};
@@ -101,11 +107,15 @@ export default function ScoreEndOfWeek({ weekKey, chatters, events, eventTypes, 
         scheduledDaysMap[s.chatter_id] = (scheduledDaysMap[s.chatter_id] ?? 0) + 1;
       }
 
-      // Shift reports per chatter (unique dates)
+      // Shift reports + dismissed alerts per chatter (unique dates count as covered)
       const reportedDaysMap: Record<string, Set<string>> = {};
       for (const r of shiftReports) {
         if (!reportedDaysMap[r.chatter_id]) reportedDaysMap[r.chatter_id] = new Set();
         reportedDaysMap[r.chatter_id]!.add(r.date as string);
+      }
+      for (const a of dismissedAlerts) {
+        if (!reportedDaysMap[a.chatter_id]) reportedDaysMap[a.chatter_id] = new Set();
+        reportedDaysMap[a.chatter_id]!.add(a.date as string);
       }
 
       // Negative events per chatter
@@ -238,7 +248,7 @@ export default function ScoreEndOfWeek({ weekKey, chatters, events, eventTypes, 
       const eventTypeId = await ensureEventType();
       const monday = weekKeyToMonday(weekKey);
       const sunday = new Date(monday);
-      sunday.setDate(monday.getDate() + 6);
+      sunday.setUTCDate(monday.getUTCDate() + 6);
       const date = sunday.toISOString().slice(0, 10);
 
       const toInsert = statuses
