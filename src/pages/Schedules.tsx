@@ -156,8 +156,15 @@ export default function Schedules() {
     for (const [id, shift] of shiftRef) {
       if (!map.has(id)) map.set(id, shift);
     }
+    // 3. Fallback: infer shift from team_name for chatters with no schedule history
+    for (const c of chatters) {
+      if (map.has(c.id)) continue;
+      const tn = c.team_name?.toLowerCase() ?? '';
+      const tl = TL_CONFIG.find(t => tn.includes(t.key));
+      if (tl) map.set(c.id, tl.shift);
+    }
     return map;
-  }, [schedules, shiftRef]);
+  }, [schedules, shiftRef, chatters]);
 
   const chatterMap = useMemo(() => {
     const m = new Map<string, Chatter>();
