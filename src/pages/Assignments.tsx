@@ -629,17 +629,22 @@ function CompactGroupsView({
                     </div>
                   )}
 
-                  {gChatters.map((chatter) => (
-                    <div
-                      key={chatter.id}
-                      draggable
-                      onDragStart={(e) => handleDragStart(e, chatter.id, group.id, 'chatter')}
-                      className="w-full flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-surface-2/80 text-text-secondary border border-border/40 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
-                    >
-                      <GripVertical size={8} className="shrink-0 opacity-30" />
-                      <span className="truncate">{chatter.full_name}</span>
-                    </div>
-                  ))}
+                  {gChatters.map((chatter) => {
+                    const tc = TEAM_COLORS[chatter.team_name ?? ''] ?? '';
+                    return (
+                      <div
+                        key={chatter.id}
+                        draggable
+                        onDragStart={(e) => handleDragStart(e, chatter.id, group.id, 'chatter')}
+                        className={`w-full flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium border cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity ${
+                          tc || 'bg-surface-2/80 text-text-secondary border-border/40'
+                        }`}
+                      >
+                        <GripVertical size={8} className="shrink-0 opacity-30" />
+                        <span className="truncate">{chatter.full_name}</span>
+                      </div>
+                    );
+                  })}
 
                   {gModels.length === 0 && gChatters.length === 0 && (
                     <p className="text-[9px] text-text-muted text-center py-6 italic">Empty</p>
