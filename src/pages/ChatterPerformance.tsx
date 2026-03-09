@@ -55,6 +55,9 @@ function resolveChatterRecord(key: string, map: Map<string, ChatterRecord>): Cha
     if (mapName.includes(key) || key.includes(mapName)) return record;
     const mapParts = mapName.split(' ');
     if (mapParts[0] === keyFirst && mapParts[mapParts.length - 1] === keyLast) return record;
+    // All words from the shorter name appear in the longer name
+    const [shorter, longer] = keyParts.length <= mapParts.length ? [keyParts, mapParts] : [mapParts, keyParts];
+    if (shorter.length >= 2 && shorter.every(w => longer.includes(w))) return record;
   }
   return null;
 }
