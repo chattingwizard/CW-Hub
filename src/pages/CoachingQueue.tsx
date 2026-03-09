@@ -35,12 +35,11 @@ const KPI_FORMATS: Record<string, (v: number | string) => string> = {
 
 function getWeekRange(): string {
   const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - ((day + 6) % 7));
+  const day = now.getUTCDay();
+  const monday = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - ((day + 6) % 7)));
   const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  sunday.setUTCDate(monday.getUTCDate() + 6);
+  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
   return `${fmt(monday)} – ${fmt(sunday)}`;
 }
 
@@ -552,7 +551,7 @@ export default function CoachingQueue() {
                     {isDone && (
                       <div className="flex items-center justify-between">
                         <span className="text-xs text-success flex items-center gap-1">
-                          <CheckCircle2 size={12} /> Completed {task.completed_at ? new Date(task.completed_at).toLocaleTimeString() : ''}
+                          <CheckCircle2 size={12} /> Completed {task.completed_at ? new Date(task.completed_at).toLocaleTimeString('en-US', { timeZone: 'UTC' }) : ''}
                         </span>
                         <button
                           onClick={() => handleUndo(task.id)}

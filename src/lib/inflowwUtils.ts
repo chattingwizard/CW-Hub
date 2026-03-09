@@ -887,10 +887,10 @@ function getExportTitle(range: { from: string; to: string } | null): string {
     const inclEnd = addDays(range.to, -1);
     name += ' ' + fmtD(range.from) + ' - ' + fmtD(inclEnd);
   } else {
-    name += ' ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    name += ' ' + new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
   }
 
-  const today = new Date().toLocaleDateString();
+  const today = new Date().toLocaleDateString('en-US', { timeZone: 'UTC' });
   const lastDate = localStorage.getItem(EXPORT_DATE_KEY);
   let ver = parseInt(localStorage.getItem(EXPORT_VER_KEY) || '0', 10);
   if (lastDate === today) {

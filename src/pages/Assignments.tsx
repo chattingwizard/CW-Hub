@@ -1213,10 +1213,10 @@ function WeeklyTab({
   };
 
   const formatWeekLabel = (ws: string) => {
-    const d = new Date(ws + 'T00:00:00');
+    const d = new Date(ws + 'T00:00:00Z');
     const end = new Date(d);
-    end.setDate(d.getDate() + 6);
-    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    end.setUTCDate(d.getUTCDate() + 6);
+    const opts: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', timeZone: 'UTC' };
     return `${d.toLocaleDateString('en-US', opts)} – ${end.toLocaleDateString('en-US', opts)}`;
   };
 

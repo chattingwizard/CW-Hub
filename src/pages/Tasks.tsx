@@ -445,7 +445,7 @@ export default function Tasks() {
             {task.due_date && (
               <span className={`text-xs flex items-center gap-1 ${overdue ? 'text-red-400' : dueSoon ? 'text-yellow-400' : 'text-text-muted'}`}>
                 <Calendar size={11} />
-                {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                {new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
               </span>
             )}
           </div>
@@ -527,7 +527,7 @@ export default function Tasks() {
                   <td className="py-3"><span className={`text-xs px-2 py-0.5 rounded-full ${cc.color}`}>{cc.label}</span></td>
                   <td className="py-3 text-text-secondary">{(task.assignee as any)?.full_name || '—'}</td>
                   <td className={`py-3 text-xs ${overdue ? 'text-red-400' : 'text-text-muted'}`}>
-                    {task.due_date ? new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
+                    {task.due_date ? new Date(task.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }) : '—'}
                   </td>
                   <td className="py-3 pr-3 text-xs text-text-muted">{timeAgo(task.created_at)} ago</td>
                 </tr>

@@ -542,7 +542,7 @@ export default function HubstaffIssues() {
 
                       {/* Date */}
                       <span className="text-[11px] text-text-muted shrink-0">
-                        {new Date(issue.created_at).toLocaleDateString()}
+                        {new Date(issue.created_at).toLocaleDateString('en-US', { timeZone: 'UTC' })}
                       </span>
 
                       {isExpanded ? (
@@ -559,7 +559,7 @@ export default function HubstaffIssues() {
                           <div>
                             <span className="text-[10px] font-bold text-text-muted uppercase">Date</span>
                             <p className="text-sm text-text-primary">
-                              {new Date(issue.incident_date + 'T00:00:00').toLocaleDateString()}
+                              {new Date(issue.incident_date + 'T00:00:00Z').toLocaleDateString('en-US', { timeZone: 'UTC' })}
                             </p>
                           </div>
                           <div>
@@ -575,7 +575,7 @@ export default function HubstaffIssues() {
                           <div>
                             <span className="text-[10px] font-bold text-text-muted uppercase">Reported</span>
                             <p className="text-sm text-text-primary">
-                              {new Date(issue.created_at).toLocaleString()}
+                              {new Date(issue.created_at).toLocaleString('en-US', { timeZone: 'UTC' })}
                             </p>
                           </div>
                         </div>
@@ -620,7 +620,7 @@ export default function HubstaffIssues() {
                             </p>
                             {issue.resolved_at && (
                               <p className="text-[11px] text-text-muted mt-1">
-                                Resolved {new Date(issue.resolved_at).toLocaleString()}
+                                Resolved {new Date(issue.resolved_at).toLocaleString('en-US', { timeZone: 'UTC' })}
                               </p>
                             )}
                           </div>

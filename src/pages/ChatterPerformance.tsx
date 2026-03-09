@@ -518,10 +518,11 @@ export default function ChatterPerformance() {
             >
               {dates.map((d) => (
                 <option key={d} value={d}>
-                  {new Date(d + 'T00:00:00').toLocaleDateString('en-US', {
+                  {new Date(d + 'T00:00:00Z').toLocaleDateString('en-US', {
                     weekday: 'short',
                     month: 'short',
                     day: 'numeric',
+                    timeZone: 'UTC',
                   })}
                 </option>
               ))}

@@ -138,7 +138,7 @@ export default function Overview() {
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold text-text-primary">Overview</h1>
         <p className="text-sm text-text-secondary mt-1">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
           <span className="text-text-muted ml-2">·</span>
           <span className="text-cw ml-2 font-semibold">{getTLForShift(getCurrentShift())?.tl || 'Night'} shift active</span>
         </p>

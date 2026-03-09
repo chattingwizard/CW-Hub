@@ -60,9 +60,9 @@ function formatFieldName(name: string): string {
 }
 
 function formatDate(val: string): string {
-  const d = new Date(val + 'T00:00:00');
+  const d = new Date(val + 'T00:00:00Z');
   if (isNaN(d.getTime())) return val;
-  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
 const DATE_FIELDS = new Set(['Birthday', 'Start Date']);
@@ -770,7 +770,7 @@ export default function ModelProfile() {
 
       {/* Last synced */}
       <p className="text-[10px] text-text-muted text-center pb-4">
-        Last synced: {model.synced_at ? new Date(model.synced_at).toLocaleString() : 'Unknown'}
+        Last synced: {model.synced_at ? new Date(model.synced_at).toLocaleString('en-US', { timeZone: 'UTC' }) : 'Unknown'}
       </p>
     </div>
   );

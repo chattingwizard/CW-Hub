@@ -229,7 +229,7 @@ export default function UploadCenter() {
 
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
   };
 
   const formatTimeAgo = (dateStr: string) => {
@@ -341,7 +341,7 @@ export default function UploadCenter() {
                   <td className="px-4 py-2.5">
                     <span
                       className="text-text-muted text-xs"
-                      title={new Date(u.uploaded_at).toLocaleString()}
+                      title={new Date(u.uploaded_at).toLocaleString('en-US', { timeZone: 'UTC' })}
                     >
                       {formatTimeAgo(u.uploaded_at)}
                     </span>

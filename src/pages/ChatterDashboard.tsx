@@ -151,7 +151,7 @@ export default function ChatterDashboard() {
       <div className="mb-6">
         <h1 className="text-2xl font-extrabold text-text-primary">Hey {firstName}!</h1>
         <p className="text-text-secondary text-sm mt-1">
-          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric', timeZone: 'UTC' })}
           {myChatter.team_name && (
             <span className="text-cw"> &middot; {myChatter.team_name}</span>
           )}

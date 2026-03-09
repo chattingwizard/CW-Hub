@@ -68,7 +68,7 @@ export function AnnouncementBanner() {
                 </div>
                 <p className="text-xs text-text-secondary mt-0.5">{a.message}</p>
                 <p className="text-[10px] text-text-muted mt-1">
-                  {a.author?.full_name} · {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  {a.author?.full_name} · {new Date(a.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' })}
                 </p>
               </div>
               {!a.pinned && (

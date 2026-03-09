@@ -498,8 +498,8 @@ function ReportsTab({ chatters }: { chatters: Chatter[] }) {
             const chatter = report.chatter || chatterMap[report.chatter_id];
             const expanded = expandedId === report.id;
             const trafficCfg = TRAFFIC_CONFIG[report.traffic_level];
-            const dateStr = new Date(report.date + 'T00:00:00').toLocaleDateString('en-US', {
-              weekday: 'short', month: 'short', day: 'numeric',
+            const dateStr = new Date(report.date + 'T00:00:00Z').toLocaleDateString('en-US', {
+              weekday: 'short', month: 'short', day: 'numeric', timeZone: 'UTC',
             });
 
             return (
@@ -1057,8 +1057,8 @@ function DatePicker({ value, onChange }: { value: string; onChange: (v: string) 
   const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
   const daysInPrevMonth = new Date(viewYear, viewMonth, 0).getDate();
 
-  const monthLabel = new Date(viewYear, viewMonth).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-  const displayLabel = selected.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  const monthLabel = new Date(Date.UTC(viewYear, viewMonth)).toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const displayLabel = selected.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 
   const isToday = value === todayStr;
 
