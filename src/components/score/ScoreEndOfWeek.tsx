@@ -55,6 +55,24 @@ function normalizeKey(name: string): string {
   return name.toLowerCase().trim().replace(/\s+/g, ' ');
 }
 
+function fuzzyMatchKPI<T>(nameKey: string, map: Map<string, T>): T | undefined {
+  const exact = map.get(nameKey);
+  if (exact !== undefined) return exact;
+
+  const keyParts = nameKey.split(' ');
+  const keyFirst = keyParts[0]!;
+  const keyLast = keyParts[keyParts.length - 1]!;
+
+  for (const [mapName, value] of map) {
+    if (mapName.includes(nameKey) || nameKey.includes(mapName)) return value;
+    const mapParts = mapName.split(' ');
+    if (mapParts[0] === keyFirst && mapParts[mapParts.length - 1] === keyLast) return value;
+    const [shorter, longer] = keyParts.length <= mapParts.length ? [keyParts, mapParts] : [mapParts, keyParts];
+    if (shorter.length >= 2 && shorter.every(w => longer.includes(w))) return value;
+  }
+  return undefined;
+}
+
 export default function ScoreEndOfWeek({ weekKey, chatters, events, eventTypes, scores, config, onDataChange }: Props) {
   const { profile } = useAuthStore();
   const [statuses, setStatuses] = useState<ChatterEOWStatus[]>([]);
@@ -181,9 +199,9 @@ export default function ScoreEndOfWeek({ weekKey, chatters, events, eventTypes, 
         const reportsPts = allReportsSent ? REPORTS_PTS : 0;
         const incidentPts = noIncidents ? NO_INCIDENTS_PTS : 0;
 
-        // KPI data
+        // KPI data (fuzzy match employee_name → chatter full_name)
         const nameKey = chatterKeyMap.get(c.id) ?? '';
-        const kpi = kpiMap.get(nameKey);
+        const kpi = fuzzyMatchKPI(nameKey, kpiMap);
         const hasKPIData = !!kpi && kpi.totalMsgs > 0;
 
         let goldenRatio = NaN, fanCvr = NaN, unlockRate = NaN, replyTimeSec = NaN;
