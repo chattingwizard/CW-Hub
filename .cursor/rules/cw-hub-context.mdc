@@ -136,6 +136,41 @@ Hub shows: "⚠️ Ana — ABSENT (should have started 15min ago)"
 - Simple for non-technical users (big text, clear icons)
 - Modular architecture for easy expansion
 
+## Email Infrastructure (Current Status)
+
+**Status:** Using Supabase built-in mailer (temporary). Custom SMTP via Resend is configured but DISABLED because the domain DKIM is broken.
+
+**Current limits:** 2 auth emails/hour (entire project), 15s between emails per user.
+
+**Root cause:** The DKIM TXT record at Hostinger DNS (`resend._domainkey.chattingwizard.com`) has an OLD key that doesn't match Resend's expected value. Until this is fixed, Resend rejects all emails from `noreply@chattingwizard.com`.
+
+**How to fix (requires Hostinger access):**
+1. Log into Hostinger DNS management for `chattingwizard.com`
+2. Find the TXT record named `resend._domainkey`
+3. Replace its value with: `p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDPfQGNpmfno809+xsOgWVFNPq/yGVYtq8zHJ2uVBX/YaEEqsaIBwGPLK+xAQh2MtM76L5wLLdWtyzzOZn5QaPGsrg+H4glvLvwyq5LIXRMCo13VgmIAxo1HbGajCj9MlgPFjIqgAuGT14/IVLYK0+scxQiE9Fh+HZHo3qujHZsRQIDAQAB`
+4. Wait 5-10 minutes for DNS propagation
+
+**After DNS is fixed, run this to re-enable Custom SMTP (Cursor agent can do it automatically):**
+```
+1. Trigger Resend domain re-verification: POST https://api.resend.com/domains/{id}/verify
+2. Confirm domain status is "verified" in Resend
+3. Use Supabase Management API (SUPABASE_ACCESS_TOKEN in GitHub secrets) to PATCH /v1/projects/{ref}/config/auth with:
+   - smtp_host: smtp.resend.com
+   - smtp_port: 465
+   - smtp_user: resend
+   - smtp_pass: (Resend API key from secrets or Resend dashboard)
+   - smtp_admin_email: noreply@chattingwizard.com
+   - smtp_sender_name: CW Hub
+   - rate_limit_email_sent: 30
+   - smtp_max_frequency: 15
+4. Test with /auth/v1/recover using the service key to verify 200 (not 500)
+```
+
+**Available API tokens (stored in GitHub secrets):**
+- `SUPABASE_ACCESS_TOKEN` — Supabase Management API (personal access token)
+- `SUPABASE_SERVICE_KEY` — Supabase service role key (admin operations)
+- Resend API key — obtain from Resend dashboard or ask Pau
+
 ## Future Plans
 - Migrate to Cloudflare Pages (private repo + Cloudflare Access)
 - Absorb Script Manager as native React pages (Phase 3)
@@ -145,3 +180,4 @@ Hub shows: "⚠️ Ana — ABSENT (should have started 15min ago)"
 - **CW Tracker integration:** Merge Tracker into Hub as microservice + shared DB (waiting for Santi coordination)
 - **Slack replacement:** In-app notifications, announcements feed, automated alerts (phased)
 - **Real-time features:** Socket.io client for live chatter status, alerts, coaching notifications
+- **Email system upgrade:** Fix DKIM at Hostinger → re-verify Resend domain → re-enable Custom SMTP (30+ emails/hour). Long-term: migrate DNS to Cloudflare for programmatic control.
