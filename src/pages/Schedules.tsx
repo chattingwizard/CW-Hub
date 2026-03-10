@@ -168,16 +168,16 @@ export default function Schedules() {
     for (const s of schedules) {
       if (!map.has(s.chatter_id)) map.set(s.chatter_id, s.shift);
     }
-    // 2. Canonical reference from any week
-    for (const [id, shift] of shiftRef) {
-      if (!map.has(id)) map.set(id, shift);
-    }
-    // 3. Fallback: infer shift from team_name for chatters with no schedule history
+    // 2. team_name → TL shift (reflects current team assignment)
     for (const c of chatters) {
       if (map.has(c.id)) continue;
       const tn = c.team_name?.toLowerCase() ?? '';
       const tl = TL_CONFIG.find(t => tn.includes(t.key));
       if (tl) map.set(c.id, tl.shift);
+    }
+    // 3. Historical schedule reference (fallback for chatters without a team)
+    for (const [id, shift] of shiftRef) {
+      if (!map.has(id)) map.set(id, shift);
     }
     return map;
   }, [schedules, shiftRef, chatters]);
