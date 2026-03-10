@@ -460,7 +460,8 @@ export default function Schedules() {
       const weekEndDate = new Date(weekStart + 'T00:00:00Z');
       weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
       const weekEndStr = weekEndDate.toISOString().split('T')[0]!;
-      await supabase.from('assignment_group_overrides').delete().gte('date', weekStart).lte('date', weekEndStr);
+      const { error: delError } = await supabase.from('assignment_group_overrides').delete().gte('date', weekStart).lte('date', weekEndStr);
+      if (delError) throw delError;
 
       if (coverageMap.size > 0) {
         const overrideRows: { group_id: string; chatter_id: string; date: string; assigned_by: string | undefined }[] = [];
@@ -484,13 +485,15 @@ export default function Schedules() {
         }
       }
 
-      setSaveMsg('Saved!');
+      const savedOverrides = coverageMap.size;
+      setSaveMsg(`Saved! (${rows.length} schedules, ${savedOverrides} overrides)`);
       setDirty(false);
-      setTimeout(() => setSaveMsg(''), 2000);
+      setTimeout(() => setSaveMsg(''), 4000);
       fetchData();
     } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? String(err);
       console.error('Schedule save failed:', err);
-      setSaveMsg('Error: Could not save schedules. Please try again.');
+      setSaveMsg(`Error: ${msg}`);
     } finally {
       setSaving(false);
     }
