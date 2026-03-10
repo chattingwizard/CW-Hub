@@ -370,7 +370,7 @@ export default function Schedules() {
       // If source had this chatter, swap: put target's chatter in source (or clear)
       if (sourceKey && targetChatterId) {
         // Only swap if target chatter is allowed in source group
-        const sourceGroupId = sourceKey.split('-')[0]!;
+        const sourceGroupId = sourceKey.slice(0, sourceKey.lastIndexOf('-'));
         const targetAllowed = chatterAllowedGroups.get(targetChatterId);
         if (!targetAllowed || targetAllowed.has(sourceGroupId)) {
           next.set(sourceKey, targetChatterId);
@@ -467,7 +467,9 @@ export default function Schedules() {
         const overrideRows: { group_id: string; chatter_id: string; date: string; assigned_by: string | undefined }[] = [];
         for (const [key, chatterId] of coverageMap) {
           if (chatterId === '__clear__') continue;
-          const [groupId, dayIdxStr] = key.split('-');
+          const lastDash = key.lastIndexOf('-');
+          const groupId = key.slice(0, lastDash);
+          const dayIdxStr = key.slice(lastDash + 1);
           if (!groupId || !dayIdxStr) continue;
           const dayIdx = parseInt(dayIdxStr, 10);
           const date = weekDates[dayIdx];
