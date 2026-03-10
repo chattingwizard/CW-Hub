@@ -456,10 +456,16 @@ export default function Schedules() {
       });
       if (schedError) throw schedError;
 
-      // Save overrides
+      // Save overrides — delete existing for this week, then insert new ones
+      const weekEndDate = new Date(weekStart + 'T00:00:00Z');
+      weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
+      const weekEndStr = weekEndDate.toISOString().split('T')[0]!;
+      await supabase.from('assignment_group_overrides').delete().gte('date', weekStart).lte('date', weekEndStr);
+
       if (coverageMap.size > 0) {
-        const overrideRows: { group_id: string; chatter_id: string; date: string; created_by: string | undefined }[] = [];
+        const overrideRows: { group_id: string; chatter_id: string; date: string; assigned_by: string | undefined }[] = [];
         for (const [key, chatterId] of coverageMap) {
+          if (chatterId === '__clear__') continue;
           const [groupId, dayIdxStr] = key.split('-');
           if (!groupId || !dayIdxStr) continue;
           const dayIdx = parseInt(dayIdxStr, 10);
@@ -469,14 +475,12 @@ export default function Schedules() {
             group_id: groupId,
             chatter_id: chatterId,
             date: date.toISOString().split('T')[0]!,
-            created_by: profile?.id,
+            assigned_by: profile?.id,
           });
         }
         if (overrideRows.length > 0) {
-          for (const row of overrideRows) {
-            await supabase.from('assignment_group_overrides')
-              .upsert(row, { onConflict: 'chatter_id,date' });
-          }
+          const { error: overrideError } = await supabase.from('assignment_group_overrides').insert(overrideRows);
+          if (overrideError) throw overrideError;
         }
       }
 
