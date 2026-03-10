@@ -29,12 +29,13 @@ const TOTAL_ROUNDS = 7;
 
 // ── Helpers ──────────────────────────────────────────────────
 
-function getTLKey(teamName: string | null): string | null {
-  if (!teamName) return null;
-  const lower = teamName.toLowerCase();
-  if (lower.includes('huckle')) return 'huckle';
-  if (lower.includes('danilyn')) return 'danilyn';
-  if (lower.includes('ezekiel')) return 'ezekiel';
+function getTLKey(teamName: string | null, fullName?: string | null): string | null {
+  const candidates = [teamName, fullName].filter(Boolean).map(s => s!.toLowerCase());
+  for (const val of candidates) {
+    if (val.includes('huckle')) return 'huckle';
+    if (val.includes('danilyn')) return 'danilyn';
+    if (val.includes('ezekiel')) return 'ezekiel';
+  }
   return null;
 }
 
@@ -139,7 +140,7 @@ export default function AuditRounds() {
 
 function TLView() {
   const { profile } = useAuthStore();
-  const tlKey = getTLKey(profile?.team_name ?? null);
+  const tlKey = getTLKey(profile?.team_name ?? null, profile?.full_name);
   const meta = tlKey ? TL_META[tlKey] : undefined;
   const shiftDate = tlKey ? getShiftDate(tlKey) : '';
 
