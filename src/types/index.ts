@@ -650,3 +650,27 @@ export interface ChatterWeeklyScore {
   events: ScoreEvent[];
   weekly_report: ScoreWeeklyReport | null;
 }
+
+// ── Audit Rounds ────────────────────────────────────────────
+
+export interface AuditRound {
+  id: number;
+  tl_user_id: string;
+  tl_name: string;
+  shift_date: string;
+  round_number: number;
+  started_at: string;
+  completed_at: string | null;
+  chatters_reviewed: number;
+  issues_found: number;
+  created_at: string;
+}
+
+export interface AuditFlag {
+  id: number;
+  round_id: number;
+  chatter_name: string;
+  model_account: string | null;
+  notes: string;
+  created_at: string;
+}

@@ -79,6 +79,15 @@ export const modules: HubModule[] = [
     roles: ['owner', 'admin', 'team_leader'],
     section: 'main',
   },
+  {
+    id: 'audit-rounds',
+    name: 'Audit Rounds',
+    icon: 'ClipboardCheck',
+    type: 'internal',
+    path: '/audit-rounds',
+    roles: ['owner', 'admin', 'team_leader'],
+    section: 'main',
+  },
 
   {
     id: 'tasks',
