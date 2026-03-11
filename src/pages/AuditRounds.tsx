@@ -143,9 +143,13 @@ export default function AuditRounds() {
 
 function TLView() {
   const { profile } = useAuthStore();
-  const tlKey = getTLKey(profile?.team_name ?? null, profile?.full_name);
+  const ownTLKey = getTLKey(profile?.team_name ?? null, profile?.full_name);
+  const [coveringTL, setCoveringTL] = useState<string | null>(null);
+
+  const tlKey = coveringTL ?? ownTLKey;
   const meta = tlKey ? TL_META[tlKey] : undefined;
   const shiftDate = tlKey ? getShiftDate(tlKey) : '';
+  const isCovering = coveringTL !== null;
 
   const [chatters, setChatters] = useState<Chatter[]>([]);
   const [rounds, setRounds] = useState<AuditRound[]>([]);
@@ -203,7 +207,7 @@ function TLView() {
     } finally {
       setLoading(false);
     }
-  }, [tlKey, meta, shiftDate]);
+  }, [tlKey, meta, shiftDate, coveringTL]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -369,10 +373,18 @@ function TLView() {
     }
   };
 
-  if (!tlKey || !meta) {
+  if (!ownTLKey) {
     return (
       <div className="p-4 lg:p-6 max-w-5xl mx-auto">
         <ErrorState message="Your profile is not linked to a TL team. Contact admin." />
+      </div>
+    );
+  }
+
+  if (!tlKey || !meta) {
+    return (
+      <div className="p-4 lg:p-6 max-w-5xl mx-auto">
+        <ErrorState message="Could not determine shift info." />
       </div>
     );
   }
@@ -388,15 +400,48 @@ function TLView() {
   return (
     <div className="p-4 lg:p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-cw/10 flex items-center justify-center">
-          <ClipboardCheck size={20} className="text-cw" />
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-cw/10 flex items-center justify-center">
+            <ClipboardCheck size={20} className="text-cw" />
+          </div>
+          <div>
+            <h1 className="text-xl font-bold text-text-primary">Audit Rounds</h1>
+            <p className="text-sm text-text-secondary">
+              {meta.teamName} — Chatter shift {meta.shiftLabel}
+              {isCovering && <span className="text-amber-400 ml-1">(covering)</span>}
+            </p>
+          </div>
         </div>
-        <div>
-          <h1 className="text-xl font-bold text-text-primary">Audit Rounds</h1>
-          <p className="text-sm text-text-secondary">
-            {meta.teamName} — Chatter shift {meta.shiftLabel}
-          </p>
+
+        {/* Shift selector */}
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => { setCoveringTL(null); setLoading(true); }}
+            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              !isCovering
+                ? 'bg-cw/15 text-cw border border-cw/30'
+                : 'bg-surface-2 text-text-secondary hover:text-text-primary border border-transparent'
+            }`}
+          >
+            My shift
+          </button>
+          {TL_KEYS.filter(k => k !== ownTLKey).map(k => {
+            const m = TL_META[k]!;
+            return (
+              <button
+                key={k}
+                onClick={() => { setCoveringTL(k); setLoading(true); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  coveringTL === k
+                    ? `${k === 'huckle' ? 'bg-orange-500/15 text-orange-400 border border-orange-500/30' : k === 'danilyn' ? 'bg-blue-500/15 text-blue-400 border border-blue-500/30' : 'bg-purple-500/15 text-purple-400 border border-purple-500/30'}`
+                    : 'bg-surface-2 text-text-secondary hover:text-text-primary border border-transparent'
+                }`}
+              >
+                Cover {m.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
