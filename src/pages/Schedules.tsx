@@ -633,7 +633,7 @@ export default function Schedules() {
           return (
             <button
               key={tl.key}
-              onClick={() => { setActiveTL(tl.key); setCoverageMap(new Map()); }}
+              onClick={() => { setActiveTL(tl.key); }}
               className={cn(
                 'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all border',
                 isActive
