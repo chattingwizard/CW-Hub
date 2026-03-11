@@ -2,11 +2,11 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../stores/authStore';
 import { isAdminLevel, TL_SHIFTS } from '../lib/roles';
-import type { AuditRound, AuditFlag, Chatter } from '../types';
+import type { AuditRound, AuditFlag, Chatter, VoiceCheck } from '../types';
 import {
   ClipboardCheck, Check, Flag, ChevronLeft, ChevronRight,
   Loader2, CheckCircle2, Circle, AlertCircle, CalendarDays, X,
-  Upload, Image as ImageIcon, Info, Trash2, ExternalLink,
+  Upload, Image as ImageIcon, Info, Trash2, ExternalLink, Phone,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 
@@ -176,6 +176,7 @@ function TLView() {
   const [otherIssuesNotes, setOtherIssuesNotes] = useState('');
   const [screenshots, setScreenshots] = useState<File[]>([]);
   const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
+  const [voiceChecks, setVoiceChecks] = useState<VoiceCheck[]>([]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 60_000);
@@ -238,6 +239,7 @@ function TLView() {
     screenshotPreviews.forEach(url => URL.revokeObjectURL(url));
     setScreenshots([]);
     setScreenshotPreviews([]);
+    setVoiceChecks([]);
   };
 
   const startRound = (roundNum: number) => {
@@ -246,6 +248,10 @@ function TLView() {
     setReviews(chatters.map(c => ({ name: c.full_name, profileId: c.profile_id, status: null, model: '', notes: '' })));
     setSuccessMsg(null);
     resetSituationReport();
+
+    const shuffled = [...chatters].sort(() => Math.random() - 0.5);
+    const suggested = shuffled.slice(0, Math.min(2, shuffled.length));
+    setVoiceChecks(suggested.map(c => ({ chatter_name: c.full_name, responded: false })));
   };
 
   const cancelRound = () => {
@@ -289,7 +295,8 @@ function TLView() {
     (!hasOtherIssues || otherIssuesNotes.trim() !== '') &&
     screenshots.length === 2;
 
-  const canSubmit = allReviewed && !flaggedWithoutNotes && situationReportComplete && !submitting;
+  const voiceCheckComplete = voiceChecks.length >= 1;
+  const canSubmit = allReviewed && !flaggedWithoutNotes && situationReportComplete && voiceCheckComplete && !submitting;
 
   const submitRound = async () => {
     if (!profile || !tlKey || activeRound === null) return;
@@ -329,6 +336,7 @@ function TLView() {
           has_other_issues: hasOtherIssues ?? false,
           other_issues_notes: hasOtherIssues ? otherIssuesNotes.trim() : null,
           screenshot_urls: uploadedPaths,
+          voice_checks: voiceChecks,
         })
         .select('id')
         .single();
@@ -740,6 +748,80 @@ function TLView() {
                 <p className="text-[10px] text-amber-400">Upload 2 screenshots of the Infloww model overview to continue</p>
               )}
             </div>
+
+            {/* Voice Check */}
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Phone size={16} className="text-cw" />
+                <h3 className="text-sm font-semibold text-text-primary">Voice Check</h3>
+                <span className="text-[10px] text-text-secondary ml-auto">Call 1–2 chatters to confirm they're present</span>
+              </div>
+
+              <div className="space-y-2">
+                {voiceChecks.map((vc, idx) => (
+                  <div key={vc.chatter_name} className="flex items-center gap-3 p-3 rounded-lg bg-surface-2 border border-border">
+                    <span className="text-sm font-medium text-text-primary flex-1 truncate">{vc.chatter_name}</span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        onClick={() => setVoiceChecks(prev => prev.map((v, i) => i === idx ? { ...v, responded: true } : v))}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          vc.responded
+                            ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-surface-3 text-text-secondary hover:text-text-primary border border-transparent'
+                        }`}
+                      >
+                        <Check size={14} />
+                        Responded
+                      </button>
+                      <button
+                        onClick={() => setVoiceChecks(prev => prev.map((v, i) => i === idx ? { ...v, responded: false } : v))}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                          !vc.responded
+                            ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                            : 'bg-surface-3 text-text-secondary hover:text-text-primary border border-transparent'
+                        }`}
+                      >
+                        <X size={14} />
+                        No Response
+                      </button>
+                    </div>
+                    <button
+                      onClick={() => setVoiceChecks(prev => prev.filter((_, i) => i !== idx))}
+                      className="p-1 rounded hover:bg-surface-3 text-text-secondary hover:text-red-400 transition-colors"
+                      title="Remove"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {voiceChecks.length < 2 && (
+                <div className="space-y-1">
+                  <select
+                    className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-border text-sm text-text-primary focus:outline-none focus:border-cw/50"
+                    value=""
+                    onChange={e => {
+                      if (e.target.value) {
+                        setVoiceChecks(prev => [...prev, { chatter_name: e.target.value, responded: false }]);
+                      }
+                    }}
+                  >
+                    <option value="">+ Add chatter to voice check...</option>
+                    {chatters
+                      .filter(c => !voiceChecks.some(vc => vc.chatter_name === c.full_name))
+                      .map(c => (
+                        <option key={c.id} value={c.full_name}>{c.full_name}</option>
+                      ))
+                    }
+                  </select>
+                </div>
+              )}
+
+              {voiceChecks.length === 0 && (
+                <p className="text-[10px] text-amber-400">Select at least 1 chatter to voice check</p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center justify-between px-4 py-3 bg-surface-0/50 border-t border-border">
@@ -791,6 +873,11 @@ function TLView() {
                     <p className="text-xs text-text-secondary mt-0.5">
                       Completed at {formatUTCTime(info.round.completed_at!)} —{' '}
                       {info.round.chatters_reviewed} reviewed, {info.round.issues_found} flagged
+                      {Array.isArray(info.round.voice_checks) && info.round.voice_checks.length > 0 && (
+                        <span className="text-cw">
+                          {' · '}{info.round.voice_checks.length} voice check{info.round.voice_checks.length > 1 ? 's' : ''}
+                        </span>
+                      )}
                       {roundFlags.length > 0 && (
                         <span className="text-red-400"> ({roundFlags.map(f => f.chatter_name).join(', ')})</span>
                       )}
@@ -1148,6 +1235,29 @@ function AdminView() {
                                     <span className="text-text-primary font-medium">{f.chatter_name}</span>
                                     {f.model_account && <span className="text-text-secondary">({f.model_account})</span>}
                                     <span className="text-text-secondary">— {f.notes}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {Array.isArray(round.voice_checks) && round.voice_checks.length > 0 && (
+                            <div className="space-y-1">
+                              <span className="text-xs font-medium text-text-secondary flex items-center gap-1">
+                                <Phone size={12} /> Voice Checks
+                              </span>
+                              <div className="space-y-1">
+                                {(round.voice_checks as VoiceCheck[]).map((vc, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs">
+                                    {vc.responded ? (
+                                      <Check size={12} className="text-emerald-400 shrink-0" />
+                                    ) : (
+                                      <X size={12} className="text-red-400 shrink-0" />
+                                    )}
+                                    <span className="text-text-primary font-medium">{vc.chatter_name}</span>
+                                    <span className={vc.responded ? 'text-emerald-400' : 'text-red-400'}>
+                                      {vc.responded ? 'Responded' : 'No response'}
+                                    </span>
                                   </div>
                                 ))}
                               </div>

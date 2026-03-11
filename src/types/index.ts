@@ -673,7 +673,13 @@ export interface AuditRound {
   has_other_issues: boolean;
   other_issues_notes: string | null;
   screenshot_urls: string[];
+  voice_checks: VoiceCheck[];
   created_at: string;
+}
+
+export interface VoiceCheck {
+  chatter_name: string;
+  responded: boolean;
 }
 
 export interface AuditFlag {
