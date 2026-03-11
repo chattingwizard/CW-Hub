@@ -78,7 +78,7 @@ export default function Schedules() {
       weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
       const weekEndStr = weekEnd.toISOString().split('T')[0]!;
 
-      const [chattersRes, modelsRes, schedulesRes, groupsRes, gcRes, gmRes, shiftRefRes, overridesRes] = await Promise.all([
+      const [chattersRes, modelsRes, schedulesRes, groupsRes, gcRes, gmRes, shiftRefRes] = await Promise.all([
         supabase.from('chatters').select('*').eq('status', 'Active').order('full_name'),
         supabase.from('models').select('*').eq('status', 'Live').order('name'),
         supabase.from('schedules').select('*, chatter:chatters!schedules_chatter_id_fkey(*)').eq('week_start', weekStart),
@@ -86,9 +86,8 @@ export default function Schedules() {
         supabase.from('assignment_group_chatters').select('*'),
         supabase.from('assignment_group_models').select('*'),
         supabase.from('schedules').select('chatter_id, shift').order('week_start', { ascending: false }).limit(500),
-        supabase.from('assignment_group_overrides').select('group_id, chatter_id, date').gte('date', weekStart).lte('date', weekEndStr),
       ]);
-      const err = chattersRes.error || modelsRes.error || schedulesRes.error || groupsRes.error || gcRes.error || gmRes.error || shiftRefRes.error || overridesRes.error;
+      const err = chattersRes.error || modelsRes.error || schedulesRes.error || groupsRes.error || gcRes.error || gmRes.error || shiftRefRes.error;
       if (err) throw new Error(err.message);
       setChatters((chattersRes.data ?? []) as Chatter[]);
       setModels((modelsRes.data ?? []) as Model[]);
@@ -102,19 +101,6 @@ export default function Schedules() {
         if (!refMap.has(r.chatter_id)) refMap.set(r.chatter_id, r.shift);
       }
       setShiftRef(refMap);
-
-      // Load persisted overrides into coverageMap
-      const wsDate = new Date(weekStart + 'T00:00:00Z');
-      const loadedMap = new Map<string, string>();
-      for (const o of (overridesRes.data ?? []) as { group_id: string; chatter_id: string; date: string }[]) {
-        const oDate = new Date(o.date + 'T00:00:00Z');
-        const dayIdx = Math.round((oDate.getTime() - wsDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (dayIdx >= 0 && dayIdx <= 6) {
-          loadedMap.set(`${o.group_id}-${dayIdx}`, o.chatter_id);
-        }
-      }
-      setCoverageMap(loadedMap);
-      setDirty(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load schedules');
     } finally {
@@ -123,6 +109,38 @@ export default function Schedules() {
   }, [weekStart]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Load overrides for the active TL's shift (separate from main fetch so it reloads on tab switch)
+  useEffect(() => {
+    const loadOverrides = async () => {
+      const shift = currentTL.shift;
+      const weekEnd = new Date(weekStart + 'T00:00:00Z');
+      weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
+      const weekEndStr = weekEnd.toISOString().split('T')[0]!;
+
+      const { data, error: oErr } = await supabase
+        .from('assignment_group_overrides')
+        .select('group_id, chatter_id, date')
+        .gte('date', weekStart)
+        .lte('date', weekEndStr)
+        .eq('shift', shift);
+
+      if (oErr) { console.error('Failed to load overrides:', oErr); return; }
+
+      const wsDate = new Date(weekStart + 'T00:00:00Z');
+      const loadedMap = new Map<string, string>();
+      for (const o of (data ?? []) as { group_id: string; chatter_id: string; date: string }[]) {
+        const oDate = new Date(o.date + 'T00:00:00Z');
+        const dayIdx = Math.round((oDate.getTime() - wsDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (dayIdx >= 0 && dayIdx <= 6) {
+          loadedMap.set(`${o.group_id}-${dayIdx}`, o.chatter_id);
+        }
+      }
+      setCoverageMap(loadedMap);
+      setDirty(false);
+    };
+    loadOverrides();
+  }, [weekStart, currentTL.shift]);
 
   // Close popover on outside click
   useEffect(() => {
@@ -456,15 +474,16 @@ export default function Schedules() {
       });
       if (schedError) throw schedError;
 
-      // Save overrides — delete existing for this week, then insert new ones
+      // Save overrides — delete existing for this week+shift, then insert new ones
       const weekEndDate = new Date(weekStart + 'T00:00:00Z');
       weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
       const weekEndStr = weekEndDate.toISOString().split('T')[0]!;
-      const { error: delError } = await supabase.from('assignment_group_overrides').delete().gte('date', weekStart).lte('date', weekEndStr);
+      const { error: delError } = await supabase.from('assignment_group_overrides').delete()
+        .gte('date', weekStart).lte('date', weekEndStr).eq('shift', currentTL.shift);
       if (delError) throw delError;
 
       if (coverageMap.size > 0) {
-        const overrideRows: { group_id: string; chatter_id: string; date: string; assigned_by: string | undefined }[] = [];
+        const overrideRows: { group_id: string; chatter_id: string; date: string; shift: string; assigned_by: string | undefined }[] = [];
         for (const [key, chatterId] of coverageMap) {
           if (chatterId === '__clear__') continue;
           const lastDash = key.lastIndexOf('-');
@@ -478,6 +497,7 @@ export default function Schedules() {
             group_id: groupId,
             chatter_id: chatterId,
             date: date.toISOString().split('T')[0]!,
+            shift: currentTL.shift,
             assigned_by: profile?.id,
           });
         }
