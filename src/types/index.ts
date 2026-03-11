@@ -663,6 +663,16 @@ export interface AuditRound {
   completed_at: string | null;
   chatters_reviewed: number;
   issues_found: number;
+  traffic_level: 'low' | 'medium' | 'high' | null;
+  has_unanswered: boolean;
+  unanswered_chatters: string | null;
+  unanswered_models: string | null;
+  has_backlog: boolean;
+  backlog_chatters: string | null;
+  backlog_models: string | null;
+  has_other_issues: boolean;
+  other_issues_notes: string | null;
+  screenshot_urls: string[];
   created_at: string;
 }
 

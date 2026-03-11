@@ -6,8 +6,11 @@ import type { AuditRound, AuditFlag, Chatter } from '../types';
 import {
   ClipboardCheck, Check, Flag, ChevronLeft, ChevronRight,
   Loader2, CheckCircle2, Circle, AlertCircle, CalendarDays, X,
+  Upload, Image as ImageIcon, Info, Trash2, ExternalLink,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
+
+const AUDIT_SCREENSHOT_BUCKET = 'audit-screenshots';
 
 // ── Constants ────────────────────────────────────────────────
 
@@ -157,6 +160,19 @@ function TLView() {
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Situation report state
+  const [trafficLevel, setTrafficLevel] = useState<'low' | 'medium' | 'high' | null>(null);
+  const [hasUnanswered, setHasUnanswered] = useState<boolean | null>(null);
+  const [unansweredChatters, setUnansweredChatters] = useState('');
+  const [unansweredModels, setUnansweredModels] = useState('');
+  const [hasBacklog, setHasBacklog] = useState<boolean | null>(null);
+  const [backlogChatters, setBacklogChatters] = useState('');
+  const [backlogModels, setBacklogModels] = useState('');
+  const [hasOtherIssues, setHasOtherIssues] = useState<boolean | null>(null);
+  const [otherIssuesNotes, setOtherIssuesNotes] = useState('');
+  const [screenshots, setScreenshots] = useState<File[]>([]);
+  const [screenshotPreviews, setScreenshotPreviews] = useState<string[]>([]);
+
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 60_000);
     return () => clearInterval(interval);
@@ -205,17 +221,50 @@ function TLView() {
   const completedCount = rounds.length;
   const expectedCount = tlKey ? getExpectedRounds(tlKey, shiftDate, now) : 0;
 
+  const resetSituationReport = () => {
+    setTrafficLevel(null);
+    setHasUnanswered(null);
+    setUnansweredChatters('');
+    setUnansweredModels('');
+    setHasBacklog(null);
+    setBacklogChatters('');
+    setBacklogModels('');
+    setHasOtherIssues(null);
+    setOtherIssuesNotes('');
+    screenshotPreviews.forEach(url => URL.revokeObjectURL(url));
+    setScreenshots([]);
+    setScreenshotPreviews([]);
+  };
+
   const startRound = (roundNum: number) => {
     setActiveRound(roundNum);
     setRoundStartedAt(new Date().toISOString());
     setReviews(chatters.map(c => ({ name: c.full_name, profileId: c.profile_id, status: null, model: '', notes: '' })));
     setSuccessMsg(null);
+    resetSituationReport();
   };
 
   const cancelRound = () => {
     setActiveRound(null);
     setRoundStartedAt(null);
     setReviews([]);
+    resetSituationReport();
+  };
+
+  const handleScreenshotUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    const remaining = 2 - screenshots.length;
+    const toAdd = files.slice(0, remaining);
+    const newPreviews = toAdd.map(f => URL.createObjectURL(f));
+    setScreenshots(prev => [...prev, ...toAdd]);
+    setScreenshotPreviews(prev => [...prev, ...newPreviews]);
+    e.target.value = '';
+  };
+
+  const removeScreenshot = (idx: number) => {
+    URL.revokeObjectURL(screenshotPreviews[idx]!);
+    setScreenshots(prev => prev.filter((_, i) => i !== idx));
+    setScreenshotPreviews(prev => prev.filter((_, i) => i !== idx));
   };
 
   const updateReview = (idx: number, update: Partial<ChatterReview>) => {
@@ -226,10 +275,35 @@ function TLView() {
   const flaggedReviews = reviews.filter(r => r.status === 'flagged');
   const flaggedWithoutNotes = flaggedReviews.some(r => r.notes.trim() === '');
 
+  const situationReportComplete =
+    trafficLevel !== null &&
+    hasUnanswered !== null &&
+    hasBacklog !== null &&
+    hasOtherIssues !== null &&
+    (!hasUnanswered || (unansweredChatters.trim() !== '' && unansweredModels.trim() !== '')) &&
+    (!hasBacklog || (backlogChatters.trim() !== '' && backlogModels.trim() !== '')) &&
+    (!hasOtherIssues || otherIssuesNotes.trim() !== '') &&
+    screenshots.length === 2;
+
+  const canSubmit = allReviewed && !flaggedWithoutNotes && situationReportComplete && !submitting;
+
   const submitRound = async () => {
     if (!profile || !tlKey || activeRound === null) return;
     setSubmitting(true);
     try {
+      // Upload screenshots first
+      const uploadedPaths: string[] = [];
+      for (let i = 0; i < screenshots.length; i++) {
+        const file = screenshots[i]!;
+        const ext = file.name.split('.').pop() ?? 'png';
+        const path = `${profile.id}/${shiftDate}_r${activeRound}_${i}.${ext}`;
+        const { error: uploadErr } = await supabase.storage
+          .from(AUDIT_SCREENSHOT_BUCKET)
+          .upload(path, file, { contentType: file.type, upsert: true });
+        if (uploadErr) throw new Error(`Screenshot upload failed: ${uploadErr.message}`);
+        uploadedPaths.push(path);
+      }
+
       const { data: roundData, error: roundErr } = await supabase
         .from('audit_rounds')
         .insert({
@@ -241,6 +315,16 @@ function TLView() {
           completed_at: new Date().toISOString(),
           chatters_reviewed: reviews.length,
           issues_found: flaggedReviews.length,
+          traffic_level: trafficLevel,
+          has_unanswered: hasUnanswered ?? false,
+          unanswered_chatters: hasUnanswered ? unansweredChatters.trim() : null,
+          unanswered_models: hasUnanswered ? unansweredModels.trim() : null,
+          has_backlog: hasBacklog ?? false,
+          backlog_chatters: hasBacklog ? backlogChatters.trim() : null,
+          backlog_models: hasBacklog ? backlogModels.trim() : null,
+          has_other_issues: hasOtherIssues ?? false,
+          other_issues_notes: hasOtherIssues ? otherIssuesNotes.trim() : null,
+          screenshot_urls: uploadedPaths,
         })
         .select('id')
         .single();
@@ -276,6 +360,7 @@ function TLView() {
       setActiveRound(null);
       setRoundStartedAt(null);
       setReviews([]);
+      resetSituationReport();
       await loadData();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to save round');
@@ -411,13 +496,214 @@ function TLView() {
             ))}
           </div>
 
+          {/* Situation Report Section */}
+          <div className="border-t border-border px-4 py-4 space-y-5">
+            <div className="flex items-center gap-2">
+              <ClipboardCheck size={16} className="text-cw" />
+              <h3 className="text-sm font-semibold text-text-primary">Situation Report</h3>
+            </div>
+
+            {/* Instructions */}
+            <div className="rounded-lg bg-cw/5 border border-cw/15 px-4 py-3 space-y-2">
+              <div className="flex items-center gap-2 text-xs font-medium text-cw">
+                <Info size={14} />
+                Instructions
+              </div>
+              <div className="text-xs text-text-secondary space-y-1 leading-relaxed">
+                <p>Before completing this round, review the general inbox view of all active models in Infloww:</p>
+                <ol className="list-decimal list-inside space-y-0.5 pl-1">
+                  <li>Check traffic levels across all models</li>
+                  <li>Verify no fans are left on seen (unread messages)</li>
+                  <li>Check for message backlog on any model</li>
+                  <li>Take <strong className="text-text-primary">2 screenshots</strong> of the Infloww model overview showing all inboxes</li>
+                </ol>
+              </div>
+            </div>
+
+            {/* Traffic Level */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-text-primary">Traffic level</label>
+              <div className="flex items-center gap-2">
+                {(['low', 'medium', 'high'] as const).map(level => (
+                  <button
+                    key={level}
+                    onClick={() => setTrafficLevel(level)}
+                    className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                      trafficLevel === level
+                        ? level === 'low' ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                        : level === 'medium' ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                        : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                        : 'bg-surface-2 text-text-secondary hover:text-text-primary border border-transparent'
+                    }`}
+                  >
+                    {level === 'low' ? 'Low' : level === 'medium' ? 'Medium' : 'High'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Unanswered messages */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-text-primary">Unanswered messages?</label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setHasUnanswered(false); setUnansweredChatters(''); setUnansweredModels(''); }}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                    hasUnanswered === false
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-surface-2 text-text-secondary hover:text-text-primary border border-transparent'
+                  }`}
+                >No</button>
+                <button
+                  onClick={() => setHasUnanswered(true)}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                    hasUnanswered === true
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : 'bg-surface-2 text-text-secondary hover:text-text-primary border border-transparent'
+                  }`}
+                >Yes</button>
+              </div>
+              {hasUnanswered && (
+                <div className="flex flex-col sm:flex-row gap-2 pl-2 border-l-2 border-red-500/30">
+                  <input
+                    type="text"
+                    placeholder="Chatter(s) name(s)"
+                    value={unansweredChatters}
+                    onChange={e => setUnansweredChatters(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-surface-2 border border-border text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-cw/50"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Model(s) name(s)"
+                    value={unansweredModels}
+                    onChange={e => setUnansweredModels(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-surface-2 border border-border text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-cw/50"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Message backlog */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-text-primary">Accumulated messages?</label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setHasBacklog(false); setBacklogChatters(''); setBacklogModels(''); }}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                    hasBacklog === false
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-surface-2 text-text-secondary hover:text-text-primary border border-transparent'
+                  }`}
+                >No</button>
+                <button
+                  onClick={() => setHasBacklog(true)}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                    hasBacklog === true
+                      ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                      : 'bg-surface-2 text-text-secondary hover:text-text-primary border border-transparent'
+                  }`}
+                >Yes</button>
+              </div>
+              {hasBacklog && (
+                <div className="flex flex-col sm:flex-row gap-2 pl-2 border-l-2 border-red-500/30">
+                  <input
+                    type="text"
+                    placeholder="Chatter(s) name(s)"
+                    value={backlogChatters}
+                    onChange={e => setBacklogChatters(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-surface-2 border border-border text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-cw/50"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Model(s) name(s)"
+                    value={backlogModels}
+                    onChange={e => setBacklogModels(e.target.value)}
+                    className="flex-1 px-3 py-1.5 rounded-lg bg-surface-2 border border-border text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-cw/50"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Other issues */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-text-primary">Other issues?</label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => { setHasOtherIssues(false); setOtherIssuesNotes(''); }}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                    hasOtherIssues === false
+                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                      : 'bg-surface-2 text-text-secondary hover:text-text-primary border border-transparent'
+                  }`}
+                >No</button>
+                <button
+                  onClick={() => setHasOtherIssues(true)}
+                  className={`px-4 py-2 rounded-lg text-xs font-medium transition-all ${
+                    hasOtherIssues === true
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : 'bg-surface-2 text-text-secondary hover:text-text-primary border border-transparent'
+                  }`}
+                >Yes</button>
+              </div>
+              {hasOtherIssues && (
+                <div className="pl-2 border-l-2 border-amber-500/30">
+                  <textarea
+                    placeholder="Describe the issue(s)..."
+                    value={otherIssuesNotes}
+                    onChange={e => setOtherIssuesNotes(e.target.value)}
+                    rows={3}
+                    className="w-full px-3 py-2 rounded-lg bg-surface-2 border border-border text-sm text-text-primary placeholder:text-text-secondary/50 focus:outline-none focus:border-cw/50 resize-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Screenshots */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium text-text-primary">
+                Screenshots ({screenshots.length}/2 required)
+              </label>
+              <div className="flex flex-wrap gap-3">
+                {screenshotPreviews.map((url, idx) => (
+                  <div key={idx} className="relative group w-36 h-24 rounded-lg overflow-hidden border border-border bg-surface-2">
+                    <img src={url} alt={`Screenshot ${idx + 1}`} className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => removeScreenshot(idx)}
+                      className="absolute top-1 right-1 p-1 rounded bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                    <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-black/50 text-[10px] text-white truncate">
+                      {screenshots[idx]?.name}
+                    </div>
+                  </div>
+                ))}
+                {screenshots.length < 2 && (
+                  <label className="w-36 h-24 rounded-lg border-2 border-dashed border-border hover:border-cw/40 bg-surface-2 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors">
+                    <Upload size={18} className="text-text-secondary" />
+                    <span className="text-[10px] text-text-secondary">Upload screenshot</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleScreenshotUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
+              </div>
+              {screenshots.length < 2 && (
+                <p className="text-[10px] text-amber-400">Upload 2 screenshots of the Infloww model overview to continue</p>
+              )}
+            </div>
+          </div>
+
           <div className="flex items-center justify-between px-4 py-3 bg-surface-0/50 border-t border-border">
             <div className="text-xs text-text-secondary">
               {reviews.filter(r => r.status === 'ok').length} OK · {flaggedReviews.length} flagged · {reviews.filter(r => r.status === null).length} pending
             </div>
             <button
               onClick={submitRound}
-              disabled={!allReviewed || flaggedWithoutNotes || submitting}
+              disabled={!canSubmit}
               className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cw text-white text-sm font-medium hover:bg-cw/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
@@ -490,6 +776,14 @@ function TLView() {
 
 // ── Admin View ───────────────────────────────────────────────
 
+function TrafficBadge({ level }: { level: string | null }) {
+  if (!level) return <span className="text-text-secondary">—</span>;
+  const cls = level === 'low' ? 'bg-blue-500/15 text-blue-400'
+    : level === 'medium' ? 'bg-amber-500/15 text-amber-400'
+    : 'bg-red-500/15 text-red-400';
+  return <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${cls}`}>{level.charAt(0).toUpperCase() + level.slice(1)}</span>;
+}
+
 function AdminView() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().slice(0, 10));
   const [rounds, setRounds] = useState<AuditRound[]>([]);
@@ -497,6 +791,8 @@ function AdminView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(new Date());
+  const [expandedRound, setExpandedRound] = useState<number | null>(null);
+  const [signedUrls, setSignedUrls] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     const interval = setInterval(() => setNow(new Date()), 60_000);
@@ -506,6 +802,7 @@ function AdminView() {
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
+    setExpandedRound(null);
     try {
       const { data: roundsData, error: rErr } = await supabase
         .from('audit_rounds')
@@ -522,6 +819,23 @@ function AdminView() {
         setFlags(flagsData ?? []);
       } else {
         setFlags([]);
+      }
+
+      // Resolve screenshot signed URLs
+      const allPaths = (roundsData ?? []).flatMap(r => r.screenshot_urls ?? []);
+      if (allPaths.length > 0) {
+        const urlMap = new Map<string, string>();
+        await Promise.allSettled(
+          allPaths.map(async (path) => {
+            const { data } = await supabase.storage
+              .from(AUDIT_SCREENSHOT_BUCKET)
+              .createSignedUrl(path, 3600);
+            if (data?.signedUrl) urlMap.set(path, data.signedUrl);
+          }),
+        );
+        setSignedUrls(urlMap);
+      } else {
+        setSignedUrls(new Map());
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load data');
@@ -672,7 +986,7 @@ function AdminView() {
                     )}
                   </div>
 
-                  {/* Mini timeline: show round numbers */}
+                  {/* Mini timeline */}
                   <div className="flex items-center gap-1 pt-1">
                     {Array.from({ length: TOTAL_ROUNDS }, (_, i) => {
                       const roundNum = i + 1;
@@ -699,6 +1013,142 @@ function AdminView() {
               );
             })}
           </div>
+
+          {/* Round details (expandable) */}
+          {rounds.length > 0 && (
+            <div className="bg-surface-1 rounded-xl border border-border overflow-hidden">
+              <div className="px-4 py-3 border-b border-border">
+                <h2 className="text-sm font-semibold text-text-primary">Round Details</h2>
+              </div>
+              <div className="divide-y divide-border">
+                {rounds.map(round => {
+                  const meta = TL_META[round.tl_name];
+                  const isExpanded = expandedRound === round.id;
+                  const roundFlags = flags.filter(f => f.round_id === round.id);
+                  const urls = round.screenshot_urls ?? [];
+
+                  return (
+                    <div key={round.id}>
+                      <button
+                        onClick={() => setExpandedRound(isExpanded ? null : round.id)}
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-surface-2/50 transition-colors text-left"
+                      >
+                        <ChevronRight size={14} className={`text-text-secondary shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                        <span className={`text-xs font-medium ${meta?.colorClass ?? 'text-text-primary'}`}>
+                          {meta?.label ?? round.tl_name}
+                        </span>
+                        <span className="text-xs text-text-secondary">Round #{round.round_number}</span>
+                        <span className="text-xs text-text-secondary">{formatUTCTime(round.completed_at!)}</span>
+                        <div className="flex-1" />
+                        <TrafficBadge level={round.traffic_level} />
+                        {round.has_unanswered && <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400">Unanswered</span>}
+                        {round.has_backlog && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">Backlog</span>}
+                        {round.has_other_issues && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400">Issues</span>}
+                      </button>
+                      {isExpanded && (
+                        <div className="px-4 pb-4 pl-10 space-y-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                            <div className="space-y-1">
+                              <span className="text-text-secondary">Chatters reviewed</span>
+                              <p className="text-text-primary font-medium">{round.chatters_reviewed}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-text-secondary">Issues found</span>
+                              <p className={`font-medium ${round.issues_found > 0 ? 'text-red-400' : 'text-text-primary'}`}>{round.issues_found}</p>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-text-secondary">Traffic</span>
+                              <div><TrafficBadge level={round.traffic_level} /></div>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-text-secondary">Completed at</span>
+                              <p className="text-text-primary font-medium">{formatUTCTime(round.completed_at!)} UTC</p>
+                            </div>
+                          </div>
+
+                          {round.has_unanswered && (
+                            <div className="rounded-lg bg-red-500/5 border border-red-500/15 px-3 py-2 text-xs space-y-1">
+                              <span className="font-medium text-red-400">Unanswered messages</span>
+                              <p className="text-text-secondary">
+                                Chatter(s): <span className="text-text-primary">{round.unanswered_chatters}</span>{' '}
+                                — Model(s): <span className="text-text-primary">{round.unanswered_models}</span>
+                              </p>
+                            </div>
+                          )}
+
+                          {round.has_backlog && (
+                            <div className="rounded-lg bg-amber-500/5 border border-amber-500/15 px-3 py-2 text-xs space-y-1">
+                              <span className="font-medium text-amber-400">Accumulated messages</span>
+                              <p className="text-text-secondary">
+                                Chatter(s): <span className="text-text-primary">{round.backlog_chatters}</span>{' '}
+                                — Model(s): <span className="text-text-primary">{round.backlog_models}</span>
+                              </p>
+                            </div>
+                          )}
+
+                          {round.has_other_issues && (
+                            <div className="rounded-lg bg-purple-500/5 border border-purple-500/15 px-3 py-2 text-xs space-y-1">
+                              <span className="font-medium text-purple-400">Other issues</span>
+                              <p className="text-text-primary">{round.other_issues_notes}</p>
+                            </div>
+                          )}
+
+                          {roundFlags.length > 0 && (
+                            <div className="space-y-1">
+                              <span className="text-xs font-medium text-red-400">Flagged chatters</span>
+                              <div className="space-y-1">
+                                {roundFlags.map(f => (
+                                  <div key={f.id} className="flex items-start gap-2 text-xs">
+                                    <Flag size={12} className="text-red-400 mt-0.5 shrink-0" />
+                                    <span className="text-text-primary font-medium">{f.chatter_name}</span>
+                                    {f.model_account && <span className="text-text-secondary">({f.model_account})</span>}
+                                    <span className="text-text-secondary">— {f.notes}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {urls.length > 0 && (
+                            <div className="space-y-2">
+                              <span className="text-xs font-medium text-text-secondary flex items-center gap-1">
+                                <ImageIcon size={12} /> Screenshots
+                              </span>
+                              <div className="flex gap-3 flex-wrap">
+                                {urls.map((path, idx) => {
+                                  const signed = signedUrls.get(path);
+                                  return (
+                                    <a
+                                      key={idx}
+                                      href={signed ?? '#'}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="relative w-40 h-28 rounded-lg overflow-hidden border border-border bg-surface-2 group block"
+                                    >
+                                      {signed ? (
+                                        <img src={signed} alt={`Screenshot ${idx + 1}`} className="w-full h-full object-cover" />
+                                      ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-text-secondary">
+                                          <ImageIcon size={20} />
+                                        </div>
+                                      )}
+                                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                                        <ExternalLink size={16} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                      </div>
+                                    </a>
+                                  );
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Flags table */}
           <div className="bg-surface-1 rounded-xl border border-border overflow-hidden">
