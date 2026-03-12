@@ -831,6 +831,8 @@ function CompactGroupsView({
                     <span className="flex-1 truncate">{group.name}</span>
                     <button
                       onClick={(e) => { e.stopPropagation(); onDeleteGroup(group.id); }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      draggable={false}
                       disabled={saving}
                       className="p-0.5 rounded opacity-40 hover:opacity-100 hover:bg-danger/20 hover:text-danger transition-all shrink-0"
                       title="Delete group"
@@ -856,8 +858,10 @@ function CompactGroupsView({
                           {gm && (
                             <button
                               onClick={(e) => { e.stopPropagation(); onUnassignModel(gm.id); }}
+                              onMouseDown={(e) => e.stopPropagation()}
+                              draggable={false}
                               disabled={saving}
-                              className="p-0 shrink-0 opacity-0 group-hover/pill:opacity-80 hover:!opacity-100 transition-opacity"
+                              className="p-0 shrink-0 opacity-0 pointer-events-none group-hover/pill:opacity-80 group-hover/pill:pointer-events-auto hover:!opacity-100 transition-opacity"
                               title="Remove from group"
                             >
                               <X size={11} />
