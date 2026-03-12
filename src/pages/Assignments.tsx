@@ -178,7 +178,12 @@ export default function Assignments() {
   const handleDeleteGroup = async (groupId: string) => {
     if (!confirm('Delete this group? Models and chatters will be unassigned.')) return;
     setSaving(true);
-    await supabase.from('assignment_groups').update({ active: false }).eq('id', groupId);
+    await Promise.all([
+      supabase.from('assignment_group_models').delete().eq('group_id', groupId),
+      supabase.from('assignment_group_chatters').delete().eq('group_id', groupId),
+      supabase.from('assignment_group_overrides').delete().eq('group_id', groupId),
+      supabase.from('assignment_groups').update({ active: false }).eq('id', groupId),
+    ]);
     setGroups((prev) => prev.filter((g) => g.id !== groupId));
     setGroupModels((prev) => prev.filter((gm) => gm.group_id !== groupId));
     setGroupChatters((prev) => prev.filter((gc) => gc.group_id !== groupId));
