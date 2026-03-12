@@ -183,7 +183,7 @@ function SubmitTab({ chatters }: { chatters: Chatter[] }) {
 
       if (error) {
         if (error.code === '23505') {
-          setSubmitResult({ ok: false, msg: 'A shift report already exists for this chatter on this date.' });
+          setSubmitResult({ ok: false, msg: 'A shift report already exists for this chatter on this date and team.' });
         } else {
           throw error;
         }

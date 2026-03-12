@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS shift_reports (
   notes text,
   submitted_by uuid NOT NULL REFERENCES profiles(id),
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (chatter_id, date)
+  UNIQUE (chatter_id, date, team)
 );
 
 -- 2. shift_report_alerts table (tracks admin resolutions)
@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS shift_report_alerts (
   action text NOT NULL CHECK (action IN ('accepted', 'dismissed')),
   resolved_by uuid NOT NULL REFERENCES profiles(id),
   created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (chatter_id, date)
+  UNIQUE (chatter_id, date, shift)
 );
 
 -- 3. RLS Policies
