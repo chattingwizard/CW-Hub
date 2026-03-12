@@ -10,7 +10,7 @@ import {
   GraduationCap, FileText, Settings, Activity,
   ClipboardCheck, ClipboardList, Shield, Upload, BookOpen, Radio,
   CheckSquare, BookMarked, Star, Bug, UserPlus, Info,
-  DollarSign,
+  DollarSign, Vote,
   LogOut, ChevronLeft, Menu,
 } from 'lucide-react';
 
@@ -19,7 +19,7 @@ const iconMap: Record<string, React.ComponentType<{ size?: number; className?: s
   GraduationCap, FileText, Settings, Activity,
   ClipboardCheck, ClipboardList, Shield, Upload, BookOpen, Radio,
   CheckSquare, BookMarked, Star, Bug, UserPlus, Info,
-  DollarSign,
+  DollarSign, Vote,
 };
 
 const SECTION_LABELS: Record<string, string> = {

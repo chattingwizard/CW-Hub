@@ -231,6 +231,16 @@ export const modules: HubModule[] = [
     dividerBefore: true,
   },
 
+  {
+    id: 'delegate-nominations',
+    name: 'Delegate Votes',
+    icon: 'Vote',
+    type: 'internal',
+    path: '/delegate-nominations',
+    roles: ['owner', 'admin'],
+    section: 'tools',
+  },
+
   // ── System ─────────────────────────────────────────────────
   {
     id: 'settings',
