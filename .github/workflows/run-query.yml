@@ -1,0 +1,37 @@
+name: Run Supabase Query
+on:
+  workflow_dispatch:
+    inputs:
+      query:
+        description: 'SQL query to run'
+        required: true
+
+jobs:
+  query:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run query via Management API
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||' | sed 's|\.supabase\.co||')
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": $(echo '${{ github.event.inputs.query }}' | jq -Rs .)}")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Query completed successfully"
+          else
+            echo "Query FAILED with HTTP $HTTP_CODE"
+            exit 1
+          fi
