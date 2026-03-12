@@ -115,25 +115,6 @@ export default function Schedules() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Derive the initial coverageMap from DB overrides filtered by active TL shift.
-  // This runs synchronously whenever dbOverrides or the TL tab changes — no extra fetch needed.
-  useEffect(() => {
-    if (!dbOverrides.length) { setCoverageMap(new Map()); setDirty(false); return; }
-    const shift = currentTL.shift;
-    const wsDate = new Date(weekStart + 'T00:00:00Z');
-    const loadedMap = new Map<string, string>();
-    for (const o of dbOverrides) {
-      if (o.shift && o.shift !== shift) continue;
-      const oDate = new Date(o.date + 'T00:00:00Z');
-      const dayIdx = Math.round((oDate.getTime() - wsDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (dayIdx >= 0 && dayIdx <= 6) {
-        loadedMap.set(`${o.group_id}-${dayIdx}`, o.chatter_id);
-      }
-    }
-    setCoverageMap(loadedMap);
-    setDirty(false);
-  }, [dbOverrides, currentTL.shift, weekStart]);
-
   // Close popover on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -205,6 +186,24 @@ export default function Schedules() {
   }, [models]);
 
   const currentTL = TL_CONFIG.find(t => t.key === activeTL)!;
+
+  // Derive coverageMap from DB overrides filtered by active TL shift
+  useEffect(() => {
+    if (!dbOverrides.length) { setCoverageMap(new Map()); setDirty(false); return; }
+    const shift = currentTL.shift;
+    const wsDate = new Date(weekStart + 'T00:00:00Z');
+    const loadedMap = new Map<string, string>();
+    for (const o of dbOverrides) {
+      if (o.shift && o.shift !== shift) continue;
+      const oDate = new Date(o.date + 'T00:00:00Z');
+      const dayIdx = Math.round((oDate.getTime() - wsDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (dayIdx >= 0 && dayIdx <= 6) {
+        loadedMap.set(`${o.group_id}-${dayIdx}`, o.chatter_id);
+      }
+    }
+    setCoverageMap(loadedMap);
+    setDirty(false);
+  }, [dbOverrides, currentTL.shift, weekStart]);
 
   const groupDefaultForTL = useMemo(() => {
     const map = new Map<string, string | null>();
