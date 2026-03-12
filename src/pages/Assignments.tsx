@@ -805,7 +805,9 @@ function CompactGroupsView({
           {groups.map((group, groupIdx) => {
             const palette = GROUP_PALETTES[groupIdx % GROUP_PALETTES.length]!;
             const gModels = getModelsForGroup(group.id);
-            const gChatters = getChattersForGroup(group.id);
+            const gChatters = getChattersForGroup(group.id).slice().sort((a, b) =>
+              (a.team_name ?? '').localeCompare(b.team_name ?? ''),
+            );
             const isDragOver = dragOverGroupId === group.id;
 
             return (
