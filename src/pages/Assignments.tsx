@@ -360,6 +360,7 @@ export default function Assignments() {
         viewMode === 'compact' ? (
           <CompactGroupsView
             groups={groups}
+            groupModels={groupModels}
             unassignedModels={unassignedModels}
             unassignedChatters={unassignedChatters}
             getModelsForGroup={getModelsForGroup}
@@ -367,8 +368,11 @@ export default function Assignments() {
             saving={saving}
             onMoveModel={handleMoveModel}
             onAssignModel={handleAssignModel}
+            onUnassignModel={handleUnassignModel}
             onAssignChatter={handleAssignChatter}
             onSwapGroups={handleSwapGroups}
+            onCreateGroup={handleCreateGroup}
+            onDeleteGroup={handleDeleteGroup}
           />
         ) : (
           <GroupsTab
@@ -443,6 +447,7 @@ function getPillColor(groupIndex: number, pageType: string | null): string {
 
 interface CompactGroupsViewProps {
   groups: AssignmentGroup[];
+  groupModels: AssignmentGroupModel[];
   unassignedModels: Model[];
   unassignedChatters: Chatter[];
   getModelsForGroup: (groupId: string) => Model[];
@@ -450,16 +455,21 @@ interface CompactGroupsViewProps {
   saving: boolean;
   onMoveModel: (modelId: string, fromGroupId: string, toGroupId: string) => void;
   onAssignModel: (groupId: string, modelId: string) => void;
+  onUnassignModel: (gmId: string) => void;
   onAssignChatter: (groupId: string, chatterId: string) => void;
   onSwapGroups: (groupId1: string, groupId2: string) => void;
+  onCreateGroup: () => void;
+  onDeleteGroup: (groupId: string) => void;
 }
 
 function CompactGroupsView({
-  groups, unassignedModels, unassignedChatters, getModelsForGroup, getChattersForGroup,
-  saving, onMoveModel, onAssignModel, onAssignChatter, onSwapGroups,
+  groups, groupModels, unassignedModels, unassignedChatters, getModelsForGroup, getChattersForGroup,
+  saving, onMoveModel, onAssignModel, onUnassignModel, onAssignChatter, onSwapGroups,
+  onCreateGroup, onDeleteGroup,
 }: CompactGroupsViewProps) {
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
   const [dragOverHeaderId, setDragOverHeaderId] = useState<string | null>(null);
+  const [dragOverUnassigned, setDragOverUnassigned] = useState(false);
   const [searchGroupId, setSearchGroupId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
 
@@ -484,6 +494,7 @@ function CompactGroupsView({
     e.preventDefault();
     setDragOverGroupId(null);
     setDragOverHeaderId(null);
+    setDragOverUnassigned(false);
     const itemId = e.dataTransfer.getData('itemId');
     const fromGroupId = e.dataTransfer.getData('fromGroupId');
     const dragType = e.dataTransfer.getData('dragType');
@@ -502,6 +513,19 @@ function CompactGroupsView({
     }
   }, [onMoveModel, onAssignModel, onAssignChatter, onSwapGroups]);
 
+  const handleDropOnUnassigned = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOverUnassigned(false);
+    setDragOverGroupId(null);
+    const itemId = e.dataTransfer.getData('itemId');
+    const fromGroupId = e.dataTransfer.getData('fromGroupId');
+    const dragType = e.dataTransfer.getData('dragType');
+    if (!itemId || !fromGroupId || dragType !== 'model') return;
+
+    const gm = groupModels.find((g) => g.model_id === itemId && g.group_id === fromGroupId);
+    if (gm) onUnassignModel(gm.id);
+  }, [groupModels, onUnassignModel]);
+
   const searchResults = useMemo(() => {
     if (!searchText.trim()) return unassignedModels.slice(0, 8);
     const q = searchText.toLowerCase();
@@ -517,7 +541,14 @@ function CompactGroupsView({
       <div className="flex-1 flex items-center justify-center">
         <div className="bg-surface-1 border border-border rounded-xl p-12 text-center">
           <Layers size={40} className="mx-auto text-text-muted mb-3" />
-          <p className="text-text-muted text-sm">No groups yet. Switch to detailed view to create groups.</p>
+          <p className="text-text-muted text-sm mb-4">No groups yet. Create your first group to get started.</p>
+          <button
+            onClick={onCreateGroup}
+            disabled={saving}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-cw/10 text-cw text-sm font-semibold hover:bg-cw/20 transition-colors disabled:opacity-50"
+          >
+            <Plus size={16} /> Add Group
+          </button>
         </div>
       </div>
     );
@@ -534,7 +565,7 @@ function CompactGroupsView({
       </div>
 
       <div className="border border-border border-t-0 rounded-b-xl overflow-hidden bg-surface-1 overflow-x-auto">
-        <div className="flex divide-x divide-border" style={{ minWidth: `${groups.length * 150}px` }}>
+        <div className="flex divide-x divide-border" style={{ minWidth: `${(groups.length + 1) * 150}px` }}>
           {groups.map((group, groupIdx) => {
             const palette = GROUP_PALETTES[groupIdx % GROUP_PALETTES.length]!;
             const gModels = getModelsForGroup(group.id);
@@ -575,23 +606,44 @@ function CompactGroupsView({
                 >
                   <div className="flex items-center justify-center gap-1">
                     <GripVertical size={10} className="opacity-40" />
-                    <span>{group.name}</span>
+                    <span className="flex-1 truncate">{group.name}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onDeleteGroup(group.id); }}
+                      disabled={saving}
+                      className="p-0.5 rounded opacity-40 hover:opacity-100 hover:bg-danger/20 hover:text-danger transition-all shrink-0"
+                      title="Delete group"
+                    >
+                      <Trash2 size={10} />
+                    </button>
                   </div>
                 </div>
 
                 <div className="px-1.5 py-2 flex flex-col gap-1">
                   <div style={{ minHeight: maxModelsInGroup * 30 + 28 }} className="flex flex-col gap-1">
-                    {gModels.map((model) => (
-                      <div
-                        key={model.id}
-                        draggable
-                        onDragStart={(e) => handleDragStart(e, model.id, group.id, 'model')}
-                        className={`w-full flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-white cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity ${getPillColor(groupIdx, model.page_type)}`}
-                      >
-                        <GripVertical size={9} className="shrink-0 opacity-40" />
-                        <span className="truncate">{model.name}</span>
-                      </div>
-                    ))}
+                    {gModels.map((model) => {
+                      const gm = groupModels.find((g) => g.model_id === model.id && g.group_id === group.id);
+                      return (
+                        <div
+                          key={model.id}
+                          draggable
+                          onDragStart={(e) => handleDragStart(e, model.id, group.id, 'model')}
+                          className={`group/pill w-full flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-semibold text-white cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity ${getPillColor(groupIdx, model.page_type)}`}
+                        >
+                          <GripVertical size={9} className="shrink-0 opacity-40" />
+                          <span className="truncate flex-1">{model.name}</span>
+                          {gm && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onUnassignModel(gm.id); }}
+                              disabled={saving}
+                              className="p-0 shrink-0 opacity-0 group-hover/pill:opacity-80 hover:!opacity-100 transition-opacity"
+                              title="Remove from group"
+                            >
+                              <X size={11} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
 
                     <div className="relative mt-auto">
                       <button
@@ -674,58 +726,90 @@ function CompactGroupsView({
               </div>
             );
           })}
+
+          {/* Add Group column */}
+          <div className="min-w-[100px] flex flex-col items-center justify-start">
+            <div className="px-2 py-2.5 text-center text-xs border-b border-border w-full">
+              <button
+                onClick={onCreateGroup}
+                disabled={saving}
+                className="flex items-center justify-center gap-1 w-full text-text-muted hover:text-cw transition-colors disabled:opacity-50 font-semibold"
+              >
+                <Plus size={12} /> Add
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {(unassignedModels.length > 0 || unassignedChatters.length > 0) && (
-        <div className="mt-4 bg-surface-1 border border-warning/30 rounded-xl p-3">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertTriangle size={13} className="text-warning" />
-            <span className="text-[11px] font-semibold text-warning uppercase tracking-wider">
-              Unassigned ({unassignedModels.length + unassignedChatters.length})
-            </span>
-            <span className="text-[10px] text-text-muted ml-1">Drag to a group above</span>
-          </div>
-
-          {unassignedModels.length > 0 && (
-            <div className="mb-2">
-              <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold mb-1">Models</div>
-              <div className="flex flex-wrap gap-1.5">
-                {unassignedModels.map((m) => (
-                  <div
-                    key={m.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, m.id, '', 'model')}
-                    className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-medium bg-warning/10 text-warning border border-warning/20 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
-                  >
-                    <GripVertical size={9} className="shrink-0 opacity-40" />
-                    <span className="truncate">{m.name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {unassignedChatters.length > 0 && (
-            <div>
-              <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold mb-1">Chatters</div>
-              <div className="flex flex-wrap gap-1.5">
-                {unassignedChatters.map((c) => (
-                  <div
-                    key={c.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, c.id, '', 'chatter')}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-warning/10 text-amber-300 border border-warning/20 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
-                  >
-                    <GripVertical size={8} className="shrink-0 opacity-40" />
-                    <span className="truncate">{c.full_name}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+      <div
+        className={`mt-4 rounded-xl p-3 transition-colors ${
+          dragOverUnassigned
+            ? 'bg-warning/10 border-2 border-dashed border-warning/50 ring-2 ring-warning/20'
+            : unassignedModels.length > 0 || unassignedChatters.length > 0
+              ? 'bg-surface-1 border border-warning/30'
+              : 'bg-surface-1/50 border-2 border-dashed border-border/30'
+        }`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          setDragOverUnassigned(true);
+        }}
+        onDragLeave={() => setDragOverUnassigned(false)}
+        onDrop={handleDropOnUnassigned}
+      >
+        <div className="flex items-center gap-2 mb-2">
+          <AlertTriangle size={13} className={dragOverUnassigned ? 'text-warning animate-pulse' : 'text-warning'} />
+          <span className="text-[11px] font-semibold text-warning uppercase tracking-wider">
+            Unassigned ({unassignedModels.length + unassignedChatters.length})
+          </span>
+          <span className="text-[10px] text-text-muted ml-1">
+            {dragOverUnassigned ? 'Drop here to unassign' : 'Drag to a group above · Drop here to remove from group'}
+          </span>
         </div>
-      )}
+
+        {unassignedModels.length > 0 && (
+          <div className="mb-2">
+            <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold mb-1">Models</div>
+            <div className="flex flex-wrap gap-1.5">
+              {unassignedModels.map((m) => (
+                <div
+                  key={m.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, m.id, '', 'model')}
+                  className="flex items-center gap-1 px-2.5 py-1.5 rounded-full text-[11px] font-medium bg-warning/10 text-warning border border-warning/20 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
+                >
+                  <GripVertical size={9} className="shrink-0 opacity-40" />
+                  <span className="truncate">{m.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {unassignedChatters.length > 0 && (
+          <div>
+            <div className="text-[9px] text-text-muted uppercase tracking-wider font-semibold mb-1">Chatters</div>
+            <div className="flex flex-wrap gap-1.5">
+              {unassignedChatters.map((c) => (
+                <div
+                  key={c.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, c.id, '', 'chatter')}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-medium bg-warning/10 text-amber-300 border border-warning/20 cursor-grab active:cursor-grabbing active:opacity-70 transition-opacity"
+                >
+                  <GripVertical size={8} className="shrink-0 opacity-40" />
+                  <span className="truncate">{c.full_name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {unassignedModels.length === 0 && unassignedChatters.length === 0 && !dragOverUnassigned && (
+          <p className="text-[10px] text-text-muted text-center py-1 italic">All models and chatters are assigned</p>
+        )}
+      </div>
     </div>
   );
 }
