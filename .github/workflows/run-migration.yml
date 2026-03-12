@@ -12,23 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Run migration
+      - name: Run migration via Management API
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           SQL=$(cat "${{ github.event.inputs.migration_file }}")
-          curl -s -X POST "${SUPABASE_URL}/rest/v1/rpc/exec_sql" \
-            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+          PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||' | sed 's|\.supabase\.co||')
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+            -H "Authorization: Bearer ${SUPABASE_ACCESS_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "{\"query\": $(echo "$SQL" | jq -Rs .)}" \
-          && echo "Migration completed" || {
-            echo "RPC not available, trying direct SQL via Management API..."
-            # Fallback: use Supabase Management API
-            PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||' | sed 's|\.supabase\.co||')
-            curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
-              -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
-              -H "Content-Type: application/json" \
-              -d "{\"query\": $(echo "$SQL" | jq -Rs .)}"
-          }
+            -d "{\"query\": $(echo "$SQL" | jq -Rs .)}")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+          
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Migration completed successfully"
+          else
+            echo "Migration FAILED with HTTP $HTTP_CODE"
+            exit 1
+          fi
