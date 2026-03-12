@@ -1,0 +1,34 @@
+name: Run Supabase Migration
+on:
+  workflow_dispatch:
+    inputs:
+      migration_file:
+        description: 'Migration SQL file path'
+        required: true
+        default: 'supabase/migration_v12_assignment_presets.sql'
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run migration
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          SQL=$(cat "${{ github.event.inputs.migration_file }}")
+          curl -s -X POST "${SUPABASE_URL}/rest/v1/rpc/exec_sql" \
+            -H "apikey: ${SUPABASE_SERVICE_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"query\": $(echo "$SQL" | jq -Rs .)}" \
+          && echo "Migration completed" || {
+            echo "RPC not available, trying direct SQL via Management API..."
+            # Fallback: use Supabase Management API
+            PROJECT_REF=$(echo "$SUPABASE_URL" | sed 's|https://||' | sed 's|\.supabase\.co||')
+            curl -s -X POST "https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query" \
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"query\": $(echo "$SQL" | jq -Rs .)}"
+          }
