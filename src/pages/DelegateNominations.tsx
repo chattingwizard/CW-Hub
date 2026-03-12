@@ -59,9 +59,9 @@ export default function DelegateNominations() {
   return (
     <div className="p-4 lg:p-6 max-w-3xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-white">Delegate Nominations</h1>
+        <h1 className="text-xl font-semibold text-white">Delegate Candidates</h1>
         <p className="text-sm text-text-secondary mt-1">
-          {total} total vote{total !== 1 ? 's' : ''} received
+          {total} candidate{total !== 1 ? 's' : ''} registered
         </p>
       </div>
 
@@ -98,16 +98,9 @@ export default function DelegateNominations() {
                         <span className="text-sm font-medium text-white truncate">
                           {g.name}
                         </span>
-                        <span className="text-sm font-semibold text-cw ml-2 shrink-0">
-                          {g.votes} vote{g.votes !== 1 ? 's' : ''}
+                        <span className="text-xs font-medium text-cw ml-2 shrink-0 bg-cw/10 px-2 py-0.5 rounded-full">
+                          Candidate
                         </span>
-                      </div>
-
-                      <div className="h-1.5 bg-surface-2 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-cw rounded-full transition-all duration-500"
-                          style={{ width: `${barWidth}%` }}
-                        />
                       </div>
                     </div>
 
@@ -124,7 +117,7 @@ export default function DelegateNominations() {
                   <div className="mt-1 ml-9 mr-4 mb-2">
                     {g.reasons.length === 0 ? (
                       <p className="text-xs text-text-secondary italic py-2 px-3">
-                        No reasons provided.
+                        No pitch provided.
                       </p>
                     ) : (
                       <div className="space-y-1.5">
