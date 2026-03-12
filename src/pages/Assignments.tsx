@@ -468,6 +468,7 @@ export default function Assignments() {
           <CompactGroupsView
             groups={groups}
             groupModels={groupModels}
+            groupChatters={groupChatters}
             unassignedModels={unassignedModels}
             unassignedChatters={unassignedChatters}
             getModelsForGroup={getModelsForGroup}
@@ -477,6 +478,7 @@ export default function Assignments() {
             onAssignModel={handleAssignModel}
             onUnassignModel={handleUnassignModel}
             onAssignChatter={handleAssignChatter}
+            onUnassignChatter={handleUnassignChatter}
             onSwapGroups={handleSwapGroups}
             onCreateGroup={handleCreateGroup}
             onDeleteGroup={handleDeleteGroup}
@@ -560,6 +562,7 @@ function getPillColor(groupIndex: number, pageType: string | null): string {
 interface CompactGroupsViewProps {
   groups: AssignmentGroup[];
   groupModels: AssignmentGroupModel[];
+  groupChatters: AssignmentGroupChatter[];
   unassignedModels: Model[];
   unassignedChatters: Chatter[];
   getModelsForGroup: (groupId: string) => Model[];
@@ -569,6 +572,7 @@ interface CompactGroupsViewProps {
   onAssignModel: (groupId: string, modelId: string) => void;
   onUnassignModel: (gmId: string) => void;
   onAssignChatter: (groupId: string, chatterId: string) => void;
+  onUnassignChatter: (gcId: string) => void;
   onSwapGroups: (groupId1: string, groupId2: string) => void;
   onCreateGroup: () => void;
   onDeleteGroup: (groupId: string) => void;
@@ -580,8 +584,8 @@ interface CompactGroupsViewProps {
 }
 
 function CompactGroupsView({
-  groups, groupModels, unassignedModels, unassignedChatters, getModelsForGroup, getChattersForGroup,
-  saving, onMoveModel, onAssignModel, onUnassignModel, onAssignChatter, onSwapGroups,
+  groups, groupModels, groupChatters, unassignedModels, unassignedChatters, getModelsForGroup, getChattersForGroup,
+  saving, onMoveModel, onAssignModel, onUnassignModel, onAssignChatter, onUnassignChatter, onSwapGroups,
   onCreateGroup, onDeleteGroup,
   presets, activePresetId, onSavePreset, onLoadPreset, onDeletePreset,
 }: CompactGroupsViewProps) {
@@ -641,11 +645,16 @@ function CompactGroupsView({
     const itemId = e.dataTransfer.getData('itemId');
     const fromGroupId = e.dataTransfer.getData('fromGroupId');
     const dragType = e.dataTransfer.getData('dragType');
-    if (!itemId || !fromGroupId || dragType !== 'model') return;
+    if (!itemId || !fromGroupId) return;
 
-    const gm = groupModels.find((g) => g.model_id === itemId && g.group_id === fromGroupId);
-    if (gm) onUnassignModel(gm.id);
-  }, [groupModels, onUnassignModel]);
+    if (dragType === 'model') {
+      const gm = groupModels.find((g) => g.model_id === itemId && g.group_id === fromGroupId);
+      if (gm) onUnassignModel(gm.id);
+    } else if (dragType === 'chatter') {
+      const gc = groupChatters.find((g) => g.chatter_id === itemId && g.group_id === fromGroupId);
+      if (gc) onUnassignChatter(gc.id);
+    }
+  }, [groupModels, groupChatters, onUnassignModel, onUnassignChatter]);
 
   const searchResults = useMemo(() => {
     if (!searchText.trim()) return unassignedModels.slice(0, 8);
