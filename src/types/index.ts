@@ -150,6 +150,22 @@ export interface AssignmentGroupOverride {
   chatter?: Chatter;
 }
 
+// ── Assignment Presets ───────────────────────────────────────
+
+export interface AssignmentPresetSnapshot {
+  groups: { id: string; name: string; sort_order: number }[];
+  models: { group_id: string; model_id: string }[];
+}
+
+export interface AssignmentPreset {
+  id: string;
+  name: string;
+  snapshot: AssignmentPresetSnapshot;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Metrics ──────────────────────────────────────────────────
 
 export interface ModelMetric {

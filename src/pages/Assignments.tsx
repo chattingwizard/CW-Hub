@@ -6,6 +6,7 @@ import {
   Plus, X, Search, Users, ChevronLeft, ChevronRight, ChevronDown,
   Monitor, Calendar, Trash2, GripVertical, AlertTriangle,
   Layers, CalendarDays, UserPlus, Check, LayoutGrid, List,
+  Save, FolderOpen,
 } from 'lucide-react';
 import ModelAvatar from '../components/ModelAvatar';
 import TrafficBadge, { PageTypeBadge } from '../components/TrafficBadge';
@@ -15,6 +16,7 @@ import type {
   Model, Chatter, Schedule,
   AssignmentGroup, AssignmentGroupModel,
   AssignmentGroupChatter, AssignmentGroupOverride,
+  AssignmentPreset, AssignmentPresetSnapshot,
 } from '../types';
 
 type Tab = 'groups' | 'weekly';
@@ -34,6 +36,8 @@ export default function Assignments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [presets, setPresets] = useState<AssignmentPreset[]>([]);
+  const [activePresetId, setActivePresetId] = useState<string | null>(null);
   const { getModelTraffic } = useTrafficData();
 
   // ── Week navigation ──
@@ -62,7 +66,7 @@ export default function Assignments() {
     setLoading(true);
     setError(null);
     try {
-      const [modelsRes, chattersRes, groupsRes, gmRes, gcRes, overRes, schedRes, teamOverRes] = await Promise.all([
+      const [modelsRes, chattersRes, groupsRes, gmRes, gcRes, overRes, schedRes, teamOverRes, presetsRes] = await Promise.all([
         supabase.from('models').select('*').order('name'),
         supabase.from('chatters').select('*').eq('status', 'Active').eq('airtable_role', 'Chatter').order('full_name'),
         supabase.from('assignment_groups').select('*').eq('active', true).order('sort_order'),
@@ -71,6 +75,7 @@ export default function Assignments() {
         supabase.from('assignment_group_overrides').select('*').gte('date', weekStart).lte('date', weekDates[6]!),
         supabase.from('schedules').select('*').eq('week_start', weekStart),
         supabase.from('chatter_team_overrides').select('employee_name, team').neq('team', '_dismissed'),
+        supabase.from('assignment_presets').select('*').order('created_at', { ascending: false }),
       ]);
       const err = modelsRes.error || chattersRes.error || groupsRes.error || gmRes.error || gcRes.error || overRes.error || schedRes.error;
       if (err) throw new Error(err.message);
@@ -101,6 +106,7 @@ export default function Assignments() {
       setGroupChatters((gcRes.data ?? []) as AssignmentGroupChatter[]);
       setOverrides((overRes.data ?? []) as AssignmentGroupOverride[]);
       setSchedules((schedRes.data ?? []) as Schedule[]);
+      setPresets((presetsRes.data ?? []) as AssignmentPreset[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load assignments');
     } finally {
@@ -287,6 +293,102 @@ export default function Assignments() {
     setSaving(false);
   };
 
+  // ── Presets ──
+  const handleSavePreset = async (name: string) => {
+    setSaving(true);
+    const snapshot: AssignmentPresetSnapshot = {
+      groups: groups.map((g) => ({ id: g.id, name: g.name, sort_order: g.sort_order })),
+      models: groupModels.map((gm) => ({ group_id: gm.group_id, model_id: gm.model_id })),
+    };
+    const { data, error } = await supabase
+      .from('assignment_presets')
+      .insert({ name, snapshot, created_by: profile?.id })
+      .select()
+      .single();
+    if (!error && data) {
+      const preset = data as AssignmentPreset;
+      setPresets((prev) => [preset, ...prev]);
+      setActivePresetId(preset.id);
+    }
+    setSaving(false);
+  };
+
+  const handleLoadPreset = async (presetId: string) => {
+    const preset = presets.find((p) => p.id === presetId);
+    if (!preset) return;
+    setSaving(true);
+    try {
+      const snap = preset.snapshot;
+      const liveModelIds = new Set(models.filter((m) => m.status === 'Live').map((m) => m.id));
+
+      // Ensure all groups from the snapshot exist (match by name, reactivate or create)
+      const currentGroupNames = new Map(groups.map((g) => [g.name, g]));
+      const groupIdMap = new Map<string, string>(); // snapshot group id → real group id
+
+      for (const sg of snap.groups) {
+        const existing = currentGroupNames.get(sg.name);
+        if (existing) {
+          groupIdMap.set(sg.id, existing.id);
+        } else {
+          const { data } = await supabase
+            .from('assignment_groups')
+            .insert({ name: sg.name, sort_order: sg.sort_order, created_by: profile?.id })
+            .select()
+            .single();
+          if (data) {
+            const newGroup = data as AssignmentGroup;
+            groupIdMap.set(sg.id, newGroup.id);
+          }
+        }
+      }
+
+      // Delete all current model assignments
+      const deleteIds = groupModels.map((gm) => gm.id);
+      if (deleteIds.length > 0) {
+        await supabase.from('assignment_group_models').delete().in('id', deleteIds);
+      }
+
+      // Insert model assignments from snapshot (skip models that no longer exist)
+      const inserts = snap.models
+        .filter((m) => liveModelIds.has(m.model_id) && groupIdMap.has(m.group_id))
+        .map((m) => ({
+          group_id: groupIdMap.get(m.group_id)!,
+          model_id: m.model_id,
+          assigned_by: profile?.id,
+        }));
+
+      let newGroupModels: AssignmentGroupModel[] = [];
+      if (inserts.length > 0) {
+        const { data } = await supabase
+          .from('assignment_group_models')
+          .insert(inserts)
+          .select();
+        if (data) newGroupModels = data as AssignmentGroupModel[];
+      }
+
+      // Refresh groups and model assignments
+      const { data: freshGroups } = await supabase
+        .from('assignment_groups')
+        .select('*')
+        .eq('active', true)
+        .order('sort_order');
+      if (freshGroups) setGroups(freshGroups as AssignmentGroup[]);
+      setGroupModels(newGroupModels);
+      setActivePresetId(presetId);
+    } catch (e) {
+      console.error('Failed to load preset:', e);
+    }
+    setSaving(false);
+  };
+
+  const handleDeletePreset = async (presetId: string) => {
+    setSaving(true);
+    await supabase.from('assignment_presets').delete().eq('id', presetId);
+    setPresets((prev) => prev.filter((p) => p.id !== presetId));
+    if (activePresetId === presetId) setActivePresetId(null);
+    setSaving(false);
+  };
+
   if (loading) {
     return (
       <div className="p-6 flex items-center justify-center min-h-[60vh]">
@@ -373,6 +475,11 @@ export default function Assignments() {
             onSwapGroups={handleSwapGroups}
             onCreateGroup={handleCreateGroup}
             onDeleteGroup={handleDeleteGroup}
+            presets={presets}
+            activePresetId={activePresetId}
+            onSavePreset={handleSavePreset}
+            onLoadPreset={handleLoadPreset}
+            onDeletePreset={handleDeletePreset}
           />
         ) : (
           <GroupsTab
@@ -460,18 +567,27 @@ interface CompactGroupsViewProps {
   onSwapGroups: (groupId1: string, groupId2: string) => void;
   onCreateGroup: () => void;
   onDeleteGroup: (groupId: string) => void;
+  presets: AssignmentPreset[];
+  activePresetId: string | null;
+  onSavePreset: (name: string) => void;
+  onLoadPreset: (presetId: string) => void;
+  onDeletePreset: (presetId: string) => void;
 }
 
 function CompactGroupsView({
   groups, groupModels, unassignedModels, unassignedChatters, getModelsForGroup, getChattersForGroup,
   saving, onMoveModel, onAssignModel, onUnassignModel, onAssignChatter, onSwapGroups,
   onCreateGroup, onDeleteGroup,
+  presets, activePresetId, onSavePreset, onLoadPreset, onDeletePreset,
 }: CompactGroupsViewProps) {
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
   const [dragOverHeaderId, setDragOverHeaderId] = useState<string | null>(null);
   const [dragOverUnassigned, setDragOverUnassigned] = useState(false);
   const [searchGroupId, setSearchGroupId] = useState<string | null>(null);
   const [searchText, setSearchText] = useState('');
+  const [presetDropdownOpen, setPresetDropdownOpen] = useState(false);
+  const [savingPreset, setSavingPreset] = useState(false);
+  const [presetNameInput, setPresetNameInput] = useState('');
 
   const handleDragStart = useCallback((e: React.DragEvent, itemId: string, fromGroupId: string, type: 'model' | 'chatter') => {
     e.dataTransfer.setData('itemId', itemId);
@@ -559,9 +675,115 @@ function CompactGroupsView({
       {searchGroupId && (
         <div className="fixed inset-0 z-20" onClick={() => { setSearchGroupId(null); setSearchText(''); }} />
       )}
+      {presetDropdownOpen && (
+        <div className="fixed inset-0 z-20" onClick={() => setPresetDropdownOpen(false)} />
+      )}
 
-      <div className="bg-lime-400 text-[#1a1a1a] text-center font-extrabold py-2.5 text-sm tracking-wider rounded-t-xl uppercase">
-        Team Composition
+      <div className="bg-lime-400 text-[#1a1a1a] flex items-center justify-between px-4 py-2.5 text-sm tracking-wider rounded-t-xl">
+        <span className="font-extrabold uppercase">Team Composition</span>
+        <div className="flex items-center gap-1.5">
+          {/* Save preset */}
+          {savingPreset ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (presetNameInput.trim()) {
+                  onSavePreset(presetNameInput.trim());
+                  setPresetNameInput('');
+                  setSavingPreset(false);
+                }
+              }}
+              className="flex items-center gap-1"
+            >
+              <input
+                autoFocus
+                value={presetNameInput}
+                onChange={(e) => setPresetNameInput(e.target.value)}
+                placeholder="Preset name..."
+                className="px-2 py-0.5 rounded text-[11px] bg-[#1a1a1a]/20 text-[#1a1a1a] placeholder-[#1a1a1a]/50 border border-[#1a1a1a]/20 focus:outline-none focus:border-[#1a1a1a]/50 w-28"
+                onKeyDown={(e) => { if (e.key === 'Escape') setSavingPreset(false); }}
+              />
+              <button
+                type="submit"
+                disabled={!presetNameInput.trim() || saving}
+                className="p-1 rounded hover:bg-[#1a1a1a]/10 disabled:opacity-30 transition-colors"
+                title="Save"
+              >
+                <Check size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setSavingPreset(false)}
+                className="p-1 rounded hover:bg-[#1a1a1a]/10 transition-colors"
+              >
+                <X size={13} />
+              </button>
+            </form>
+          ) : (
+            <button
+              onClick={() => setSavingPreset(true)}
+              disabled={saving || groups.length === 0}
+              className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold hover:bg-[#1a1a1a]/10 transition-colors disabled:opacity-30"
+              title="Save current config as preset"
+            >
+              <Save size={12} /> Save
+            </button>
+          )}
+
+          {/* Load presets */}
+          {presets.length > 0 && (
+            <div className="relative">
+              <button
+                onClick={() => setPresetDropdownOpen(!presetDropdownOpen)}
+                disabled={saving}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[11px] font-semibold hover:bg-[#1a1a1a]/10 transition-colors disabled:opacity-30"
+                title="Load a preset"
+              >
+                <FolderOpen size={12} /> Presets ({presets.length})
+              </button>
+              {presetDropdownOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-surface-2 border border-border rounded-lg shadow-xl z-30 min-w-[180px] py-1">
+                  {presets.map((p) => (
+                    <div
+                      key={p.id}
+                      className={`flex items-center gap-2 px-3 py-2 hover:bg-surface-3 transition-colors ${
+                        p.id === activePresetId ? 'bg-cw/10' : ''
+                      }`}
+                    >
+                      <button
+                        onClick={() => {
+                          if (confirm(`Load "${p.name}"? Current model assignments will be replaced.`)) {
+                            onLoadPreset(p.id);
+                            setPresetDropdownOpen(false);
+                          }
+                        }}
+                        disabled={saving}
+                        className="flex-1 text-left text-xs text-white truncate disabled:opacity-50"
+                      >
+                        {p.id === activePresetId && (
+                          <Check size={10} className="inline mr-1.5 text-cw" />
+                        )}
+                        {p.name}
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Delete preset "${p.name}"?`)) {
+                            onDeletePreset(p.id);
+                          }
+                        }}
+                        disabled={saving}
+                        className="p-0.5 rounded opacity-40 hover:opacity-100 hover:bg-danger/15 text-text-muted hover:text-danger transition-all shrink-0"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="border border-border border-t-0 rounded-b-xl overflow-hidden bg-surface-1 overflow-x-auto">
