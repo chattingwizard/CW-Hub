@@ -824,14 +824,30 @@ function TLView() {
             </div>
           </div>
 
-          <div className="flex items-center justify-between px-4 py-3 bg-surface-0/50 border-t border-border">
-            <div className="text-xs text-text-secondary">
+          <div className="flex items-center justify-between px-4 py-3 bg-surface-0/50 border-t border-border gap-3">
+            <div className="text-xs text-text-secondary flex-1">
               {reviews.filter(r => r.status === 'ok').length} OK · {flaggedReviews.length} flagged · {reviews.filter(r => r.status === null).length} pending
+              {!canSubmit && (
+                <span className="block text-amber-400 mt-1">
+                  Missing: {[
+                    !allReviewed && 'review all chatters',
+                    flaggedWithoutNotes && 'add notes to flagged',
+                    !situationReportComplete && `situation report (${[
+                      trafficLevel === null && 'traffic',
+                      hasUnanswered === null && 'unanswered',
+                      hasBacklog === null && 'backlog',
+                      hasOtherIssues === null && 'other issues',
+                      screenshots.length !== 2 && `${2 - screenshots.length} screenshots`,
+                    ].filter(Boolean).join(', ')})`,
+                    !voiceCheckComplete && 'voice check (min 1)',
+                  ].filter(Boolean).join(' · ')}
+                </span>
+              )}
             </div>
             <button
               onClick={submitRound}
               disabled={!canSubmit}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cw text-white text-sm font-medium hover:bg-cw/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-cw text-white text-sm font-medium hover:bg-cw/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
             >
               {submitting ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
               Complete Round
