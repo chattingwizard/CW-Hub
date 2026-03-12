@@ -42,6 +42,8 @@ export default function Schedules() {
 
   // Coverage map: `${groupId}-${dayIdx}` → chatterId (overrides defaults)
   const [coverageMap, setCoverageMap] = useState<Map<string, string>>(new Map());
+  // All persisted overrides for the current week (loaded from DB, unfiltered by TL)
+  const [dbOverrides, setDbOverrides] = useState<{ group_id: string; chatter_id: string; date: string; shift?: string }[]>([]);
   // Canonical shift reference: chatter→shift from the latest available week
   const [shiftRef, setShiftRef] = useState<Map<string, ShiftSlot>>(new Map());
 
@@ -78,7 +80,7 @@ export default function Schedules() {
       weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
       const weekEndStr = weekEnd.toISOString().split('T')[0]!;
 
-      const [chattersRes, modelsRes, schedulesRes, groupsRes, gcRes, gmRes, shiftRefRes] = await Promise.all([
+      const [chattersRes, modelsRes, schedulesRes, groupsRes, gcRes, gmRes, shiftRefRes, overridesRes] = await Promise.all([
         supabase.from('chatters').select('*').eq('status', 'Active').order('full_name'),
         supabase.from('models').select('*').eq('status', 'Live').order('name'),
         supabase.from('schedules').select('*, chatter:chatters!schedules_chatter_id_fkey(*)').eq('week_start', weekStart),
@@ -86,8 +88,9 @@ export default function Schedules() {
         supabase.from('assignment_group_chatters').select('*'),
         supabase.from('assignment_group_models').select('*'),
         supabase.from('schedules').select('chatter_id, shift').order('week_start', { ascending: false }).limit(500),
+        supabase.from('assignment_group_overrides').select('*').gte('date', weekStart).lte('date', weekEndStr),
       ]);
-      const err = chattersRes.error || modelsRes.error || schedulesRes.error || groupsRes.error || gcRes.error || gmRes.error || shiftRefRes.error;
+      const err = chattersRes.error || modelsRes.error || schedulesRes.error || groupsRes.error || gcRes.error || gmRes.error || shiftRefRes.error || overridesRes.error;
       if (err) throw new Error(err.message);
       setChatters((chattersRes.data ?? []) as Chatter[]);
       setModels((modelsRes.data ?? []) as Model[]);
@@ -101,6 +104,8 @@ export default function Schedules() {
         if (!refMap.has(r.chatter_id)) refMap.set(r.chatter_id, r.shift);
       }
       setShiftRef(refMap);
+
+      setDbOverrides((overridesRes.data ?? []) as { group_id: string; chatter_id: string; date: string; shift?: string }[]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load schedules');
     } finally {
@@ -110,37 +115,24 @@ export default function Schedules() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Load overrides for the active TL's shift (separate from main fetch so it reloads on tab switch)
+  // Derive the initial coverageMap from DB overrides filtered by active TL shift.
+  // This runs synchronously whenever dbOverrides or the TL tab changes — no extra fetch needed.
   useEffect(() => {
-    const loadOverrides = async () => {
-      const shift = currentTL.shift;
-      const weekEnd = new Date(weekStart + 'T00:00:00Z');
-      weekEnd.setUTCDate(weekEnd.getUTCDate() + 6);
-      const weekEndStr = weekEnd.toISOString().split('T')[0]!;
-
-      const { data, error: oErr } = await supabase
-        .from('assignment_group_overrides')
-        .select('group_id, chatter_id, date')
-        .gte('date', weekStart)
-        .lte('date', weekEndStr)
-        .eq('shift', shift);
-
-      if (oErr) { console.error('Failed to load overrides:', oErr); return; }
-
-      const wsDate = new Date(weekStart + 'T00:00:00Z');
-      const loadedMap = new Map<string, string>();
-      for (const o of (data ?? []) as { group_id: string; chatter_id: string; date: string }[]) {
-        const oDate = new Date(o.date + 'T00:00:00Z');
-        const dayIdx = Math.round((oDate.getTime() - wsDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (dayIdx >= 0 && dayIdx <= 6) {
-          loadedMap.set(`${o.group_id}-${dayIdx}`, o.chatter_id);
-        }
+    if (!dbOverrides.length) { setCoverageMap(new Map()); setDirty(false); return; }
+    const shift = currentTL.shift;
+    const wsDate = new Date(weekStart + 'T00:00:00Z');
+    const loadedMap = new Map<string, string>();
+    for (const o of dbOverrides) {
+      if (o.shift && o.shift !== shift) continue;
+      const oDate = new Date(o.date + 'T00:00:00Z');
+      const dayIdx = Math.round((oDate.getTime() - wsDate.getTime()) / (1000 * 60 * 60 * 24));
+      if (dayIdx >= 0 && dayIdx <= 6) {
+        loadedMap.set(`${o.group_id}-${dayIdx}`, o.chatter_id);
       }
-      setCoverageMap(loadedMap);
-      setDirty(false);
-    };
-    loadOverrides();
-  }, [weekStart, currentTL.shift]);
+    }
+    setCoverageMap(loadedMap);
+    setDirty(false);
+  }, [dbOverrides, currentTL.shift, weekStart]);
 
   // Close popover on outside click
   useEffect(() => {
@@ -507,11 +499,13 @@ export default function Schedules() {
         }
       }
 
-      const savedOverrides = coverageMap.size;
-      setSaveMsg(`Saved! (${rows.length} schedules, ${savedOverrides} overrides)`);
+      const insertedOverrides = coverageMap.size > 0
+        ? [...coverageMap.values()].filter(v => v !== '__clear__').length
+        : 0;
+      setSaveMsg(`Saved! (${rows.length} sched, ${insertedOverrides} overrides for ${currentTL.shift})`);
       setDirty(false);
-      setTimeout(() => setSaveMsg(''), 4000);
-      fetchData();
+      setTimeout(() => setSaveMsg(''), 6000);
+      await fetchData();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? String(err);
       console.error('Schedule save failed:', err);
