@@ -28,7 +28,7 @@ export default function School() {
   return (
     <iframe
       ref={iframeRef}
-      src={`${import.meta.env.BASE_URL}school-app/index.html`}
+      src={`${import.meta.env.BASE_URL}school-app/`}
       onLoad={handleLoad}
       className="w-full border-0"
       style={{ height: 'calc(100vh - 52px)', minHeight: '600px' }}

@@ -5,7 +5,7 @@
 // Found at: supabase.com > Your Project > Settings > API
 // ============================================================
 var SUPABASE_URL = 'https://bnmrdlqqzxenyqjknqhy.supabase.co';
-var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJubXJkbHFxenhlbnlxamtucWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzEwODIxNzMsImV4cCI6MjA4NjY1ODE3M30.do4TDZdu84GA_Ek37qZi2ZPGqzRKJs9N80opQQP6V90';
+var SUPABASE_ANON_KEY = 'sb_publishable_PuLIgi5dDU2zT-Q2RHqkCA_HAqW9Yu_';
 
 var _sb = null;
 var _inIframe = false;
