@@ -168,22 +168,6 @@ export interface AssignmentPreset {
 
 // ── Metrics ──────────────────────────────────────────────────
 
-export interface ModelMetric {
-  id: string;
-  model_id: string;
-  week_start: string;
-  week_end: string;
-  total_revenue: number;
-  new_subs: number;
-  messages_revenue: number;
-  tips: number;
-  refunds: number;
-  warnings: string | null;
-  observations: string | null;
-  synced_at: string;
-  model?: Model;
-}
-
 export interface ModelDailyStat {
   id: string;
   model_id: string;
@@ -358,19 +342,6 @@ export interface CoachingLog {
 
 export type ChatterOnlineStatus = 'online' | 'on_break' | 'offline' | 'absent';
 
-export interface ChatterSession {
-  id: string;
-  chatter_id: string;
-  clock_in: string;
-  clock_out: string | null;
-  total_seconds: number | null;
-  break_seconds: number;
-  active_seconds: number | null;
-  avg_activity_pct: number | null;
-  status: 'active' | 'on_break' | 'completed' | 'disconnected';
-  source: 'tracker' | 'manual';
-}
-
 export interface ChatterHours {
   id: string;
   chatter_id: string;
@@ -419,21 +390,6 @@ export interface Announcement {
   author?: Profile;
 }
 
-// ── Uploads ──────────────────────────────────────────────────
-
-export type UploadType = 'creator_report' | 'employee_report' | 'model_metrics' | 'chatter_hours';
-
-export interface CsvUpload {
-  id: string;
-  uploaded_by: string;
-  file_name: string;
-  row_count: number;
-  upload_type: UploadType;
-  uploaded_at: string;
-  report_date: string | null;
-  uploader?: Profile;
-}
-
 // ── Module System ────────────────────────────────────────────
 
 export type ModuleType = 'internal';
@@ -477,15 +433,6 @@ export interface Task {
   creator?: Profile;
 }
 
-export interface TaskComment {
-  id: string;
-  task_id: string;
-  author_id: string;
-  content: string;
-  created_at: string;
-  author?: Profile;
-}
-
 // ── Documents (Knowledge Base) ──────────────────────────────
 
 export type DocCategory = 'company' | 'role_overview' | 'workflow' | 'training' | 'policy' | 'guide';
@@ -504,18 +451,6 @@ export interface Document {
   created_at: string;
   updated_at: string;
   author?: Profile;
-}
-
-// ── CSV Parsing ──────────────────────────────────────────────
-
-export interface ModelMetricCSVRow {
-  model_name: string;
-  date: string;
-  revenue: string;
-  new_subs: string;
-  messages_revenue: string;
-  tips: string;
-  refunds: string;
 }
 
 // ── Chatter Score System ────────────────────────────────────

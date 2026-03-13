@@ -42,5 +42,8 @@ Thumbs.db
 *.swp
 *.swo
 
+# TypeScript build cache
+*.tsbuildinfo
+
 # Internal docs (contain PII / operational details)
 FIRST_PROMPT.md

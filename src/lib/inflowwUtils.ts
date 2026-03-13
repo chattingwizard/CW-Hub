@@ -7,7 +7,7 @@ const HUBSTAFF_KEY = 'infloww_hubstaff';
 const HISTORY_VER_KEY = 'infloww_history_ver';
 const HISTORY_VER = 4;
 
-export interface InflowwColumn {
+interface InflowwColumn {
   key: string;
   label: string;
   type: 'text' | 'currency' | 'number' | 'decimal' | 'percent' | 'hours' | 'time';
@@ -545,9 +545,6 @@ export async function loadFromSupabase(
   if (error) throw new Error('Supabase query failed: ' + error.message);
   if (!data || data.length === 0) return [];
 
-  const dbTotalSales = (data as ChatterDailyRow[]).reduce((s, d) => s + (Number(d.sales) || 0), 0);
-  const dbDates = [...new Set((data as ChatterDailyRow[]).map(d => d.date))].sort();
-  console.log(`[InflowwKPIs] DB query: ${data.length} rows, ${dbDates.length} dates (${dbDates.join(', ')}), total sales: $${dbTotalSales.toFixed(2)}, range: ${range?.from}..${range?.to}`);
 
   // Fetch Hubstaff hours from chatter_hours table, matched to chatter names
   let hubstaffByName: Record<string, number> = {};
@@ -578,8 +575,6 @@ export async function loadFromSupabase(
         const key = normalizeNameForMatch(name);
         hubstaffByName[key] = (hubstaffByName[key] ?? 0) + Number(h.hours_worked);
       }
-      const totalHrs = Object.values(hubstaffByName).reduce((s, v) => s + v, 0);
-      console.log(`[InflowwKPIs] Hubstaff hours: ${hoursRes.data.length} records, ${matched} matched, ${unmatched} unmatched, ${Object.keys(hubstaffByName).length} employees, ${totalHrs.toFixed(1)}h total, range: ${range?.from}..${range?.to}`);
     } else {
       if (hoursRes.error) console.warn('[InflowwKPIs] chatter_hours query error:', hoursRes.error.message);
       if (chattersRes.error) console.warn('[InflowwKPIs] chatters query error:', chattersRes.error.message);

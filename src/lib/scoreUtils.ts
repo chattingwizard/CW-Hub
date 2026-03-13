@@ -10,7 +10,7 @@ export function getWeekKey(date: Date): string {
   return `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
 
-export function getWeekStart(date: Date): Date {
+function getWeekStart(date: Date): Date {
   const d = new Date(date);
   const day = d.getUTCDay();
   const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
@@ -19,7 +19,7 @@ export function getWeekStart(date: Date): Date {
   return d;
 }
 
-export function getWeekEnd(date: Date): Date {
+function getWeekEnd(date: Date): Date {
   const start = getWeekStart(date);
   const end = new Date(start);
   end.setDate(end.getDate() + 6);
@@ -27,7 +27,7 @@ export function getWeekEnd(date: Date): Date {
   return end;
 }
 
-export function parseWeekKey(weekKey: string): { year: number; week: number } {
+function parseWeekKey(weekKey: string): { year: number; week: number } {
   const parts = weekKey.split('-W');
   return { year: parseInt(parts[0] ?? '0', 10), week: parseInt(parts[1] ?? '0', 10) };
 }

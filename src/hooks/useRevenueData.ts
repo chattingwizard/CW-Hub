@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../lib/supabase';
 import type { ModelDailyStat, ChatterDailyStat, Model } from '../types';
 
-export interface DailyRevenue {
+interface DailyRevenue {
   date: string;
   total: number;
   messages: number;
@@ -36,7 +36,7 @@ export interface ModelRevenue {
   daily_fans: { date: string; new_fans: number; active_fans: number }[];
 }
 
-export interface ChatterRevenue {
+interface ChatterRevenue {
   employee_name: string;
   team: string;
   total_sales: number;
@@ -47,7 +47,7 @@ export interface ChatterRevenue {
   daily_sales: { date: string; sales: number; sales_per_hour: number }[];
 }
 
-export interface TeamRevenue {
+interface TeamRevenue {
   team: string;
   total_sales: number;
   avg_sales_per_hour: number;
@@ -55,7 +55,7 @@ export interface TeamRevenue {
   daily_sales: { date: string; sales: number; avg_sph: number }[];
 }
 
-export interface ForecastPoint {
+interface ForecastPoint {
   date: string;
   actual_revenue: number | null;
   forecast_revenue: number;
@@ -66,7 +66,7 @@ export interface ForecastPoint {
   is_future: boolean;
 }
 
-export interface RevenueData {
+interface RevenueData {
   totalRevenue: number;
   avgRevenuePerDay: number;
   growthPct: number;

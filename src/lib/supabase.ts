@@ -78,7 +78,3 @@ export async function ensureFreshSession(): Promise<boolean> {
   }
 }
 
-/** Lightweight session check. Does NOT force a refresh. */
-export async function ensureSession(): Promise<void> {
-  await ensureFreshSession();
-}

@@ -189,7 +189,6 @@ export default function ChatterPerformance() {
         map.set(normalizeKey(c.full_name), { id: c.id, team: c.team_name ?? '' });
         if (c.team_name) withTeam++;
       }
-      console.log(`[ChatterPerf] Loaded ${map.size} chatters from DB (${withTeam} with team_name)`);
       setChatterTeamMap(map);
     }
   }, []);

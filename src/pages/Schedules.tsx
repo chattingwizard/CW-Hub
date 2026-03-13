@@ -249,7 +249,7 @@ export default function Schedules() {
   }, [groupDefaultForTL]);
 
   // Which groups each chatter is allowed in (home group ±1 by sort_order)
-  // Exception: week of 2025-03-09 has no restriction (one-time restructuring)
+  // Exception: week of 2026-03-09 has no restriction (one-time restructuring)
   const chatterAllowedGroups = useMemo(() => {
     if (weekStart === '2026-03-09') return new Map<string, Set<string>>();
 

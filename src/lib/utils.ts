@@ -14,21 +14,6 @@ export function formatCurrency(value: number): string {
   }).format(value);
 }
 
-export function formatNumber(value: number): string {
-  return new Intl.NumberFormat('en-US').format(value);
-}
-
-export function formatPct(value: number, decimals = 1): string {
-  return `${value.toFixed(decimals)}%`;
-}
-
-export function formatDuration(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m}m`;
-}
-
 // ── Date Utilities ───────────────────────────────────────────
 
 export function getWeekStart(date: Date = new Date()): string {
@@ -37,15 +22,6 @@ export function getWeekStart(date: Date = new Date()): string {
   const diff = d.getUTCDate() - day + (day === 0 ? -6 : 1);
   d.setUTCDate(diff);
   return d.toISOString().split('T')[0]!;
-}
-
-export function getWeekDates(weekStart: string): Date[] {
-  const start = new Date(weekStart + 'T00:00:00Z');
-  return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(start);
-    d.setUTCDate(d.getUTCDate() + i);
-    return d;
-  });
 }
 
 export function formatDate(date: Date | string, format: 'short' | 'long' = 'short'): string {
@@ -74,11 +50,6 @@ export function getCurrentShift(): '00:00-08:00' | '08:00-16:00' | '16:00-00:00'
   return '16:00-00:00';
 }
 
-export function isToday(dateStr: string): boolean {
-  const today = new Date().toISOString().split('T')[0];
-  return dateStr === today;
-}
-
 // ── Shift Constants ──────────────────────────────────────────
 
 export const SHIFTS = ['00:00-08:00', '08:00-16:00', '16:00-00:00'] as const;
@@ -87,12 +58,6 @@ export const SHIFT_LABELS: Record<string, string> = {
   '00:00-08:00': 'Night · 00–08 UTC',
   '08:00-16:00': 'Day · 08–16 UTC',
   '16:00-00:00': 'Evening · 16–00 UTC',
-};
-
-export const SHIFT_LABELS_SHORT: Record<string, string> = {
-  '00:00-08:00': '00–08',
-  '08:00-16:00': '08–16',
-  '16:00-00:00': '16–00',
 };
 
 // ── Status Colors ────────────────────────────────────────────
@@ -106,13 +71,6 @@ export const STATUS_COLORS: Record<string, string> = {
   Probation: 'bg-warning-muted text-warning',
   Dropped: 'bg-surface-3 text-text-muted',
   Fired: 'bg-danger-muted text-danger',
-};
-
-export const ONLINE_STATUS_COLORS: Record<string, string> = {
-  online: 'bg-online',
-  on_break: 'bg-on-break',
-  offline: 'bg-offline',
-  absent: 'bg-absent',
 };
 
 // Re-export for backward compatibility with existing pages

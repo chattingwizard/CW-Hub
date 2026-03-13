@@ -1,17 +1,5 @@
 import type { UserRole } from '../types';
 
-// ── Role Hierarchy (higher = more access) ────────────────────
-
-export const ROLE_HIERARCHY: Record<UserRole, number> = {
-  owner: 100,
-  admin: 90,
-  team_leader: 70,
-  script_manager: 60,
-  va: 40,
-  chatter: 30,
-  recruit: 10,
-};
-
 export const ROLE_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
   admin: 'Admin',
@@ -27,23 +15,8 @@ export const ALL_ROLES: UserRole[] = [
   'script_manager', 'va', 'chatter', 'recruit',
 ];
 
-// ── Role Groups ──────────────────────────────────────────────
-
 const MANAGEMENT: UserRole[] = ['owner', 'admin', 'team_leader'];
 const LEADERSHIP: UserRole[] = ['owner', 'admin'];
-const ALL_STAFF: UserRole[] = ['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter'];
-
-export const ROLE_GROUPS = {
-  management: MANAGEMENT,
-  leadership: LEADERSHIP,
-  allStaff: ALL_STAFF,
-} as const;
-
-// ── Permission Checks ────────────────────────────────────────
-
-export function hasMinRole(userRole: UserRole, minRole: UserRole): boolean {
-  return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[minRole];
-}
 
 export function isManagement(role: UserRole): boolean {
   return MANAGEMENT.includes(role);
@@ -55,44 +28,6 @@ export function isLeadership(role: UserRole): boolean {
 
 export function isAdminLevel(role: UserRole): boolean {
   return role === 'owner' || role === 'admin';
-}
-
-export function canViewTeamData(role: UserRole): boolean {
-  return MANAGEMENT.includes(role);
-}
-
-export function canEditSchedules(role: UserRole): boolean {
-  return MANAGEMENT.includes(role);
-}
-
-export function canEditAssignments(role: UserRole): boolean {
-  return MANAGEMENT.includes(role);
-}
-
-export function canUploadReports(role: UserRole): boolean {
-  return ['owner', 'admin'].includes(role);
-}
-
-export function canManageCoaching(role: UserRole): boolean {
-  return MANAGEMENT.includes(role);
-}
-
-export function canViewLiveMonitor(role: UserRole): boolean {
-  return MANAGEMENT.includes(role);
-}
-
-export function canManageUsers(role: UserRole): boolean {
-  return role === 'owner';
-}
-
-// ── Team-scoped access ───────────────────────────────────────
-// TLs only see their own team; CHM/admin/owner see all
-
-export function getTeamScope(role: UserRole, teamName: string | null): 'all' | 'team' | 'none' {
-  if (isLeadership(role)) return 'all';
-  if (role === 'team_leader' && teamName) return 'team';
-  if (role === 'chatter') return 'none';
-  return 'none';
 }
 
 // ── Default Landing Pages ────────────────────────────────────
