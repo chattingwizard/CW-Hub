@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import {
   Shield, UserPlus, Copy, Check, RefreshCw, Search,
   Users, ShieldCheck, UserX, UserCheck, Ticket, AlertTriangle, Link2, Unlink, X,
+  KeyRound, Trash2, Eye, EyeOff,
 } from 'lucide-react';
 import ErrorState from '../components/ErrorState';
 import type { Profile, UserRole, Chatter } from '../types';
@@ -70,6 +71,15 @@ export default function Settings() {
     isActive: boolean;
   } | null>(null);
   const [toggling, setToggling] = useState(false);
+
+  const [resetModal, setResetModal] = useState<{ userId: string; userName: string } | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  const [deleteModal, setDeleteModal] = useState<{ userId: string; userName: string; email: string } | null>(null);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   // ── Data fetching ──────────────────────────────────────────
 
@@ -176,6 +186,49 @@ export default function Settings() {
       setStatusMsg('Error: Could not update account status.');
     } finally {
       setToggling(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!resetModal || newPassword.length < 6) return;
+    setResetting(true);
+    try {
+      const { error } = await supabase.rpc('hub_reset_user_password', {
+        target_id: resetModal.userId,
+        new_password: newPassword,
+      });
+      if (error) throw error;
+      setStatusMsg(`Password reset for ${resetModal.userName}`);
+      setResetModal(null);
+      setNewPassword('');
+      setShowPassword(false);
+      setTimeout(() => setStatusMsg(''), 3000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Unknown error';
+      setStatusMsg(`Error: ${msg}`);
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteModal || deleteConfirmText !== 'DELETE') return;
+    setDeleting(true);
+    try {
+      const { error } = await supabase.rpc('hub_delete_user', {
+        target_id: deleteModal.userId,
+      });
+      if (error) throw error;
+      setStatusMsg(`Account ${deleteModal.userName} deleted`);
+      setDeleteModal(null);
+      setDeleteConfirmText('');
+      fetchData();
+      setTimeout(() => setStatusMsg(''), 3000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : (err as { message?: string })?.message ?? 'Unknown error';
+      setStatusMsg(`Error: ${msg}`);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -628,20 +681,43 @@ export default function Settings() {
                                 ))}
                               </select>
                               {canManageUsers(profile?.role) && (
-                                <button
-                                  onClick={() => setConfirmModal({
-                                    userId: user.id,
-                                    userName: user.full_name || user.email,
-                                    isActive: !isInactive,
-                                  })}
-                                  className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                                    isInactive
-                                      ? 'bg-success/10 text-success hover:bg-success/20 border border-success/20'
-                                      : 'bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20'
-                                  }`}
-                                >
-                                  {isInactive ? 'Activate' : 'Deactivate'}
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() => setConfirmModal({
+                                      userId: user.id,
+                                      userName: user.full_name || user.email,
+                                      isActive: !isInactive,
+                                    })}
+                                    className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                                      isInactive
+                                        ? 'bg-success/10 text-success hover:bg-success/20 border border-success/20'
+                                        : 'bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20'
+                                    }`}
+                                  >
+                                    {isInactive ? 'Activate' : 'Deactivate'}
+                                  </button>
+                                  <button
+                                    onClick={() => setResetModal({
+                                      userId: user.id,
+                                      userName: user.full_name || user.email,
+                                    })}
+                                    className="p-1.5 rounded-lg bg-cw/10 text-cw hover:bg-cw/20 border border-cw/20 transition-colors"
+                                    title="Reset password"
+                                  >
+                                    <KeyRound size={13} />
+                                  </button>
+                                  <button
+                                    onClick={() => setDeleteModal({
+                                      userId: user.id,
+                                      userName: user.full_name || user.email,
+                                      email: user.email,
+                                    })}
+                                    className="p-1.5 rounded-lg bg-danger/10 text-danger hover:bg-danger/20 border border-danger/20 transition-colors"
+                                    title="Delete account"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </>
                               )}
                             </div>
                           )}
@@ -716,6 +792,125 @@ export default function Settings() {
                 <><Copy size={15} /> Copy All ({batchModal.codes.length} codes)</>
               )}
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Reset Password Modal ─────────────────────────── */}
+      {resetModal && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => !resetting && (setResetModal(null), setNewPassword(''), setShowPassword(false))}
+        >
+          <div
+            className="bg-surface-1 border border-border rounded-2xl p-6 w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-cw/10 flex items-center justify-center">
+                <KeyRound size={24} className="text-cw" />
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold text-white text-center mb-2">Reset Password</h3>
+            <p className="text-sm text-text-secondary text-center mb-5">
+              Set a new password for <strong className="text-white">{resetModal.userName}</strong>
+            </p>
+            <div className="relative mb-5">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="New password (min 6 characters)"
+                className="w-full bg-surface-2 border border-border rounded-lg px-4 py-3 pr-10 text-sm text-white placeholder-text-muted focus:outline-none focus:border-cw transition-colors"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white transition-colors"
+              >
+                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setResetModal(null); setNewPassword(''); setShowPassword(false); }}
+                disabled={resetting}
+                className="flex-1 px-4 py-2.5 bg-surface-2 hover:bg-surface-3 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleResetPassword}
+                disabled={resetting || newPassword.length < 6}
+                className="flex-1 px-4 py-2.5 bg-cw hover:bg-cw-dark text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {resetting ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  </span>
+                ) : 'Reset Password'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Account Modal ──────────────────────────── */}
+      {deleteModal && (
+        <div
+          className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+          onClick={() => !deleting && (setDeleteModal(null), setDeleteConfirmText(''))}
+        >
+          <div
+            className="bg-surface-1 border border-border rounded-2xl p-6 w-full max-w-sm"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-center mb-4">
+              <div className="w-12 h-12 rounded-xl bg-danger/10 flex items-center justify-center">
+                <Trash2 size={24} className="text-danger" />
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold text-white text-center mb-2">Delete Account</h3>
+            <p className="text-sm text-text-secondary text-center mb-1">
+              This will permanently delete <strong className="text-white">{deleteModal.userName}</strong>&apos;s account.
+            </p>
+            <p className="text-xs text-danger text-center mb-5">
+              This action cannot be undone. All data will be lost.
+            </p>
+            <div className="mb-5">
+              <label className="text-xs text-text-muted mb-1.5 block">
+                Type <strong className="text-white">DELETE</strong> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder="DELETE"
+                className="w-full bg-surface-2 border border-border rounded-lg px-4 py-3 text-sm text-white placeholder-text-muted focus:outline-none focus:border-danger transition-colors"
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => { setDeleteModal(null); setDeleteConfirmText(''); }}
+                disabled={deleting}
+                className="flex-1 px-4 py-2.5 bg-surface-2 hover:bg-surface-3 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteUser}
+                disabled={deleting || deleteConfirmText !== 'DELETE'}
+                className="flex-1 px-4 py-2.5 bg-danger hover:bg-danger/80 text-white rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+              >
+                {deleting ? (
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  </span>
+                ) : 'Delete Account'}
+              </button>
+            </div>
           </div>
         </div>
       )}
