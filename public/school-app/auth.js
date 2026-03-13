@@ -189,6 +189,31 @@ function getSectionGates() {
   };
 }
 
+function getWorkflowModeForProfile(profile) {
+  // Safe default for active cohorts: keep legacy flow unless explicitly marked.
+  var group = ((profile && profile.group_name) || '').toLowerCase().trim();
+  if (!group) return 'legacy';
+  if (group.indexOf('v3::') === 0) return 'v3_manual';
+  if (group.indexOf('legacy::') === 0) return 'legacy';
+  if (group.indexOf('v3-') === 0) return 'v3_manual';
+  if (group.indexOf('v3_') === 0) return 'v3_manual';
+  if (group.indexOf('[v3]') >= 0) return 'v3_manual';
+  if (group.indexOf('workflow-v3') >= 0) return 'v3_manual';
+  return 'legacy';
+}
+
+function setWorkflowMode(mode) {
+  try { window.CW_WORKFLOW_MODE = mode || 'legacy'; } catch(e) {}
+}
+
+function getWorkflowMode() {
+  try { return window.CW_WORKFLOW_MODE || 'legacy'; } catch(e) { return 'legacy'; }
+}
+
+function isManualWorkflowGating() {
+  return getWorkflowMode() === 'v3_manual';
+}
+
 function getUnlockedSections(quizResults, manualUnlocks) {
   var gates = getSectionGates();
   var unlocked = { foundations: true, ongoing: true };
@@ -198,7 +223,7 @@ function getUnlockedSections(quizResults, manualUnlocks) {
     var result = quizResults[gateQuiz];
     var passedQuiz = !!(result && result.passed);
     var manuallyUnlocked = overrides.indexOf(sectionId) >= 0;
-    unlocked[sectionId] = passedQuiz || manuallyUnlocked;
+    unlocked[sectionId] = isManualWorkflowGating() ? manuallyUnlocked : (passedQuiz || manuallyUnlocked);
   });
   return unlocked;
 }
@@ -346,6 +371,11 @@ async function adminDeleteAccount(targetId) {
   await adminSetActive(targetId, false);
   await adminResetProgress(targetId);
   await adminResetQuizzes(targetId);
+  var res = await requireSb().from('section_unlocks').delete().eq('user_id', targetId);
+  if (res.error) throw res.error;
+}
+
+async function adminClearSectionUnlocks(targetId) {
   var res = await requireSb().from('section_unlocks').delete().eq('user_id', targetId);
   if (res.error) throw res.error;
 }

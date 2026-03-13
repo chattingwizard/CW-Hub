@@ -20,7 +20,6 @@
       <h1>Admin Panel</h1>
     </div>
     <div class="admin-header-right">
-      <a href="hiring-workflow.html" class="admin-back-link">Hiring Workflow</a>
       <a href="index.html" class="admin-back-link">&larr; School</a>
       <button onclick="cwSignOut()" class="logout-btn">Log Out</button>
     </div>
@@ -111,6 +110,9 @@
           <label style="font-size:0.78rem; color:#64748b; display:block; margin-bottom:4px;">Group Name</label>
           <input type="text" id="codeGroupName" class="admin-input" placeholder="e.g. Batch February" style="width:100%;">
         </div>
+        <div style="min-width:180px;">
+          <input type="hidden" id="codeWorkflowMode" value="v3_manual">
+        </div>
         <div style="min-width:100px;">
           <label style="font-size:0.78rem; color:#64748b; display:block; margin-bottom:4px;">Max Uses</label>
           <input type="number" id="codeMaxUses" class="admin-input" value="10" min="1" style="width:100%;">
@@ -154,7 +156,9 @@
           <div class="admin-edit-row">
             <label>Role</label>
             <select id="editRole" class="admin-input">
+              <option value="recruit">Recruit</option>
               <option value="student">Student</option>
+              <option value="chatter">Chatter</option>
               <option value="admin">Admin</option>
             </select>
           </div>
@@ -168,6 +172,17 @@
         <div class="admin-access-section">
           <h4>&#128275; Section Access</h4>
           <div class="admin-access-grid" id="accessGrid"></div>
+        </div>
+
+        <!-- Workflow V1 controls -->
+        <div class="admin-panel-card" style="margin-top:12px;">
+          <h4 style="margin:0 0 8px;">Workflow V1 (Daily Gates)</h4>
+          <p id="workflowV1State" style="font-size:0.82rem;color:#64748b;margin:0 0 10px;">Loading workflow state...</p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button onclick="approveWorkflowDay()" class="admin-btn" id="workflowApproveBtn">Pass Day & Unlock Next</button>
+            <button onclick="disqualifyWorkflowStudent()" class="admin-btn-danger" id="workflowFailBtn">Fail & Deactivate</button>
+          </div>
+          <p id="workflowV1Feedback" style="font-size:0.78rem;color:#64748b;margin-top:8px;"></p>
         </div>
 
         <!-- Progress visual -->
@@ -212,6 +227,8 @@ var allInvites = [];
 var filteredStudents = [];
 var currentDetailIdx = -1;
 var currentTab = 'dashboard';
+var WORKFLOW_MODE_LEGACY = 'legacy';
+var WORKFLOW_MODE_V3 = 'v3_manual';
 
 var SECTIONS = [
   { id: 'foundations', label: 'Foundations', prefix: 'f', gated: false, color: '#2563eb' },
@@ -228,6 +245,64 @@ var MODULE_NAMES = {
   'a-1':'Journey Review Quiz','a-2':'Objection Scripts','a-3':'Customs (TPDs)','a-4':'Game Sequences','a-5':'Multitasking','a-6':'Shift Routine','a-7':'Common Mistakes','a-8':'Full Simulation',
   'g-1':'Advanced Review Quiz','g-2':'Final Quiz','g-3':'Supervised Shift'
 };
+
+var WORKFLOW_DAY_SEQUENCE = [
+  { day: 1, sectionId: 'foundations', sectionLabel: 'Foundations', nextSectionId: 'tools' },
+  { day: 2, sectionId: 'tools', sectionLabel: 'Tools & Scripts', nextSectionId: 'journey' },
+  { day: 3, sectionId: 'journey', sectionLabel: 'The Journey', nextSectionId: 'advanced' },
+  { day: 4, sectionId: 'advanced', sectionLabel: 'Advanced', nextSectionId: 'golive' },
+  { day: 5, sectionId: 'golive', sectionLabel: 'Go Live', nextSectionId: null }
+];
+var FINAL_READY_MARKER = 'final_ready';
+var FINAL_PASSED_MARKER = 'final_passed';
+
+var SECTION_MODULE_META = {
+  foundations: { prefix: 'f', count: 6 },
+  tools: { prefix: 't', count: 9 },
+  journey: { prefix: 'j', count: 7 },
+  advanced: { prefix: 'a', count: 8 },
+  golive: { prefix: 'g', count: 3 }
+};
+
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function parseWorkflowGroup(rawGroup) {
+  var raw = (rawGroup || '').trim();
+  var lower = raw.toLowerCase();
+  if (!raw) return { raw: '', mode: WORKFLOW_MODE_LEGACY, label: '(No group)' };
+  if (lower.indexOf('v3::') === 0) return { raw: raw, mode: WORKFLOW_MODE_V3, label: raw.substring(4) || 'Unnamed group' };
+  if (lower.indexOf('legacy::') === 0) return { raw: raw, mode: WORKFLOW_MODE_LEGACY, label: raw.substring(8) || 'Unnamed group' };
+  if (lower.indexOf('v3-') === 0 || lower.indexOf('v3_') === 0 || lower.indexOf('[v3]') >= 0 || lower.indexOf('workflow-v3') >= 0) {
+    return { raw: raw, mode: WORKFLOW_MODE_V3, label: raw };
+  }
+  return { raw: raw, mode: WORKFLOW_MODE_LEGACY, label: raw };
+}
+
+function buildStoredGroupName(label, mode) {
+  var clean = (label || '').trim();
+  if (!clean) return '';
+  if (mode === WORKFLOW_MODE_LEGACY) return 'legacy::' + clean;
+  return 'v3::' + clean;
+}
+
+function getWorkflowBadgeText(mode) {
+  return mode === WORKFLOW_MODE_V3 ? 'V3 Diario' : 'Legacy';
+}
+
+function getWorkflowModeForStudent(student) {
+  return parseWorkflowGroup(student && student.group_name).mode;
+}
+
+function isManualWorkflowGatingForStudent(student) {
+  return getWorkflowModeForStudent(student) === WORKFLOW_MODE_V3;
+}
 
 // ============ Init ============
 (async function initAdmin() {
@@ -246,7 +321,7 @@ var MODULE_NAMES = {
     switchTab('dashboard');
   } catch(err) {
     console.error('Admin init error:', err);
-    loadEl.innerHTML = 'Error: ' + (err.message || err) + '<br><br><a href="login.html" onclick="try{sb().auth.signOut()}catch(e){}" style="color:#2563eb;font-weight:600;">Sign out and try again</a>';
+    loadEl.innerHTML = 'Error: ' + escapeHtml(err.message || err) + '<br><br><a href="login.html" onclick="try{sb().auth.signOut()}catch(e){}" style="color:#2563eb;font-weight:600;">Sign out and try again</a>';
   }
 })();
 
@@ -263,7 +338,7 @@ async function loadAllData() {
     allInvites = [];
     filteredStudents = [];
     var loadEl = document.getElementById('admin-loading');
-    if (loadEl) loadEl.innerHTML = 'Error loading data: ' + (err.message || err) + '<br><a href="javascript:location.reload()">Retry</a>';
+    if (loadEl) loadEl.innerHTML = 'Error loading data: ' + escapeHtml(err.message || err) + '<br><a href="javascript:location.reload()">Retry</a>';
   }
 }
 
@@ -300,7 +375,8 @@ function populateGroupFilters() {
     var current = el.value;
     var opts = '<option value="all">All groups</option>';
     groups.forEach(function(g) {
-      opts += '<option value="' + g + '"' + (current === g ? ' selected' : '') + '>' + g + '</option>';
+      var info = parseWorkflowGroup(g);
+      opts += '<option value="' + escapeHtml(g) + '"' + (current === g ? ' selected' : '') + '>' + escapeHtml(info.label) + ' (' + escapeHtml(getWorkflowBadgeText(info.mode)) + ')</option>';
     });
     el.innerHTML = opts;
   });
@@ -319,9 +395,7 @@ function renderDashboard() {
   document.getElementById('statStudents').textContent = students.length;
   var active = students.filter(function(s) { return s.quizzes_passed > 0; });
   document.getElementById('statActive').textContent = active.length;
-  var graduated = students.filter(function(s) {
-    return s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === 'g-2' && q.passed; });
-  });
+  var graduated = students.filter(isStudentFinalApproved);
   document.getElementById('statCompleted').textContent = graduated.length;
   var finals = students.map(function(s) {
     if (!s.quiz_results) return null;
@@ -340,16 +414,14 @@ function renderDashboard() {
     if (!sec.gated) { matched = students.slice(); }
     else {
       matched = students.filter(function(s) {
-        var passedGate = s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === sec.gate && q.passed; });
-        var manual = s.unlocked_sections && s.unlocked_sections.indexOf(sec.id) >= 0;
-        return passedGate || manual;
+        return isSectionUnlockedForStudent(s, sec);
       });
     }
     var count = matched.length;
     var pct = Math.round(count / total * 100);
-    var names = matched.map(function(s) { return s.full_name || s.email; }).join('\n');
+    var names = matched.map(function(s) { return escapeHtml(s.full_name || s.email || ''); }).join('&#10;');
     funnel.innerHTML += '<div class="funnel-row">' +
-      '<span class="funnel-label">' + sec.label + '</span>' +
+      '<span class="funnel-label">' + escapeHtml(sec.label) + '</span>' +
       '<div class="funnel-bar-bg" title="' + names + '" style="cursor:pointer;"><div class="funnel-bar-fill" style="width:' + pct + '%;background:' + sec.color + '"></div></div>' +
       '<span class="funnel-value">' + count + '/' + students.length + '</span></div>';
   });
@@ -372,10 +444,10 @@ function renderDashboard() {
       var icon = q.passed ? '<span class="activity-pass">&#10003;</span>' : '<span class="activity-fail">&#10007;</span>';
       var timeAgo = getTimeAgo(q.date);
       return '<div class="activity-row">' + icon +
-        '<span class="activity-name">' + q.name + '</span>' +
-        '<span class="activity-module">' + (MODULE_NAMES[q.module] || q.module) + '</span>' +
-        '<span class="activity-score">' + q.score + '</span>' +
-        '<span class="activity-time">' + timeAgo + '</span></div>';
+        '<span class="activity-name">' + escapeHtml(q.name) + '</span>' +
+        '<span class="activity-module">' + escapeHtml(MODULE_NAMES[q.module] || q.module) + '</span>' +
+        '<span class="activity-score">' + escapeHtml(q.score) + '</span>' +
+        '<span class="activity-time">' + escapeHtml(timeAgo) + '</span></div>';
     }).join('');
   }
 }
@@ -402,7 +474,7 @@ function filterStudents() {
     if (!matchSearch) return false;
     if (filter === 'active') return s.quizzes_passed > 0;
     if (filter === 'inactive') return !s.quizzes_passed;
-    if (filter === 'graduated') return s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === 'g-2' && q.passed; });
+    if (filter === 'graduated') return isStudentFinalApproved(s);
     if (filter === 'deactivated') return s.active === false;
     if (groupFilter !== 'all') {
       var g = s.group_name || '(No group)';
@@ -425,13 +497,7 @@ function renderStudentList() {
   container.innerHTML = filteredStudents.map(function(s, idx) {
     // Build progress dots
     var dots = SECTIONS.map(function(sec) {
-      var unlocked = false;
-      if (!sec.gated) { unlocked = true; }
-      else {
-        var passedGate = s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === sec.gate && q.passed; });
-        var manual = s.unlocked_sections && s.unlocked_sections.indexOf(sec.id) >= 0;
-        unlocked = passedGate || manual;
-      }
+      var unlocked = isSectionUnlockedForStudent(s, sec);
       var cls = unlocked ? 'dot-done' : 'dot-locked';
       return '<span class="progress-dot ' + cls + '" title="' + sec.label + '" style="' + (unlocked ? 'background:' + sec.color : '') + '"></span>';
     }).join('');
@@ -443,12 +509,15 @@ function renderStudentList() {
     var inactive = s.active === false;
     var inactiveClass = inactive ? ' student-inactive' : '';
 
-    var groupTag = s.group_name ? '<span class="admin-tag" style="background:#ede9fe;color:#7c3aed;font-size:0.7rem;">' + s.group_name + '</span>' : '';
+    var groupInfo = parseWorkflowGroup(s.group_name);
+    var groupTag = s.group_name
+      ? '<span class="admin-tag" style="background:#ede9fe;color:#7c3aed;font-size:0.7rem;">' + escapeHtml(groupInfo.label) + ' · ' + escapeHtml(getWorkflowBadgeText(groupInfo.mode)) + '</span>'
+      : '';
 
     return '<div class="student-card' + inactiveClass + '" onclick="showDetail(' + realIdx + ')">' +
       '<div class="student-card-main">' +
-        '<div class="student-card-name">' + (s.full_name || '(no name)') + ' ' + groupTag + '</div>' +
-        '<div class="student-card-email">' + s.email + '</div>' +
+        '<div class="student-card-name">' + escapeHtml(s.full_name || '(no name)') + ' ' + groupTag + '</div>' +
+        '<div class="student-card-email">' + escapeHtml(s.email || '') + '</div>' +
       '</div>' +
       '<div class="student-card-progress">' + dots + '</div>' +
       '<div class="student-card-stats">' +
@@ -493,18 +562,19 @@ function renderInvites() {
     var maxUses = inv.max_uses || 1;
     var isFull = useCount >= maxUses;
     var statusClass = isFull ? 'invite-used' : 'invite-available';
-    var groupTag = inv.group_name ? '<span class="admin-tag" style="background:#ede9fe;color:#7c3aed;margin-left:8px;">' + inv.group_name + '</span>' : '';
+    var groupInfo = parseWorkflowGroup(inv.group_name);
+    var groupTag = inv.group_name ? '<span class="admin-tag" style="background:#ede9fe;color:#7c3aed;margin-left:8px;">' + escapeHtml(groupInfo.label) + ' · ' + escapeHtml(getWorkflowBadgeText(groupInfo.mode)) + '</span>' : '';
     var usageText = useCount + ' / ' + maxUses + ' used';
 
     // Build users list for tooltip
     var userNames = '';
     if (inv.users && inv.users.length > 0) {
-      userNames = inv.users.map(function(u) { return (u.full_name || u.email); }).join(', ');
+      userNames = inv.users.map(function(u) { return escapeHtml(u.full_name || u.email || ''); }).join(', ');
     }
 
     return '<div class="invite-card ' + statusClass + '">' +
       '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">' +
-        '<code class="invite-code">' + inv.code + '</code>' +
+        '<code class="invite-code">' + escapeHtml(inv.code || '') + '</code>' +
         groupTag +
       '</div>' +
       '<span class="invite-status" title="' + userNames + '" style="cursor:' + (userNames ? 'help' : 'default') + ';">' + usageText + '</span>' +
@@ -534,11 +604,13 @@ function renderInvites() {
     groupMgmt.innerHTML = '<h3 style="margin:0 0 10px;">Group Management</h3>' +
       groupNames.map(function(g) {
         var info = groupsObj[g];
+        var groupInfo = parseWorkflowGroup(g);
+        var encodedGroup = encodeURIComponent(g);
         return '<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #e5e7eb;">' +
-          '<strong style="flex:1;">' + g + '</strong>' +
+          '<strong style="flex:1;">' + escapeHtml(groupInfo.label) + ' <span style="font-size:0.75rem;color:#7c3aed;">(' + escapeHtml(getWorkflowBadgeText(groupInfo.mode)) + ')</span></strong>' +
           '<span style="color:#6b7280;font-size:0.82rem;">' + info.count + ' codes, ' + info.totalUses + ' users</span>' +
-          '<button onclick="renameGroup(\'' + g.replace(/'/g, "\\'") + '\')" class="admin-btn" style="font-size:0.75rem;padding:4px 10px;">Rename</button>' +
-          '<button onclick="deleteGroup(\'' + g.replace(/'/g, "\\'") + '\')" class="admin-btn-danger" style="font-size:0.75rem;padding:4px 10px;">Delete</button>' +
+          '<button onclick="renameGroup(decodeURIComponent(\'' + encodedGroup + '\'))" class="admin-btn" style="font-size:0.75rem;padding:4px 10px;">Rename</button>' +
+          '<button onclick="deleteGroup(decodeURIComponent(\'' + encodedGroup + '\'))" class="admin-btn-danger" style="font-size:0.75rem;padding:4px 10px;">Delete</button>' +
         '</div>';
       }).join('');
   }
@@ -548,7 +620,9 @@ async function generateCode() {
   var btn = document.getElementById('genBtn');
   var msgEl = document.getElementById('newCodeMsg');
   var groupName = (document.getElementById('codeGroupName').value || '').trim();
+  var workflowMode = document.getElementById('codeWorkflowMode').value || WORKFLOW_MODE_V3;
   var maxUses = parseInt(document.getElementById('codeMaxUses').value) || 10;
+  var storedGroupName = buildStoredGroupName(groupName, workflowMode);
 
   if (!groupName) {
     msgEl.textContent = 'Please enter a group name for this code.';
@@ -558,8 +632,8 @@ async function generateCode() {
 
   btn.disabled = true; btn.textContent = 'Generating...';
   try {
-    var code = await adminGenerateInvite(groupName, maxUses);
-    msgEl.innerHTML = 'New code: <code class="admin-code-highlight">' + code + '</code> &mdash; Group: <strong>' + groupName + '</strong> &mdash; Max: ' + maxUses + ' uses';
+    var code = await adminGenerateInvite(storedGroupName, maxUses);
+    msgEl.innerHTML = 'New code: <code class="admin-code-highlight">' + escapeHtml(code) + '</code> &mdash; Group: <strong>' + escapeHtml(groupName) + '</strong> &mdash; Workflow: <strong>' + escapeHtml(getWorkflowBadgeText(workflowMode)) + '</strong> &mdash; Max: ' + maxUses + ' uses';
     msgEl.style.display = 'block';
     allInvites = await adminGetInviteCodes();
     populateGroupFilters();
@@ -585,12 +659,7 @@ function showDetail(idx) {
   // Progress visual
   var progDiv = document.getElementById('detailProgress');
   progDiv.innerHTML = SECTIONS.map(function(sec) {
-    var unlocked = !sec.gated;
-    if (sec.gated) {
-      var passedGate = s.quiz_results && s.quiz_results.some(function(q) { return q.module_id === sec.gate && q.passed; });
-      var manual = s.unlocked_sections && s.unlocked_sections.indexOf(sec.id) >= 0;
-      unlocked = passedGate || manual;
-    }
+    var unlocked = isSectionUnlockedForStudent(s, sec);
     var cls = unlocked ? 'prog-open' : 'prog-locked';
     return '<div class="prog-section ' + cls + '">' +
       '<div class="prog-section-color" style="background:' + sec.color + '"></div>' +
@@ -606,8 +675,8 @@ function showDetail(idx) {
     qDiv.innerHTML = sorted.map(function(q) {
       var cls = q.passed ? 'quiz-row-pass' : 'quiz-row-fail';
       return '<div class="quiz-detail-row ' + cls + '">' +
-        '<span class="quiz-detail-name">' + (MODULE_NAMES[q.module_id] || q.module_id) + '</span>' +
-        '<span class="quiz-detail-score">' + q.score + ' (' + q.percentage + '%)</span>' +
+        '<span class="quiz-detail-name">' + escapeHtml(MODULE_NAMES[q.module_id] || q.module_id) + '</span>' +
+        '<span class="quiz-detail-score">' + escapeHtml(q.score) + ' (' + escapeHtml(q.percentage) + '%)</span>' +
         '<span class="quiz-detail-date">' + new Date(q.submitted_at).toLocaleDateString() + '</span></div>';
     }).join('');
   } else {
@@ -619,6 +688,7 @@ function showDetail(idx) {
 
   // Access grid
   renderAccessGrid(s);
+  renderWorkflowV1Controls(s);
 
   document.getElementById('studentDetail').style.display = '';
   setTimeout(function() { document.querySelector('.admin-slideout-panel').classList.add('open'); }, 10);
@@ -627,30 +697,212 @@ function showDetail(idx) {
 function renderAccessGrid(student) {
   var grid = document.getElementById('accessGrid');
   var unlocks = student.unlocked_sections || [];
+  var isV3Manual = isManualWorkflowGatingForStudent(student);
   grid.innerHTML = '';
   SECTIONS.forEach(function(sec) {
     if (!sec.gated) return;
     var passedQuiz = student.quiz_results && student.quiz_results.some(function(q) { return q.module_id === sec.gate && q.passed; });
     var manuallyUnlocked = unlocks.indexOf(sec.id) >= 0;
-    var isOpen = passedQuiz || manuallyUnlocked;
+    var isOpen = isSectionUnlockedForStudent(student, sec);
+    var disableToggle = (!isV3Manual && passedQuiz);
 
     var card = document.createElement('div');
     card.className = 'admin-access-card ' + (isOpen ? 'access-open' : 'access-locked');
     card.innerHTML =
       '<div class="access-card-top">' +
         '<strong>' + sec.label + '</strong>' +
-        (passedQuiz ? '<span class="admin-tag admin-tag-available">Earned</span>' :
-         manuallyUnlocked ? '<span class="admin-tag admin-tag-manual">Manual</span>' :
+        (manuallyUnlocked ? '<span class="admin-tag admin-tag-manual">Manual</span>' :
+         passedQuiz && isV3Manual ? '<span class="admin-tag admin-tag-available">Quiz passed</span>' :
+         passedQuiz ? '<span class="admin-tag admin-tag-available">Earned</span>' :
          '<span class="admin-tag admin-tag-used">Locked</span>') +
       '</div>' +
       '<label class="access-toggle">' +
         '<input type="checkbox" ' + (manuallyUnlocked ? 'checked' : '') + ' ' +
-          (passedQuiz ? 'disabled' : '') +
+          (disableToggle ? 'disabled' : '') +
           ' onchange="toggleSection(\'' + student.id + '\', \'' + sec.id + '\', this.checked)">' +
-        '<span class="access-toggle-label">' + (passedQuiz ? 'Via quiz' : 'Grant access') + '</span>' +
+        '<span class="access-toggle-label">' + (disableToggle ? 'Via quiz' : 'Grant access') + '</span>' +
       '</label>';
     grid.appendChild(card);
   });
+}
+
+function isSectionUnlockedForStudent(student, sec) {
+  if (!sec.gated) return true;
+  var manual = student.unlocked_sections && student.unlocked_sections.indexOf(sec.id) >= 0;
+  if (isManualWorkflowGatingForStudent(student)) return !!manual;
+  var passedGate = student.quiz_results && student.quiz_results.some(function(q) { return q.module_id === sec.gate && q.passed; });
+  return !!(passedGate || manual);
+}
+
+function isStudentFinalApproved(student) {
+  if (student.role === 'chatter') return true;
+  if (isManualWorkflowGatingForStudent(student)) {
+    return student.unlocked_sections && student.unlocked_sections.indexOf(FINAL_PASSED_MARKER) >= 0;
+  }
+  return student.quiz_results && student.quiz_results.some(function(q) { return q.module_id === 'g-2' && q.passed; });
+}
+
+function getCurrentWorkflowStage(student) {
+  var unlocks = student.unlocked_sections || [];
+  if (unlocks.indexOf(FINAL_PASSED_MARKER) >= 0) {
+    return { stage: 'final_passed', label: 'Final approved', nextLabel: 'Ready for onboarding' };
+  }
+  if (unlocks.indexOf(FINAL_READY_MARKER) >= 0) {
+    return { stage: 'final_ready', label: 'Final interview + exam pending', nextLabel: 'Awaiting final decision' };
+  }
+  if (unlocks.indexOf('tools') < 0) return { stage: 'day', dayInfo: WORKFLOW_DAY_SEQUENCE[0] };
+  if (unlocks.indexOf('journey') < 0) return { stage: 'day', dayInfo: WORKFLOW_DAY_SEQUENCE[1] };
+  if (unlocks.indexOf('advanced') < 0) return { stage: 'day', dayInfo: WORKFLOW_DAY_SEQUENCE[2] };
+  if (unlocks.indexOf('golive') < 0) return { stage: 'day', dayInfo: WORKFLOW_DAY_SEQUENCE[3] };
+  return { stage: 'day', dayInfo: WORKFLOW_DAY_SEQUENCE[4] };
+}
+
+function getSectionModuleIds(sectionId) {
+  var meta = SECTION_MODULE_META[sectionId];
+  if (!meta) return [];
+  var ids = [];
+  for (var i = 1; i <= meta.count; i++) ids.push(meta.prefix + '-' + i);
+  return ids;
+}
+
+function hasCompletedSection(student, sectionId) {
+  var completed = student.completed_modules || [];
+  var needed = getSectionModuleIds(sectionId);
+  if (!needed.length) return false;
+  return needed.every(function(id) { return completed.indexOf(id) >= 0; });
+}
+
+function renderWorkflowV1Controls(student) {
+  var stateEl = document.getElementById('workflowV1State');
+  var feedbackEl = document.getElementById('workflowV1Feedback');
+  var passBtn = document.getElementById('workflowApproveBtn');
+  var failBtn = document.getElementById('workflowFailBtn');
+  if (!stateEl || !feedbackEl || !passBtn || !failBtn) return;
+
+  feedbackEl.textContent = '';
+  if (!isManualWorkflowGatingForStudent(student)) {
+    stateEl.textContent = 'Legacy workflow cohort detected. V3 daily-gate controls are disabled for this student.';
+    passBtn.disabled = true;
+    failBtn.disabled = true;
+    return;
+  }
+
+  if (student.active === false) {
+    stateEl.textContent = 'Student is deactivated (disqualified or manually blocked).';
+    passBtn.disabled = true;
+    failBtn.disabled = true;
+    return;
+  }
+
+  if (student.role === 'chatter') {
+    stateEl.textContent = 'Onboarding completed. This person is already marked as chatter.';
+    passBtn.textContent = 'Already a Chatter';
+    failBtn.textContent = 'Deactivate';
+    passBtn.disabled = true;
+    failBtn.disabled = false;
+    return;
+  }
+
+  var workflowStage = getCurrentWorkflowStage(student);
+  if (workflowStage.stage === 'final_passed') {
+    stateEl.textContent = 'Final approved. This recruit is ready for onboarding and role change to chatter.';
+    passBtn.textContent = 'Mark Onboarding Complete → Chatter';
+    failBtn.textContent = 'Deactivate';
+    passBtn.disabled = false;
+    failBtn.disabled = false;
+    return;
+  }
+
+  if (workflowStage.stage === 'final_ready') {
+    stateEl.textContent = 'Final interview + exam pending. Use these buttons after final decision.';
+    passBtn.textContent = 'Mark Final Passed';
+    failBtn.textContent = 'Mark Final Failed';
+    passBtn.disabled = false;
+    failBtn.disabled = false;
+    return;
+  }
+
+  var dayInfo = workflowStage.dayInfo;
+  var completed = hasCompletedSection(student, dayInfo.sectionId);
+  var completionText = completed ? '100% complete' : 'not complete';
+  var nextText = dayInfo.nextSectionId ? ('Next unlock: ' + dayInfo.nextSectionId) : 'Next: final interview + exam.';
+  stateEl.textContent = 'Current day: Day ' + dayInfo.day + ' (' + dayInfo.sectionLabel + ') | Section status: ' + completionText + '. ' + nextText;
+  passBtn.textContent = 'Pass Day & Unlock Next';
+  failBtn.textContent = 'Fail & Deactivate';
+  passBtn.disabled = false;
+  failBtn.disabled = false;
+}
+
+async function approveWorkflowDay() {
+  if (currentDetailIdx < 0) return;
+  var s = allStudents[currentDetailIdx];
+  var workflowStage = getCurrentWorkflowStage(s);
+  var feedbackEl = document.getElementById('workflowV1Feedback');
+  if (feedbackEl) feedbackEl.textContent = '';
+  if (!isManualWorkflowGatingForStudent(s)) {
+    if (feedbackEl) feedbackEl.textContent = 'This student is in legacy workflow. Use normal controls.';
+    return;
+  }
+
+  var passBtn = document.getElementById('workflowApproveBtn');
+  passBtn.disabled = true;
+  try {
+    if (workflowStage.stage === 'final_passed') {
+      if (!confirm('Mark onboarding complete and convert ' + (s.full_name || s.email) + ' to chatter?')) { passBtn.disabled = false; return; }
+      await adminUpdateStudent(s.id, s.full_name || null, 'chatter');
+      if (feedbackEl) feedbackEl.textContent = 'Converted to chatter.';
+    } else if (workflowStage.stage === 'final_ready') {
+      if (!confirm('Mark final interview + exam as PASSED for ' + (s.full_name || s.email) + '?')) { passBtn.disabled = false; return; }
+      await adminGrantSection(s.id, FINAL_PASSED_MARKER);
+      if (feedbackEl) feedbackEl.textContent = 'Final approved. Recruit is now ready for onboarding.';
+    } else {
+      var dayInfo = workflowStage.dayInfo;
+      if (!hasCompletedSection(s, dayInfo.sectionId)) {
+        if (feedbackEl) feedbackEl.textContent = 'Cannot pass yet: section is not 100% completed.';
+        passBtn.disabled = false;
+        return;
+      }
+      var confirmMsg = 'Approve Day ' + dayInfo.day + ' (' + dayInfo.sectionLabel + ') for ' + (s.full_name || s.email) + '?';
+      if (!confirm(confirmMsg)) { passBtn.disabled = false; return; }
+      if (dayInfo.nextSectionId) {
+        await adminGrantSection(s.id, dayInfo.nextSectionId);
+        if (feedbackEl) feedbackEl.textContent = 'Approved. ' + dayInfo.nextSectionId + ' unlocked.';
+      } else {
+        await adminGrantSection(s.id, FINAL_READY_MARKER);
+        if (feedbackEl) feedbackEl.textContent = 'Day 5 completed. Recruit is now ready for final interview + exam.';
+      }
+    }
+    await loadAllData();
+    var newIdx = allStudents.findIndex(function(st) { return st.id === s.id; });
+    if (newIdx >= 0) showDetail(newIdx);
+  } catch(err) {
+    if (feedbackEl) feedbackEl.textContent = 'Error: ' + err.message;
+  }
+  passBtn.disabled = false;
+}
+
+async function disqualifyWorkflowStudent() {
+  if (currentDetailIdx < 0) return;
+  var s = allStudents[currentDetailIdx];
+  var feedbackEl = document.getElementById('workflowV1Feedback');
+  if (feedbackEl) feedbackEl.textContent = '';
+  if (!isManualWorkflowGatingForStudent(s)) {
+    if (feedbackEl) feedbackEl.textContent = 'This student is in legacy workflow. Use normal controls.';
+    return;
+  }
+  if (!confirm('Disqualify and deactivate ' + (s.full_name || s.email) + '? They will immediately lose school access.')) return;
+
+  var failBtn = document.getElementById('workflowFailBtn');
+  failBtn.disabled = true;
+  try {
+    await adminSetActive(s.id, false);
+    await loadAllData();
+    var newIdx = allStudents.findIndex(function(st) { return st.id === s.id; });
+    if (newIdx >= 0) showDetail(newIdx);
+  } catch(err) {
+    if (feedbackEl) feedbackEl.textContent = 'Error: ' + err.message;
+  }
+  failBtn.disabled = false;
 }
 
 function renderAccountStatus(student) {
@@ -745,7 +997,7 @@ async function resetStudentProgress() {
   var s = allStudents[currentDetailIdx];
   if (!confirm('Reset ALL progress for ' + (s.full_name || s.email) + '? They start from zero.')) return;
   document.getElementById('resetProgressBtn').disabled = true;
-  try { await adminResetProgress(s.id); await loadAllData(); showDetail(currentDetailIdx); }
+  try { await adminResetProgress(s.id); await adminClearSectionUnlocks(s.id); await loadAllData(); showDetail(currentDetailIdx); }
   catch(err) { alert(err.message); }
   document.getElementById('resetProgressBtn').disabled = false;
 }
@@ -769,7 +1021,8 @@ async function deleteStudentAccount() {
 }
 
 async function deleteGroup(groupName) {
-  if (!confirm('Delete group "' + groupName + '"?\n\nThis deletes the invite codes for this group. Students already registered are NOT affected.')) return;
+  var groupInfo = parseWorkflowGroup(groupName);
+  if (!confirm('Delete group "' + groupInfo.label + '"?\n\nThis deletes the invite codes for this group. Students already registered are NOT affected.')) return;
   try {
     await adminDeleteGroup(groupName);
     allInvites = await adminGetInviteCodes();
@@ -779,10 +1032,11 @@ async function deleteGroup(groupName) {
 }
 
 async function renameGroup(oldName) {
-  var newName = prompt('New name for group "' + oldName + '":', oldName);
-  if (!newName || newName === oldName) return;
+  var groupInfo = parseWorkflowGroup(oldName);
+  var newName = prompt('New name for group "' + groupInfo.label + '":', groupInfo.label);
+  if (!newName || newName === groupInfo.label) return;
   try {
-    await adminRenameGroup(oldName, newName);
+    await adminRenameGroup(oldName, buildStoredGroupName(newName, groupInfo.mode));
     allInvites = await adminGetInviteCodes();
     populateGroupFilters();
     renderInvites();

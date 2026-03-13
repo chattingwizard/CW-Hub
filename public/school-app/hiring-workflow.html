@@ -3,25 +3,24 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hiring Workflow &mdash; Chatting Wizard</title>
+  <title>Hiring Workflow v3 — Chatting Wizard</title>
   <link rel="icon" type="image/png" href="logo.png">
   <link rel="stylesheet" href="styles.css">
   <style>
     .phase { margin-bottom: 40px; }
-    .phase-header {
-      display: flex; align-items: center; gap: 14px; margin-bottom: 12px;
-    }
+    .phase-header { display: flex; align-items: center; gap: 14px; margin-bottom: 12px; }
     .phase-badge {
       background: var(--cw-primary); color: white;
       padding: 6px 16px; border-radius: 10px; font-weight: 800; font-size: 0.85rem;
       white-space: nowrap;
     }
-    .phase-badge.pre { background: var(--ongoing); }
-    .phase-badge.f1 { background: #6e5dc9; }
-    .phase-badge.f2 { background: var(--day2); }
-    .phase-badge.f3 { background: var(--day3); }
-    .phase-badge.f4 { background: var(--day4); }
-    .phase-badge.f5 { background: var(--day5); }
+    .phase-badge.pre { background: #0f766e; }
+    .phase-badge.d1 { background: #2563eb; }
+    .phase-badge.d2 { background: #7c3aed; }
+    .phase-badge.d3 { background: #059669; }
+    .phase-badge.d4 { background: #d97706; }
+    .phase-badge.d5 { background: #dc2626; }
+    .phase-badge.exam { background: #1f2937; }
     .phase-badge.prob { background: #475569; }
     .phase-header h2 { font-size: 1.2rem; }
     .task-block {
@@ -44,18 +43,11 @@
       font-family: "Nunito", sans-serif;
     }
     .rule-box {
-      background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid var(--day4);
+      background: #fff7ed; border: 1px solid #fed7aa; border-left: 4px solid #f59e0b;
       border-radius: 10px; padding: 14px 18px; margin: 16px 0 16px 50px;
       font-size: 0.85rem; color: #92400e;
     }
     .rule-box strong { color: #78350f; }
-    .checklist-item { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
-    .checklist-item::before { content: "&#9744;"; font-size: 1rem; color: var(--cw-primary); flex-shrink: 0; margin-top: 1px; }
-    .back-link {
-      display: inline-block; margin: 20px 0 10px;
-      color: var(--cw-primary); text-decoration: none; font-weight: 700; font-size: 0.9rem;
-    }
-    .back-link:hover { text-decoration: underline; }
     .admin-tip {
       background: #eef4ff; border: 1px solid #bfdbfe; border-left: 4px solid #2563eb;
       border-radius: 10px; padding: 14px 18px; margin: 12px 0 12px 50px;
@@ -68,799 +60,278 @@
       font-size: 0.85rem; color: #166534;
     }
     .flow-summary strong { color: #14532d; }
+    .back-link {
+      display: inline-block; margin: 20px 0 10px;
+      color: var(--cw-primary); text-decoration: none; font-weight: 700; font-size: 0.9rem;
+    }
+    .back-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
 <div style="background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);padding:24px 20px 18px;text-align:center;color:white;">
   <img src="logo.png" alt="Chatting Wizard" style="height:44px;margin-bottom:8px;">
-  <h1 style="font-size:1.3rem;font-weight:800;margin:0 0 4px;">Hiring <span style="color:#60a5fa;">Workflow</span></h1>
-  <p style="font-size:0.82rem;opacity:0.8;margin:0 0 8px;">Complete playbook for the Hiring Manager. From application to probation.</p>
-  <span class="badge" style="font-size:0.7rem;">For Mileh &mdash; Internal Use Only</span>
+  <h1 style="font-size:1.3rem;font-weight:800;margin:0 0 4px;">Hiring <span style="color:#60a5fa;">Workflow v3</span></h1>
+  <p style="font-size:0.82rem;opacity:0.8;margin:0 0 8px;">Daily gate system (5 days) + final interview on exam day.</p>
+  <span class="badge" style="font-size:0.7rem;">For Hiring Manager (Azahara) — Internal Use</span>
 </div>
 
 <div class="main">
-  <a href="index.html" class="back-link">&larr; Back to Curriculum</a>
+  <a href="index.html" class="back-link">&larr; Back to School</a>
 
-  <!-- OVERVIEW -->
   <div class="flow-summary">
     <strong>Workflow Summary</strong><br>
-    <strong>PRE</strong> (1-2 days) &rarr; <strong>PHASE 1: Interview</strong> (15 min) &rarr; <strong>PHASE 2: Self-Study</strong> (2-3 days) &rarr; <strong>PHASE 3: Live Practice</strong> (3-4 hrs) &rarr; <strong>PHASE 4: Practice Day 1</strong> &rarr; <strong>PHASE 5: Practice Day 2</strong> &rarr; <strong>PHASE 6: Final Exam</strong> &rarr; <strong>PHASE 7: Probation</strong> (14 days)<br><br>
-    <strong>Philosophy:</strong> The Chatting School teaches ALL theory (self-paced, 24/7). Live sessions are ONLY for practice, Q&amp;A, and assessment. The Admin Dashboard tracks progress automatically.
+    <strong>PREP</strong> (Discord + access setup) &rarr; <strong>DAY 1</strong> Foundations training &rarr; <strong>DAY 2</strong> Tools/Infloww training &rarr; <strong>DAY 3</strong> Journey training &rarr; <strong>DAY 4</strong> Advanced training &rarr; <strong>DAY 5</strong> Go Live training &rarr; <strong>EXAM DAY</strong> (Interview + quiz + live exam) &rarr; <strong>PROBATION</strong> (14 days).<br><br>
+    <strong>V1 Rule:</strong> Deadlines are communicated by HM in Discord and enforced manually in Admin Panel (Pass Day / Fail & Deactivate). No automatic time cutoff in platform yet.
   </div>
 
-  <!-- GLOBAL RULES -->
-  <div class="rule-box" style="margin-left: 0;">
-    <strong>Global Rules (Read First)</strong><br>
-    1. <strong>School = Primary Teacher</strong> &mdash; Recruits learn everything from the Chatting School. You do NOT re-teach theory in live sessions.<br>
-    2. <strong>Fast Expulsion</strong> &mdash; Any recruit who fails to apply instructions, doesn&rsquo;t improve with coaching, or breaks standards &rarr; removed immediately.<br>
-    3. <strong>Voice Rule</strong> &mdash; During live sessions, microphones MUST remain open. Not interacting verbally = negative evaluation.<br>
-    4. <strong>One-by-One Practice</strong> &mdash; During live practice, one recruit chats at a time. Others MUST watch closely and interact with HM when asked.<br>
-    5. <strong>Admin Dashboard</strong> &mdash; Use it to monitor every recruit&rsquo;s progress. Filter by group to see your current batch. Check quiz scores, completed modules, and section progress.<br>
-    6. <strong>Invite Codes with Groups</strong> &mdash; Every batch gets its own invite code with a group name (e.g., &ldquo;Batch-Mar-2026&rdquo;). This lets you filter and track each batch separately.<br>
-    7. <strong>Handovers</strong> &mdash; When ownership changes (HM &rarr; TL), communicate clearly in Telegram with full context.<br>
-    8. <strong>Model Prep</strong> &mdash; Before each training group, verify the training model has ALL current scripts loaded from the Script Dashboard. If scripts are missing, coordinate with Script Manager before starting.
+  <div class="rule-box" style="margin-left:0;">
+    <strong>Global Rules (V3)</strong><br>
+    1. <strong>One day = one module:</strong> every day has mandatory self-study first, then live training and assessment.<br>
+    2. <strong>No completion, no training:</strong> if recruit has not completed the assigned module to 100% before training time, HM disqualifies manually.<br>
+    3. <strong>Manual gate decisions:</strong> HM decides pass/fail in Admin Panel after each day.<br>
+    4. <strong>Pass:</strong> unlock next day module. <strong>Fail:</strong> deactivate account immediately.<br>
+    5. <strong>Voice mandatory:</strong> mics open in live sessions. Silence counts negatively.<br>
+    6. <strong>Interview moved:</strong> no early interview; interview is now part of exam day.
   </div>
 
-  <!-- ============================================================ -->
-  <!-- PRE: SCREENING & SELF-STUDY -->
-  <!-- ============================================================ -->
+  <div class="admin-tip" style="margin-left:0;">
+    <strong>Admin Panel V1 Controls:</strong> Open student &rarr; use <strong>Pass Day &amp; Unlock Next</strong> or <strong>Fail &amp; Deactivate</strong>. The panel also shows current day and section completion status.
+  </div>
+
   <div class="phase">
     <div class="phase-header">
-      <span class="phase-badge pre">PRE</span>
-      <h2>Application Screening &amp; Self-Study (1-2 days)</h2>
+      <span class="phase-badge pre">PREP</span>
+      <h2>Batch Setup + Discord Welcome</h2>
     </div>
 
     <div class="task-block">
       <h4>Objective</h4>
-      <p>Filter applicants, give access to the school, and let them prove they can study independently. By the end of this phase, only candidates who passed Foundations + Tools should remain.</p>
+      <p>Register recruits in the school, set Day 1 expectations, and make deadline/time crystal clear before training starts.</p>
     </div>
 
     <div class="task-block">
-      <h4>Mileh&rsquo;s Actions</h4>
+      <h4>HM Actions</h4>
       <ul>
-        <li>Filter applicants in Airtable &rarr; mark qualified as <strong>Interview</strong></li>
-        <li>Send Discord invite &rarr; assign role: <strong>Applicant</strong></li>
-        <li>Create thread for this group in <strong>#recruits</strong></li>
-        <li>Go to <strong>Admin Panel &rarr; Invites</strong>: generate an invite code with group name (e.g., <strong>&ldquo;Batch-Mar-2026&rdquo;</strong>) and max uses (e.g., 10)</li>
-        <li>Post Welcome Message (below) with the invite code and <strong>48h deadline</strong></li>
-        <li>After 48h: check Admin Dashboard (filter by group) &rarr; who passed the <strong>Foundations Review Quiz (t-1)</strong>?</li>
-        <li>Passed t-1 &rarr; send Congrats + Interview scheduling link</li>
-        <li>Did not complete in time &rarr; remove from Discord</li>
+        <li>Generate invite code in <strong>Admin Panel &rarr; Invites</strong> with batch group name and choose the correct workflow (<strong>V3 Diario</strong> for new cohorts, <strong>Legacy</strong> only for old active cohorts)</li>
+        <li>Send Discord welcome message with exact Day 1 training date/time</li>
+        <li>Require recruits to register + complete <strong>Foundations (100%)</strong> before Day 1 training starts</li>
       </ul>
     </div>
 
-    <div class="admin-tip">
-      <strong>Admin Dashboard Tip:</strong> Go to Admin Panel &rarr; Dashboard tab &rarr; select your batch group in the dropdown. The funnel shows how many recruits completed each section. Hover over the bars to see names. If someone hasn&rsquo;t started after 24h, send them a reminder.
-    </div>
-
     <div class="task-block">
-      <h4>Welcome Message (copy-paste to Discord)</h4>
-      <div class="msg-template">Congratulations on making it here! We're excited to see your potential.
+      <h4>Welcome Message (copy-paste)</h4>
+      <div class="msg-template">Welcome to Chatting Wizard training.
 
-Your first task:
+Your Day 1 live training is: {date} at {time}
 
-1. **Register on the Chatting School** using this invite code:
-   Code: {INVITE_CODE}
-   Link: https://hub.chattingwizard.com/school
+Before that time, you must complete ALL of this:
+1) Register in the School with this invite code: {INVITE_CODE}
+2) Complete the Foundations day (100%), including all quizzes
 
-2. **Complete ALL modules in the Foundations section** (6 modules)
-   This covers: what OnlyFans is, how money works, your role as a chatter, banned topics, and shift basics.
+Important:
+- If your module is not 100% complete by training time, you are disqualified.
+- This process is daily. Each day you pass unlocks the next day.
 
-3. **Complete ALL modules in the Tools & Scripts section** (9 modules)
-   This covers: Infloww, Vault Pro, scripts, the Script Dashboard, personal scripts, mass messages, model personas, the fan journey, and the 48-hour rule.
-
-4. **Pass the Foundations Review Quiz** (80% to pass)
-   This quiz unlocks the Tools section. You must pass it to continue.
-
-Deadline: {deadline} (48 hours from now)
-
-Candidates who complete this will be invited to a 15-minute interview.
-Those who don't complete in time will be removed.
-
-Study everything carefully — we WILL ask questions about it in the interview.
-
-Good luck!
-— The Chatting Wizard Team</div>
-    </div>
-
-    <div class="task-block">
-      <h4>Congrats Message (copy-paste)</h4>
-      <div class="msg-template">Congratulations! You've completed the Foundations and Tools sections.
-
-You're one step away from the next phase. The next step is a 15-minute interview.
-
-Book your interview here: https://calendly.com/jobs-chattingwizard/20min
-
-You MUST book within 24 hours or your spot is forfeited.
-
-Before the interview, make sure you can answer questions about EVERYTHING in the Foundations and Tools sections — including Infloww, Vault Pro colors, scripts, personal info scripts, mass messages, the 48-hour rule, and model personas.
-
-See you soon!
-— The Chatting Wizard Team</div>
-    </div>
-
-    <div class="task-block">
-      <h4>Tools Needed</h4>
-      <ul>
-        <li>Airtable (Applicant tracking + status)</li>
-        <li>Discord (Communication + roles)</li>
-        <li>Chatting School Admin Panel (Generate invite codes, monitor progress)</li>
-        <li>Calendly (Interview scheduling)</li>
-      </ul>
+See you in training.
+— Chatting Wizard Hiring Team</div>
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- PHASE 1: INTERVIEW -->
-  <!-- ============================================================ -->
   <div class="phase">
     <div class="phase-header">
-      <span class="phase-badge f1">PHASE 1</span>
-      <h2>Interview (15 min)</h2>
+      <span class="phase-badge d1">DAY 1</span>
+      <h2>Foundations Training + Assessment</h2>
     </div>
 
     <div class="task-block">
-      <h4>Objective</h4>
-      <p>Identify candidates with high proactivity, clear goals, A-player potential, and adequate English level. Verify they actually studied the School content (including new modules).</p>
+      <h4>Focus</h4>
+      <p>Foundations only: rules, role clarity, safety basics, and understanding if recruit can apply fundamentals.</p>
     </div>
 
     <div class="task-block">
-      <h4>Pre-Interview: Check Admin Dashboard</h4>
-      <p>Before each interview, open the Admin Panel and check the recruit&rsquo;s profile:</p>
+      <h4>Live Session Format</h4>
       <ul>
-        <li>Did they pass the <strong>Foundations Review Quiz (t-1)</strong>? What score?</li>
-        <li>How many modules in Tools did they complete?</li>
-        <li>Did they pass any other quizzes beyond the minimum? (shows initiative)</li>
-        <li>When did they register? How fast did they complete? (shows motivation)</li>
+        <li>Quick verbal checks on Foundations topics</li>
+        <li><strong>Google mock chat simulation</strong> (no Infloww yet)</li>
+        <li>Evaluate instruction-following, communication, and basic quality</li>
       </ul>
     </div>
 
     <div class="task-block">
-      <h4>Interview Structure (15 min)</h4>
+      <h4>Decision</h4>
       <ul>
-        <li><strong>&ldquo;Tell me about yourself&rdquo; (3 min):</strong> Background, experience, personal goals. This is the most revealing question &mdash; let them talk.</li>
-        <li><strong>Motivation Check (3 min):</strong> Why do you want this job? What are your goals? What do you know about OnlyFans chatting?</li>
-        <li><strong>Knowledge Check (7 min):</strong> Questions from Foundations + Tools:
-          <ul>
-            <li>What is OnlyFans? What does a chatter do?</li>
-            <li>Name 3 banned topics.</li>
-            <li>What is a PPV? What is a script?</li>
-            <li>What&rsquo;s the difference between a new sub and a time waster?</li>
-            <li>What is the 48-hour rule?</li>
-            <li>What are the Vault Pro folder colors? What does red mean? Green?</li>
-            <li>What are Personal Info scripts? Why are they important?</li>
-            <li>What is a mass message? Name 3 tags you always exclude.</li>
-            <li>What is the purpose of a Positive Spin script?</li>
-          </ul>
-        </li>
-        <li><strong>Quick Writing Test (2 min):</strong> &ldquo;Write me a short flirty message as if you were a model responding to a fan who said &lsquo;Hey beautiful&rsquo;.&rdquo; &mdash; Evaluates English level AND personality.</li>
+        <li><strong>Pass:</strong> click <strong>Pass Day &amp; Unlock Next</strong> in Admin (unlocks Day 2 / Tools)</li>
+        <li><strong>Fail:</strong> click <strong>Fail &amp; Deactivate</strong></li>
       </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>Pass/Fail Criteria</h4>
-      <ul>
-        <li>&#10004; Pass: Motivated, background shows initiative, answered knowledge questions correctly (at least 6/9), writing test shows B1+ English and personality</li>
-        <li>&#10060; Fail: Can&rsquo;t answer basics (didn&rsquo;t study), writing test shows poor English or zero personality, unclear motivation, red flags in background</li>
-      </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>Mileh&rsquo;s Post-Interview Actions</h4>
-      <ul>
-        <li>Update Airtable status &rarr; <strong>Training</strong></li>
-        <li>Assign Discord role: <strong>Training</strong></li>
-        <li>Request an unused email for Infloww account activation</li>
-        <li>Send Phase 2 Prep Message (below)</li>
-      </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>Phase 2 Prep Message (copy-paste)</h4>
-      <div class="msg-template">Congratulations on passing your interview! Welcome to the next phase.
-
-Now you need to complete the rest of the Chatting School. Here's what to study:
-
-1. **The Journey section** (7 modules)
-   Rapport, Teasing Bridge, Sexting, PPV Drops, Aftercare, Branch Rules, NR Waves, Fan Assessment, and Annotated Chat Examples.
-
-2. **The Advanced section** (8 modules)
-   Objection Scripts, Custom Content Sales (TPDs), Game Sequences, Multitasking, Shift Routine, Common Mistakes, and a Full Conversation Simulation.
-
-3. **Pass ALL gate quizzes** to unlock each section
-   Each section has a review quiz at the start. Pass it (80%) to unlock the next section.
-
-4. **Send me your unused email address** so I can create your Infloww account.
-
-You have 2-3 days to complete everything. I can see your progress in real time, so study consistently.
-
-When you reach the Go Live section and pass the Advanced Review Quiz (a-1), message me and I'll schedule the live practice session.
-
-Study hard — the live session is ALL practice, no theory. You must already know everything.
-
-— The Chatting Wizard Team</div>
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- PHASE 2: SELF-STUDY -->
-  <!-- ============================================================ -->
   <div class="phase">
     <div class="phase-header">
-      <span class="phase-badge f2">PHASE 2</span>
-      <h2>Self-Study: Journey + Advanced (2-3 days)</h2>
+      <span class="phase-badge d2">DAY 2</span>
+      <h2>Tools & Infloww Training</h2>
     </div>
 
     <div class="task-block">
-      <h4>Objective</h4>
-      <p>The recruit completes all remaining school content independently. You monitor their progress and intervene only if they&rsquo;re stuck or falling behind.</p>
+      <h4>Focus</h4>
+      <p>First day using Infloww. Recruit must arrive with Tools module completed 100%.</p>
     </div>
 
     <div class="task-block">
-      <h4>What the Recruit Studies</h4>
+      <h4>Mandatory Walkthrough Videos (before session)</h4>
+      <p style="font-size:0.82rem;color:#64748b;margin-bottom:8px;">These videos are embedded in the school (Module 2 &mdash; Tools &amp; Scripts &rarr; Infloww Walkthrough Library). Recruits watch them as part of their Day 2 preparation.</p>
       <ul>
-        <li><strong>The Journey (7 modules):</strong> Tools Review Quiz, Rapport &amp; Teasing Bridge, Sexting &amp; PPV Drops, Aftercare &amp; Re-engagement, Branch Rules &amp; NR Waves, Fan Assessment &amp; Prioritization, Annotated Chat Examples</li>
-        <li><strong>Advanced (8 modules):</strong> Journey Review Quiz, Top 10 Objection Scripts, Custom Content Sales (TPDs + Fake Discount), Game Sequences, Multitasking, Shift Routine, Common Mistakes, Full Conversation Simulation</li>
-        <li><strong>Go Live gate quizzes:</strong> Advanced Review Quiz (g-1)</li>
+        <li>Messages Pro</li>
+        <li>Notifications and Chatting</li>
+        <li>Manage Inboxes</li>
+        <li>PPV Timeline</li>
+        <li>Vault Media</li>
+        <li>Mass Messages</li>
+        <li>Employee Metrics</li>
+        <li>Select Online Fans (optional)</li>
       </ul>
     </div>
 
     <div class="task-block">
-      <h4>Mileh&rsquo;s Actions During This Phase</h4>
+      <h4>Live Session Format</h4>
       <ul>
-        <li><strong>Daily:</strong> Check Admin Dashboard &rarr; filter by batch group &rarr; see who&rsquo;s progressing</li>
-        <li><strong>If stuck:</strong> If a recruit hasn&rsquo;t progressed in 24h, send a reminder: &ldquo;Hey, I see you haven&rsquo;t completed any new modules today. Everything okay? Let me know if you&rsquo;re stuck on something.&rdquo;</li>
-        <li><strong>If a recruit fails a quiz:</strong> They can retry (button says &ldquo;Try Again&rdquo;). If they fail 3+ times on the same quiz, they likely didn&rsquo;t study &mdash; consider removing them.</li>
-        <li><strong>When recruit passes g-1 (Advanced Review Quiz):</strong> Schedule the live practice session for the next business day.</li>
-        <li>Create the recruit&rsquo;s Infloww account (if not done yet)</li>
+        <li>Screen-share walkthrough in Infloww (quick recap)</li>
+        <li>Hands-on navigation drills (inbox, fan insights, vault, PPV history)</li>
+        <li>Script/location tasks and quality spot checks</li>
       </ul>
-    </div>
-
-    <div class="admin-tip">
-      <strong>Admin Dashboard Tip:</strong> In the Students tab, click on a recruit&rsquo;s name to see their full profile: which sections they&rsquo;ve unlocked, every quiz score, and completion timestamps. Use this to assess effort and speed.
-    </div>
-
-    <div class="task-block">
-      <h4>Pre-Practice Session Message (copy-paste)</h4>
-      <div class="msg-template">Great job completing the Chatting School content!
-
-Tomorrow is the Live Practice Session. This is NOT a lecture — it's 100% hands-on.
-
-Here's what we'll practice:
-- Navigating Infloww (fan insights, vault, scripts)
-- Identifying New Subs vs Time Wasters from real fan profiles
-- Writing in-character messages using scripts
-- Handling objections (you'll be tested on the Top 10)
-- Executing TPDs for custom sales
-- Running a full conversation simulation (start to finish)
-- Multitasking with 4 fans at once
-
-Session: {date} at {time}
-Duration: ~3-4 hours
-
-Microphones MUST be on. Silence = negative evaluation. Participate actively.
-
-Bring your A-game. If you can't demonstrate knowledge from the school, you will be removed.
-
-— The Chatting Wizard Team</div>
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- PHASE 3: LIVE PRACTICE -->
-  <!-- ============================================================ -->
   <div class="phase">
     <div class="phase-header">
-      <span class="phase-badge f3">PHASE 3</span>
-      <h2>Live Practice Session (3-4 hours)</h2>
+      <span class="phase-badge d3">DAY 3</span>
+      <h2>The Journey Training</h2>
     </div>
 
     <div class="task-block">
-      <h4>Objective</h4>
-      <p>Verify recruits can APPLY what they learned. This is practice and assessment only &mdash; not teaching. If a recruit can&rsquo;t demonstrate basic knowledge, they did not study and should be removed.</p>
+      <h4>Focus</h4>
+      <p>Conversation flow mastery (rapport, teasing, sexting, aftercare, branch logic).</p>
     </div>
 
     <div class="task-block">
-      <h4>Session Agenda</h4>
+      <h4>Live Session Format</h4>
       <ul>
-        <li><strong>Verbal Knowledge Check (10 min):</strong> <a href="rapid-questions.html" style="color:var(--cw-primary);font-weight:700;">Fire rapid questions from all sections.</a> Use the question bank &mdash; pick questions randomly. Anyone who can&rsquo;t answer &rarr; warning.</li>
-        <li><strong>Infloww Live Walkthrough (20 min):</strong> Screen share. Recruits follow along in their own Infloww accounts. Navigate: inbox, fan insights, vault, PPV history, scripts. Each recruit finds a fan profile and classifies as New Sub or Time Waster. Verify they check content colors (green/grey/red).</li>
-        <li><strong>Script Dashboard Practice (10 min):</strong> Each recruit opens the Script Dashboard, finds a model&rsquo;s guide, copies a Personal Info script, finds an objection script variant, uses the search bar to find a specific message ID.</li>
-        <li><strong>Rapport + Teasing Practice (20 min):</strong> One-by-one: recruit writes Rapport and Teasing messages in-character. HM gives feedback on tone, length, personality match.</li>
-        <li><strong>Top 10 Objections Drill (20 min):</strong> HM says the fan&rsquo;s objection &rarr; recruit must respond with the correct script in-character. Fast-paced, no hesitation. Cover: /price, /discount, /free, /nomoney, /nosex, /real.</li>
-        <li><strong>Custom Sales TPDs Practice (15 min):</strong> HM plays a fan asking for a custom &rarr; recruit executes full TPDs (Teasing &rarr; Price &rarr; Distraction Shift). Practice with 2-3 scenarios. Include Fake Discount technique.</li>
-        <li><strong>Multitasking Scenario (15 min):</strong> Present 4 fans messaging at once. Recruit must: rank priority, write first response to each, explain reasoning.</li>
-        <li><strong>Full Simulation (45 min, one-by-one):</strong> Each recruit does a complete conversation: New sub &rarr; Rapport &rarr; Teasing &rarr; Sexting &rarr; PPV &rarr; handle objection &rarr; NR wave &rarr; Aftercare &rarr; Custom pitch. HM plays the fan. Detailed feedback after each.</li>
-        <li><strong>Shift Routine Review (10 min):</strong> Walk through start checklist + handoff checklist. Emphasize: &ldquo;the next chatter should pick up without asking questions.&rdquo;</li>
+        <li>Rapid verbal checks + role-play by journey phase</li>
+        <li>Applied script usage inside Infloww scenarios</li>
+        <li>Error correction in real time and pass/fail decision</li>
       </ul>
-    </div>
-
-    <div class="rule-box" style="margin-left: 0;">
-      <strong>HM Assessment Checklist &mdash; Live Practice</strong><br>
-      <div class="checklist-item">Recruit can navigate Infloww independently (inbox, fan insights, vault, PPV history)</div>
-      <div class="checklist-item">Recruit can use the Script Dashboard (find scripts, copy, search)</div>
-      <div class="checklist-item">Recruit identifies content colors correctly (green = paid, grey = seen, red = unpaid PPV)</div>
-      <div class="checklist-item">Recruit classifies fans as New Sub or Time Waster using Fan Insights</div>
-      <div class="checklist-item">Recruit handles objections using correct scripts without hesitation</div>
-      <div class="checklist-item">Recruit executes TPDs correctly for custom sales (including Fake Discount)</div>
-      <div class="checklist-item">Recruit demonstrates proper fan prioritization under pressure</div>
-      <div class="checklist-item">Recruit completes full simulation with acceptable quality</div>
-      <div class="checklist-item">Recruit stays in character throughout all exercises</div>
-      <div class="checklist-item">Recruit participates actively (mic on, asks questions, engages)</div>
-    </div>
-
-    <div class="task-block">
-      <h4>Practice Day Message (copy-paste)</h4>
-      <div class="msg-template">Great work on the live practice session!
-
-Before the final exam, you get TWO PRACTICE DAYS to reinforce everything you've learned.
-
-Practice Day 1: {date_day1}
-Practice Day 2: {date_day2}
-
-What happens:
-- You'll have access to Infloww to practice with real fans
-- I'll monitor your chats but will NOT intervene unless critical
-- Apply everything: scripts, journey phases, objections, TPDs, aftercare, fan prioritization
-- Day 1 = practice + feedback. Day 2 = apply corrections + prove you're ready.
-
-What to prepare before Practice Day 1:
-1. Re-read the Chatting School (especially modules you struggled with)
-2. Review your notes from the live practice session
-3. Have the Script Dashboard open and ready
-4. Know your model's persona inside out
-
-After both Practice Days: FINAL EXAM.
-
-— The Chatting Wizard Team</div>
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- PHASE 4: PRACTICE DAY 1 -->
-  <!-- ============================================================ -->
   <div class="phase">
     <div class="phase-header">
-      <span class="phase-badge f3">PHASE 4</span>
-      <h2>Practice Day 1</h2>
+      <span class="phase-badge d4">DAY 4</span>
+      <h2>Advanced Training</h2>
     </div>
 
     <div class="task-block">
-      <h4>Objective</h4>
-      <p>First hands-on practice in Infloww. The recruit applies everything from the school and the live practice session with real fans. HM monitors and gives detailed feedback. This is where the recruit discovers their weak spots.</p>
+      <h4>Focus</h4>
+      <p>Objections, customs (TPDs), game sequences, multitasking, and operational discipline.</p>
     </div>
 
     <div class="task-block">
-      <h4>Why Two Practice Days</h4>
+      <h4>Live Session Format</h4>
       <ul>
-        <li>The live practice session (Phase 3) is guided and structured &mdash; the HM leads each exercise</li>
-        <li>The exam (Phase 6) is unassisted &mdash; zero help</li>
-        <li><strong>Day 1</strong> = first real exposure &mdash; recruit discovers weak spots, gets feedback</li>
-        <li><strong>Day 2</strong> = apply corrections &mdash; recruit proves they can improve and perform consistently</li>
-        <li>Two days of practice before the exam builds confidence and catches problems early</li>
+        <li>Top objections drill (speed + script accuracy)</li>
+        <li>Custom sales simulation and pricing logic</li>
+        <li>Multitasking pressure scenario</li>
       </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>Practice Day Structure</h4>
-      <p><strong>Important:</strong> This is NOT a full shift. Keep blocks short so the HM can handle multiple recruits and give quality feedback. Adjust timing based on the number of recruits in the batch.</p>
-      <ul>
-        <li><strong>Practice Block 1 (1-2 hours):</strong>
-          <ul>
-            <li>Recruit logs into Infloww independently</li>
-            <li>Follows the full <strong>Shift Start Checklist</strong> (read handoff notes, open unread, prioritize)</li>
-            <li>Chats with real fans &mdash; applies scripts, journey phases, objection handling</li>
-            <li>HM monitors passively (reads chats in real time but does NOT intervene unless something critical happens)</li>
-            <li>Recruit handles everything: new subs, time wasters, NR waves, PPV drops, aftercare</li>
-          </ul>
-        </li>
-        <li><strong>Feedback Session (30 min &ndash; 1 hour):</strong>
-          <ul>
-            <li>HM reviews the conversations with the recruit</li>
-            <li>Points out: what went well, what needs improvement, specific mistakes</li>
-            <li>Quick drill on weak areas (e.g., if objection handling was shaky &rarr; practice 3 objections)</li>
-            <li>Recruit asks any remaining questions</li>
-            <li><strong>Tip:</strong> Use Fireflies AI to auto-generate a personalized feedback summary from the session, then add your own observations on things not discussed live</li>
-          </ul>
-        </li>
-        <li><strong>Practice Block 2 (1-2 hours):</strong>
-          <ul>
-            <li>Recruit continues chatting with corrections applied</li>
-            <li>HM monitors less actively &mdash; only checks periodically</li>
-            <li>Focus on: speed improvement, multitasking, consistency</li>
-            <li>Recruit writes <strong>full handoff notes</strong> at the end (this is assessed)</li>
-          </ul>
-        </li>
-        <li><strong>End-of-Day Feedback (15 min):</strong>
-          <ul>
-            <li>HM gives assessment: what went well, what needs work</li>
-            <li>Specific areas to focus on for Practice Day 2</li>
-            <li>Send Day 1 Feedback Message (below)</li>
-          </ul>
-        </li>
-      </ul>
-    </div>
-
-    <div class="admin-tip">
-      <strong>Fireflies AI Tip:</strong> Record the feedback sessions with Fireflies. After the session, Fireflies generates a summary with key points discussed. Use this as the base for the personalized feedback in the Exam Prep Message &mdash; then add your own notes on things you observed but didn&rsquo;t mention during the live session. This saves time and ensures nothing is missed, especially when handling multiple recruits.
-    </div>
-
-    <div class="rule-box" style="margin-left: 0;">
-      <strong>HM Rules for Practice Day</strong><br>
-      1. <strong>Do NOT intervene</strong> unless the recruit is about to break a banned topic rule or send something critically wrong.<br>
-      2. <strong>Take notes</strong> on everything you observe &mdash; you&rsquo;ll use these in the debrief.<br>
-      3. <strong>Let them struggle</strong> &mdash; the goal is to see how they handle things on their own.<br>
-      4. <strong>Debrief is key</strong> &mdash; this is where learning happens. Be specific: &ldquo;In the conversation with Fan X, you should have used /price instead of lowering the price.&rdquo;<br>
-      5. <strong>Assess handoff notes</strong> &mdash; if the notes are weak, the recruit is not ready.
-    </div>
-
-    <div class="admin-tip">
-      <strong>Admin Dashboard Tip:</strong> During Practice Day, keep the Admin Panel open to cross-reference the recruit&rsquo;s quiz scores with their actual performance. If they scored 100% on quizzes but perform poorly in practice, they may have memorized answers without understanding.
-    </div>
-
-    <div class="task-block">
-      <h4>Day 1 Feedback Message (copy-paste, send after Practice Day 1)</h4>
-      <div class="msg-template">Practice Day 1 is done! Here's my feedback:
-
-{personalized_feedback}
-
-Tomorrow is Practice Day 2. Focus on:
-1. The areas I flagged above — these are your priority
-2. Re-read the specific school modules related to your weak spots
-3. Review your notes from today
-
-Day 2 is your chance to show you can apply corrections. I'll be monitoring more closely on the areas that needed work today.
-
-Practice Day 2: {date} at {time}
-
-Come prepared — after Day 2, the FINAL EXAM follows.
-— The Chatting Wizard Team</div>
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- PHASE 5: PRACTICE DAY 2 -->
-  <!-- ============================================================ -->
   <div class="phase">
     <div class="phase-header">
-      <span class="phase-badge f3">PHASE 5</span>
-      <h2>Practice Day 2</h2>
+      <span class="phase-badge d5">DAY 5</span>
+      <h2>Go Live Training + Exam Readiness</h2>
     </div>
 
     <div class="task-block">
-      <h4>Objective</h4>
-      <p>Second practice day. The recruit applies the corrections from Day 1. HM monitors with extra attention on the weak areas identified. By the end of this day, the recruit should demonstrate they can improve and perform consistently. This is the final gate before the exam.</p>
+      <h4>Focus</h4>
+      <p>Final prep day to verify readiness for exam-day interview + full assessment.</p>
     </div>
 
     <div class="task-block">
-      <h4>Practice Day 2 Structure</h4>
-      <p><strong>Same format as Day 1</strong>, but with higher expectations. The recruit already knows the environment &mdash; today is about proving they can improve.</p>
+      <h4>HM Decision</h4>
       <ul>
-        <li><strong>Practice Block 1 (1-2 hours):</strong>
-          <ul>
-            <li>Recruit logs into Infloww and follows Shift Start Checklist</li>
-            <li>Chats with real fans &mdash; HM pays special attention to Day 1 weak areas</li>
-            <li>HM monitors passively (same as Day 1)</li>
-          </ul>
-        </li>
-        <li><strong>Feedback Session (30 min &ndash; 1 hour):</strong>
-          <ul>
-            <li>Compare with Day 1: did the weak areas improve?</li>
-            <li>Highlight improvements (positive reinforcement)</li>
-            <li>Flag any remaining issues</li>
-            <li><strong>Tip:</strong> Use Fireflies AI for automatic feedback summary + add your own observations</li>
-          </ul>
-        </li>
-        <li><strong>Practice Block 2 (1-2 hours):</strong>
-          <ul>
-            <li>Recruit continues with final corrections applied</li>
-            <li>HM monitors even less &mdash; simulating exam conditions</li>
-            <li>Focus on: independence, consistency, speed</li>
-            <li>Recruit writes <strong>full handoff notes</strong> at the end (assessed)</li>
-          </ul>
-        </li>
-        <li><strong>End-of-Day Assessment (15 min):</strong>
-          <ul>
-            <li>HM gives final verdict: ready for exam or not?</li>
-            <li>If NOT ready: consider extending practice or removing recruit</li>
-            <li>If ready: send Exam Prep Message (below)</li>
-          </ul>
-        </li>
-      </ul>
-    </div>
-
-    <div class="rule-box" style="margin-left: 0;">
-      <strong>Day 2 vs Day 1 &mdash; Key Differences</strong><br>
-      1. <strong>Higher expectations</strong> &mdash; the recruit already received feedback. No excuses for repeating the same mistakes.<br>
-      2. <strong>Less hand-holding</strong> &mdash; Block 2 simulates exam conditions (HM barely intervenes).<br>
-      3. <strong>Decision point</strong> &mdash; if the recruit didn&rsquo;t improve from Day 1, they&rsquo;re unlikely to pass the exam. Consider removing them before wasting more time.
-    </div>
-
-    <div class="task-block">
-      <h4>Exam Prep Message (copy-paste, send after Practice Day 2)</h4>
-      <div class="msg-template">Both Practice Days are done! Tomorrow is the FINAL EXAM.
-
-Here's my feedback from today:
-{personalized_feedback}
-
-Before the exam, review:
-1. The ENTIRE Chatting School — focus on areas I flagged above
-2. Your notes from the live practice + both practice days
-3. Make sure you're solid on: banned topics, all journey phases, objections, customs (TPDs + Fake Discount), game sequences, NR waves, fan prioritization, shift routine, mass messages, content colors, personal scripts
-
-The exam has two parts:
-Part 1: Written quiz on the school website (20 questions, 80% to pass)
-Part 2: Live chatting in Infloww (unassisted, I observe but give ZERO help)
-
-No help will be provided during the exam. Come 100% prepared.
-
-Exam: {date} at {time}
-
-You've got this. Give it everything!
-— The Chatting Wizard Team</div>
-    </div>
-
-    <div class="task-block">
-      <h4>Mileh&rsquo;s Post-Practice Day 2 Actions</h4>
-      <ul>
-        <li>Send the Exam Prep Message above (personalize feedback using Fireflies summary + your own notes)</li>
-        <li>Create the recruit&rsquo;s <strong>onboarding task in Monday</strong>: go to the Onboarding board &rarr; create a new item with the recruit&rsquo;s name &rarr; this tracks all remaining steps through probation</li>
-        <li>Verify the recruit&rsquo;s Infloww account is active and has the correct training model assigned</li>
-        <li>Confirm exam time with the recruit</li>
+        <li><strong>Pass Day 5:</strong> recruit proceeds to exam day</li>
+        <li><strong>Fail Day 5:</strong> deactivate</li>
       </ul>
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- PHASE 6: FINAL EXAM -->
-  <!-- ============================================================ -->
   <div class="phase">
     <div class="phase-header">
-      <span class="phase-badge f4">PHASE 6</span>
-      <h2>Final Exam</h2>
+      <span class="phase-badge exam">EXAM DAY</span>
+      <h2>Interview + Final Assessment</h2>
     </div>
 
     <div class="task-block">
-      <h4>Objective</h4>
-      <p>Validate comprehensive knowledge and ability to execute independently. Pass/fail gate before the supervised shift and probation.</p>
-    </div>
-
-    <div class="task-block">
-      <h4>Part 1: Written Quiz (15 min)</h4>
+      <h4>Order of Evaluation</h4>
       <ul>
-        <li>The recruit takes the <strong>Final Quiz (g-2)</strong> on the Chatting School website</li>
-        <li>20 questions covering all sections: Foundations, Tools, Journey, Advanced</li>
-        <li>Topics: banned topics, journey phases, script selection, branch rules, fan prioritization, TPDs, pricing, shift routine, mass messages, content colors, personal scripts, Vault Pro</li>
-        <li><strong>Pass: 80% (16/20 correct)</strong></li>
-        <li>If fail: can retake ONCE (button says &ldquo;Try Again&rdquo;). Second fail = removed.</li>
-      </ul>
-    </div>
-
-    <div class="admin-tip">
-      <strong>Admin Dashboard Tip:</strong> You can see the recruit&rsquo;s quiz score in real time. Go to Students &rarr; click their name &rarr; see quiz results. The Final Quiz result will show immediately after they submit.
-    </div>
-
-    <div class="task-block">
-      <h4>Part 2: Live Chatting Exam (1-2 hours)</h4>
-      <ul>
-        <li>Recruit chats in Infloww <strong>unassisted</strong> &mdash; handle real fans independently</li>
-        <li>HM observes but provides <strong>ZERO input, coaching, or intervention</strong></li>
-        <li>Scoring rubric (each 1-5):</li>
-        <li>&mdash; Script adherence: Did they use scripts correctly?</li>
-        <li>&mdash; Character consistency: Did they stay in-model?</li>
-        <li>&mdash; Fan assessment: Did they prioritize correctly?</li>
-        <li>&mdash; Response speed: Under 2 minutes?</li>
-        <li>&mdash; Problem solving: How did they handle unexpected situations?</li>
-        <li><strong>Pass: Average score 3.5/5 or higher, no category below 2</strong></li>
+        <li><strong>Part 1 — Interview (moved here):</strong> motivation, ownership, communication quality, professionalism</li>
+        <li><strong>Part 2 — Written Quiz:</strong> school final quiz threshold</li>
+        <li><strong>Part 3 — Live practical exam in Infloww:</strong> unassisted execution</li>
       </ul>
     </div>
 
     <div class="task-block">
-      <h4>Mileh&rsquo;s Post-Exam Actions</h4>
+      <h4>Final Decision</h4>
       <ul>
-        <li><strong>Passed:</strong> Update Airtable &rarr; <strong>Probation</strong>. Assign to a TL. Send Congrats message. Coordinate handover with Rycel via Telegram.</li>
-        <li><strong>Failed:</strong> Explain specific failure points. Remove from Discord.</li>
+        <li><strong>Pass:</strong> move to probation setup and onboarding handoff</li>
+        <li><strong>Fail:</strong> deactivate and remove from training pipeline</li>
       </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>Handover to Rycel (Telegram format)</h4>
-      <div class="msg-template">NEW CHATTER READY FOR PROBATION
-
-Name: {name}
-Email: {email}
-Discord: {discord_username}
-
-Written Quiz: {score}/20 ({percentage}%)
-Live Exam: {avg_score}/5
-
-Strengths: {list strengths}
-Areas to watch: {list weaknesses}
-
-Please assign to a TL and confirm.</div>
-    </div>
-
-    <div class="task-block">
-      <h4>Congrats + Probation Message (copy-paste)</h4>
-      <div class="msg-template">Congratulations! You passed the exam and are now entering the probation period.
-
-Here's what happens next:
--------------------------------------------
-14-Day Probation Period
-Your Team Leader: {TL_name}
--------------------------------------------
-
-During probation:
-- You will chat independently with real fans
-- Your TL will review your chats and give feedback every 2 days
-- You must maintain: reply time < 2 min, script adherence, in-character consistency
-- Week 1: Your TL monitors closely. Ask questions if unsure — it's better to ask than to guess.
-- Week 2: More independence. KPI tracking begins.
-
-Continue studying the **Ongoing Development** section in the Chatting School (Week 2-5 modules). These cover advanced objection handling, upselling, psychology techniques, and KPI mastery.
-
-At the end of 14 days, your TL will decide pass/fail based on:
-- Chat quality
-- KPI performance (Sales/hr, Messages/hr, Reply Time)
-- Improvement over the 2 weeks
-- Attitude and professionalism
-
-This is your chance to prove yourself. Give it everything.
-
-Welcome to Chatting Wizard!
-— The Chatting Wizard Team</div>
-    </div>
-
-    <div class="task-block">
-      <h4>Onboarding Setup Message (copy-paste, send when recruit passes exam)</h4>
-      <div class="msg-template">Welcome aboard! Here are all your onboarding links and access:
-
-1. **Infloww** (your chatting platform): https://app.infloww.com
-   Login: {email} / Password: {password}
-
-2. **Chatting School** (ongoing learning): https://hub.chattingwizard.com/school
-   Continue studying the Ongoing Development section during probation.
-
-3. **Script Dashboard** (all model scripts): https://hub.chattingwizard.com/scripts
-
-4. **Discord** — Stay active in your team channel. Use VOICE for questions with your TL, not text.
-
-5. **Hubstaff** (time tracking): Your TL will send you the install link.
-
-Your Team Leader is: {TL_name}
-Your assigned models: {model_names}
-
-Start date: {start_date}
-Shift: {shift_time}
-
-Your TL will reach out before your first shift. Ask them anything you need.
-
-— The Chatting Wizard Team</div>
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- PHASE 7: PROBATION -->
-  <!-- ============================================================ -->
   <div class="phase">
     <div class="phase-header">
       <span class="phase-badge prob">14 DAYS</span>
-      <h2>Phase 7: Probation Period</h2>
+      <h2>Probation</h2>
     </div>
 
     <div class="task-block">
-      <h4>Ownership Transfer: Mileh &rarr; Rycel + TL</h4>
-      <p>After the exam, Mileh hands off to Rycel (Chatter Manager) who assigns the recruit to a Team Leader. From this point, the TL owns the recruit&rsquo;s development.</p>
-      <ul>
-        <li>Mileh sends handover to Rycel via Telegram (format above)</li>
-        <li>Rycel assigns to TL based on shift availability and team balance</li>
-        <li>TL takes over: coaching, monitoring, and pass/fail decision</li>
-      </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>Week 1: Close Monitoring</h4>
-      <ul>
-        <li>TL assigns 2-3 models (reduced workload &mdash; enough for real traffic, current average is 4-5 per chatter)</li>
-        <li>TL reviews chats daily in the first 3 days</li>
-        <li>Coaching sessions: Day 2, Day 4, Day 6 of probation</li>
-        <li>Focus: script adherence, character consistency, reply speed</li>
-        <li>Recruit studies <strong>Ongoing Development</strong> modules in the school (Week 2: Advanced Objections, Week 3: Customs &amp; Upselling)</li>
-        <li><strong>Red flag triggers:</strong> consistent reply time &gt;3 min, breaking character, ignoring scripts, banned topic incident</li>
-      </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>Week 2: Building Independence</h4>
-      <ul>
-        <li>TL increases workload to normal (full model assignments)</li>
-        <li>Coaching sessions: Day 8, Day 10, Day 12 of probation</li>
-        <li>KPI tracking begins: Sales/hr, Messages/hr, Reply Time, CVR</li>
-        <li>Focus: consistency, sales improvement, handling difficult situations</li>
-        <li>Recruit continues <strong>Ongoing Development</strong> modules (Week 4: Psychology &amp; Mirroring, Week 5: KPI Mastery)</li>
-      </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>Day 14: Pass/Fail Decision</h4>
-      <ul>
-        <li>TL submits probation report to Rycel with: KPI averages, quality assessment, improvement trajectory, recommendation</li>
-        <li><strong>Pass criteria:</strong></li>
-        <li>&mdash; Sales/hr &ge; $20 (or clear upward trend)</li>
-        <li>&mdash; Reply time consistently &lt; 2 min</li>
-        <li>&mdash; No banned topic violations</li>
-        <li>&mdash; Script adherence &ge; 70%</li>
-        <li>&mdash; Positive improvement trajectory</li>
-        <li><strong>Fail criteria:</strong></li>
-        <li>&mdash; Sales/hr &lt; $15 with no improvement</li>
-        <li>&mdash; Repeated character breaks</li>
-        <li>&mdash; Ignoring TL coaching</li>
-        <li>&mdash; Banned topic violations</li>
-        <li>Rycel makes final call. If edge case &rarr; extend probation 7 days.</li>
-      </ul>
+      <h4>Ownership</h4>
+      <p>After exam pass, HM hands off to Chatter Manager / Team Leader for 14-day probation operations.</p>
     </div>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- QUICK REFERENCE: ADMIN DASHBOARD GUIDE -->
-  <!-- ============================================================ -->
   <div class="phase">
     <div class="phase-header">
       <span class="phase-badge" style="background:#2563eb;">REF</span>
-      <h2>Quick Reference: Admin Dashboard for Hiring</h2>
+      <h2>Quick Admin Checklist (V1)</h2>
     </div>
 
     <div class="task-block">
-      <h4>Setting Up a New Batch</h4>
+      <h4>Daily Flow</h4>
       <ol style="padding-left:18px; font-size:0.88rem; color:var(--text-light);">
-        <li>Go to <strong>Admin Panel &rarr; Invites tab</strong></li>
-        <li>Enter a group name: e.g., <strong>&ldquo;Batch-Mar-2026&rdquo;</strong></li>
-        <li>Enter max uses: e.g., <strong>10</strong> (number of recruits in this batch)</li>
-        <li>Click <strong>Generate Code</strong></li>
-        <li>Copy the code and include it in your Welcome Message</li>
+        <li>Post next-day prep message in Discord with exact start time</li>
+        <li>Before session start: verify module is 100% complete</li>
+        <li>Run live training + assessment for that day</li>
+        <li>In Admin: <strong>Pass Day &amp; Unlock Next</strong> OR <strong>Fail &amp; Deactivate</strong></li>
+        <li>Repeat until Day 5, then run exam-day interview + assessment</li>
       </ol>
     </div>
 
     <div class="task-block">
-      <h4>Monitoring Recruit Progress</h4>
+      <h4>Data Source of Truth</h4>
       <ul>
-        <li><strong>Dashboard tab:</strong> Select your batch group in the dropdown. The funnel shows how many recruits completed each section. Hover over bars to see names.</li>
-        <li><strong>Students tab:</strong> Filter by group. Click any student to see their full profile: sections unlocked, quiz scores, completion history.</li>
-        <li><strong>Invites tab:</strong> See how many people used the invite code. Hover to see who.</li>
+        <li><strong>Discord:</strong> training schedule and communicated deadlines</li>
+        <li><strong>School Admin Panel:</strong> progress, manual day gates, deactivation decisions</li>
       </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>Key Checkpoints to Monitor</h4>
-      <ul>
-        <li><strong>After 24h:</strong> Did they register and start Foundations?</li>
-        <li><strong>After 48h:</strong> Did they pass t-1 (Foundations Review Quiz)? &rarr; If yes, schedule interview.</li>
-        <li><strong>After interview + 1 day:</strong> Did they start The Journey section?</li>
-        <li><strong>After interview + 3 days:</strong> Did they pass g-1 (Advanced Review Quiz)? &rarr; If yes, schedule live practice.</li>
-        <li><strong>After live practice:</strong> Did they pass g-2 (Final Quiz)? Check score in Students tab.</li>
-      </ul>
-    </div>
-
-    <div class="task-block">
-      <h4>School Module Map (38 modules total)</h4>
-      <p style="font-size:0.82rem; line-height:1.7;">
-        <strong>Foundations (6):</strong> Welcome, Who is CW, OnlyFans + Money, Your Role, Banned Topics, Foundations Review<br>
-        <strong>Tools &amp; Scripts (9):</strong> Foundations Review Quiz, Infloww Walkthrough, Vault Pro Guide, Scripts 101, Script Dashboard &amp; Personal Scripts, Mass Messages, Model Personas, Journey + PPV Ladder, 48-Hour Rule<br>
-        <strong>The Journey (7):</strong> Tools Review Quiz, Rapport &amp; Teasing, Sexting &amp; PPV, Aftercare, Branch Rules &amp; NR, Fan Assessment, Annotated Chats<br>
-        <strong>Advanced (8):</strong> Journey Review Quiz, Objection Scripts, Customs (TPDs), Game Sequences, Multitasking, Shift Routine, Common Mistakes, Full Simulation<br>
-        <strong>Go Live (3):</strong> Advanced Review Quiz, Final Quiz (20q), Supervised Shift<br>
-        <strong>Ongoing (4):</strong> Week 2: Objections, Week 3: Upselling, Week 4: Psychology &amp; Mirroring, Week 5: KPIs
-      </p>
     </div>
   </div>
 
 </div>
 
-<!-- Footer -->
 <div class="footer">
   <img src="logo.png" alt="Chatting Wizard" class="footer-logo">
-  <p>Chatting Wizard &mdash; Hiring Workflow v2.0</p>
+  <p>Chatting Wizard — Hiring Workflow v3.0 (Manual Daily Gates)</p>
   <p style="margin-top:4px;">&copy; 2026 Chatting Wizard. Internal document.</p>
 </div>
 
