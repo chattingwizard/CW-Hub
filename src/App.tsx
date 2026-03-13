@@ -270,7 +270,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/hiring-workflow"
               element={
-                <ProtectedRoute roles={['owner', 'admin']}>
+                <ProtectedRoute roles={['owner', 'admin', 'hiring_manager']}>
                   <HiringWorkflow />
                 </ProtectedRoute>
               }
@@ -341,7 +341,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/school"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'chatter', 'recruit']}>
+                <ProtectedRoute roles={['owner', 'admin', 'hiring_manager', 'team_leader', 'chatter', 'recruit']}>
                   <School />
                 </ProtectedRoute>
               }
@@ -349,7 +349,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/knowledge-base"
               element={
-                <ProtectedRoute roles={['owner', 'admin', 'team_leader', 'script_manager', 'va', 'chatter']}>
+                <ProtectedRoute roles={['owner', 'admin', 'hiring_manager', 'team_leader', 'script_manager', 'va', 'chatter']}>
                   <KnowledgeBase />
                 </ProtectedRoute>
               }
@@ -376,7 +376,7 @@ function AppRoutes({ passwordRecovery, profile }: { passwordRecovery: boolean; p
             <Route
               path="/settings"
               element={
-                <ProtectedRoute roles={['owner', 'admin']}>
+                <ProtectedRoute roles={['owner', 'admin', 'hiring_manager']}>
                   <Settings />
                 </ProtectedRoute>
               }

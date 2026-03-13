@@ -3,6 +3,7 @@ import type { UserRole } from '../types';
 export const ROLE_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
   admin: 'Admin',
+  hiring_manager: 'Hiring Manager',
   team_leader: 'Team Leader',
   script_manager: 'Script Manager',
   va: 'VA',
@@ -11,12 +12,12 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 export const ALL_ROLES: UserRole[] = [
-  'owner', 'admin', 'team_leader',
+  'owner', 'admin', 'hiring_manager', 'team_leader',
   'script_manager', 'va', 'chatter', 'recruit',
 ];
 
 const MANAGEMENT: UserRole[] = ['owner', 'admin', 'team_leader'];
-const LEADERSHIP: UserRole[] = ['owner', 'admin'];
+const LEADERSHIP: UserRole[] = ['owner', 'admin', 'hiring_manager'];
 
 export function isManagement(role: UserRole): boolean {
   return MANAGEMENT.includes(role);
@@ -38,6 +39,8 @@ export function getDefaultPath(role: UserRole): string {
     case 'admin':
     case 'team_leader':
       return '/coaching-queue';
+    case 'hiring_manager':
+      return '/hiring-workflow';
     case 'script_manager':
       return '/model-info';
     case 'va':

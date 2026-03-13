@@ -7,6 +7,7 @@
 export type UserRole =
   | 'owner'
   | 'admin'
+  | 'hiring_manager'
   | 'team_leader'
   | 'script_manager'
   | 'va'
@@ -405,7 +406,7 @@ export interface HubModule {
   disabled?: boolean;
   external?: boolean;
   dividerBefore?: boolean;
-  section?: 'main' | 'coaching' | 'tools' | 'system';
+  section?: 'main' | 'coaching' | 'scripts' | 'training' | 'tools' | 'system';
 }
 
 // ── Tasks ───────────────────────────────────────────────────

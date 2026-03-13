@@ -18,6 +18,7 @@ type StatusFilter = 'all' | 'active' | 'inactive';
 const ROLE_LABELS: Record<UserRole, string> = {
   owner: 'Owner',
   admin: 'Admin',
+  hiring_manager: 'Hiring Manager',
   team_leader: 'Team Leader',
   script_manager: 'Script Manager',
   va: 'VA',
@@ -28,6 +29,7 @@ const ROLE_LABELS: Record<UserRole, string> = {
 const ROLE_COLORS: Record<string, string> = {
   owner: 'bg-cw/15 text-cw border-cw/30',
   admin: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+  hiring_manager: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   team_leader: 'bg-orange-500/15 text-orange-400 border-orange-500/30',
   script_manager: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
   va: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
@@ -37,7 +39,7 @@ const ROLE_COLORS: Record<string, string> = {
 
 const ROLE_OPTIONS = Object.entries(ROLE_LABELS) as [UserRole, string][];
 
-const canManageUsers = (role?: UserRole) => role === 'owner' || role === 'admin';
+const canManageUsers = (role?: UserRole) => role === 'owner' || role === 'admin' || role === 'hiring_manager';
 
 export default function Settings() {
   const { profile } = useAuthStore();
